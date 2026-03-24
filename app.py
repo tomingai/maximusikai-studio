@@ -5,13 +5,12 @@ import time
 import datetime
 
 # --- 1. SETUP & SESSION STATE ---
-st.set_page_config(page_title="MAXIMUSIKAI SPEED PRO", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="MAXIMUSIKAI SPEED PRO 2026", page_icon="⚡", layout="wide")
 
-# Initiera listor för att undvika tomma flikar
 if "gallery" not in st.session_state: st.session_state.gallery = []
 if "community_feed" not in st.session_state: st.session_state.community_feed = []
 
-# --- 2. DEN STORA DESIGN-MOTORN (TVINGA FRAM SYNLIGHET) ---
+# --- 2. DEN STORA DESIGN-MOTORN (2026 EDITION) ---
 st.markdown("""
     <style>
     /* Bakgrund */
@@ -20,12 +19,20 @@ st.markdown("""
         color: white !important;
     }
     
-    /* FIXA SYNLIGHET I SIDOMENYN */
-    [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label p {
+    /* FIXA SYNLIGHET I SIDOMENYN - EXTRA LILA NEON */
+    [data-testid="stSidebar"] .stMarkdown h3, [data-testid="stSidebar"] label p {
         color: #bf00ff !important;
         font-weight: 900 !important;
         text-transform: uppercase;
-        font-size: 14px !important;
+        font-size: 16px !important;
+        text-shadow: 0 0 10px rgba(191, 0, 255, 0.5);
+    }
+    
+    /* INPUT-FÄLT I SIDOMENYN */
+    [data-testid="stSidebar"] input {
+        color: #bf00ff !important;
+        background-color: rgba(191, 0, 255, 0.05) !important;
+        border: 1px solid #bf00ff !important;
     }
 
     /* FIXA FLIKARNA (TABS) - KRITVITA */
@@ -37,7 +44,7 @@ st.markdown("""
     button[data-baseweb="tab"] div p {
         color: #FFFFFF !important; 
         font-weight: 900 !important;
-        font-size: 22px !important;
+        font-size: 24px !important;
         text-transform: uppercase;
     }
     button[aria-selected="true"] div p {
@@ -66,10 +73,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# TITEL (Alltid synlig)
 st.markdown('<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p></div>', unsafe_allow_html=True)
 
-# --- 3. SIDOMENY (TVINGA FRAM) ---
+# --- 3. SIDOMENY ---
 with st.sidebar:
     st.markdown("### 👤 ARTIST")
     artist_name = st.text_input("DITT NAMN:", "ANONYM ARTIST")
@@ -77,7 +83,7 @@ with st.sidebar:
     st.markdown("### 🎨 STIL")
     mood = st.radio("VÄLJ MOOD:", ["Cyberpunk", "Retro VHS", "Lo-fi Dreams"])
 
-# --- 4. HUVUDAPPEN (KOLLA API) ---
+# --- 4. HUVUDAPPEN ---
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
     
@@ -91,26 +97,17 @@ if "REPLICATE_API_TOKEN" in st.secrets:
             if st.button("🚀 STARTA PRODUKTION"):
                 with st.status("🏗️ MAXIMUSIKAI BYGGER...") as status:
                     try:
-                        # BILD
                         status.write("🎨 Skapar bild...")
-                        img = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
-                        img_url = img[0] if isinstance(img, list) else img
-                        
-                        # PAUS
+                        img_output = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
+                        img_url = img_output if isinstance(img_output, str) else img_output
                         time.sleep(6)
-                        
-                        # VIDEO
                         status.write("📽️ Animerar...")
                         video_url = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic movement", "image_url": img_url})
-                        
-                        # SPARA
                         st.session_state.gallery.append({"name": m_ide[:20], "video": video_url, "time": datetime.datetime.now().strftime("%H:%M")})
-                        
                         status.update(label="✅ KLART!", state="complete")
                         with c2: st.video(video_url)
-                    except Exception as e: st.error(f"Ett fel uppstod: {e}")
+                    except Exception as e: st.error(f"Fel: {e}")
 
-    # --- FLIK 2: REGISSÖREN ---
     with tab2:
         up_file = st.file_uploader("LADDA UPP BILD:", type=["jpg", "png", "jpeg"])
         if up_file and st.button("⚡ ANIMERA DIN BILD"):
@@ -118,7 +115,6 @@ if "REPLICATE_API_TOKEN" in st.secrets:
                 res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Slow cinematic zoom", "image_url": up_file})
                 st.video(res)
 
-    # --- FLIK 3: BARA MUSIK ---
     with tab3:
         mu_ide = st.text_input("BESKRIV MUSIKEN:", "Cyberpunk techno beat")
         if st.button("🎵 SKAPA LJUD"):
@@ -126,13 +122,11 @@ if "REPLICATE_API_TOKEN" in st.secrets:
                 mu_res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_ide, "duration": 8})
                 st.audio(mu_res)
 
-    # --- FLIK 4: ARKIV ---
     with tab4:
         for item in reversed(st.session_state.gallery):
             with st.expander(f"📁 {item['name']} ({item['time']})"):
                 st.video(item['video'])
 
-    # --- FLIK 5: COMMUNITY ---
     with tab5:
         st.markdown("### 🌐 COMMUNITY FEED")
         if st.button("DELA SENASTE"):
@@ -142,10 +136,11 @@ if "REPLICATE_API_TOKEN" in st.secrets:
             st.video(post['video'])
 
 else:
-    st.error("⚠️ REPLICATE_API_TOKEN saknas i Streamlit Secrets!")
-    st.info("Gå till Manage app -> Settings -> Secrets och lägg till din nyckel.")
+    st.error("⚠️ REPLICATE_API_TOKEN saknas i Secrets!")
 
-st.markdown("<br><center><small>MAXIMUSIKAI SPEED PRO // 2024</small></center>", unsafe_allow_html=True)
+# UPPDATERAD FOOTER TILL 2026
+st.markdown("<br><center><small>MAXIMUSIKAI SPEED PRO // 2026</small></center>", unsafe_allow_html=True)
+
 
 
 
