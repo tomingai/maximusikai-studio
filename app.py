@@ -29,26 +29,22 @@ def save_data(data):
 if "gallery" not in st.session_state: st.session_state.gallery = load_data()
 if "community_feed" not in st.session_state: st.session_state.community_feed = []
 if "remix_prompt" not in st.session_state: st.session_state.remix_prompt = ""
+if "theme_color" not in st.session_state: st.session_state.theme_color = "#bf00ff"
 
-# --- 2. THEME ENGINE ---
-if "theme_color" not in st.session_state: st.session_state.theme_color = "#bf00ff" # Default Purple
-
-theme_options = {
-    "Neon Purple": "#bf00ff",
-    "Cyber Amber": "#ffaa00",
-    "Electric Blue": "#00f2ff",
-    "Acid Green": "#ccff00"
-}
-
+# --- 2. THEME & LANGUAGES ---
+theme_options = {"Neon Purple": "#bf00ff", "Cyber Amber": "#ffaa00", "Electric Blue": "#00f2ff", "Acid Green": "#ccff00"}
 main_color = st.session_state.theme_color
 
-# --- 3. GLOBAL SPRÅK-ORDBOK ---
 LANG_MAP = {
-    "Svenska": {"t": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED"], "p": "VAD SKALL VI SKAPA?", "b": "STARTA", "a": "ARTIST", "m": "STIL", "v_label": "RÖST (MELODI):", "live": "SENASTE", "remix": "REMIX", "theme": "FÄRGTEMA:"},
-    "English": {"t": ["🪄 MAGIC", "🎬 DIRECT", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED"], "p": "WHAT TO CREATE?", "b": "START", "a": "ARTIST", "m": "MODE", "v_label": "VOICE (MELODY):", "live": "LATEST", "remix": "REMIX", "theme": "THEME COLOR:"}
+    "Svenska": {"t": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED"], "p": "VAD SKALL VI SKAPA?", "b": "STARTA", "a": "ARTIST", "m": "STIL", "dur": "LÄNGD (SEK):", "v_label": "RÖST (MELODI):", "live": "SENASTE", "remix": "REMIX", "warn": "⚠️ VARNING: Lång produktionstid vald!", "ly_instr": "Skriv på svenska."},
+    "English": {"t": ["🪄 MAGIC", "🎬 DIRECT", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED"], "p": "WHAT TO CREATE?", "b": "START", "a": "ARTIST", "m": "MODE", "dur": "DURATION (SEC):", "v_label": "VOICE (MELODY):", "live": "LATEST", "remix": "REMIX", "warn": "⚠️ WARNING: Long production time selected!", "ly_instr": "Write in English."},
+    "Deutsch": {"t": ["🪄 MAGIE", "🎬 REGIE", "🎧 MUSIK", "📚 ARCHIV", "🌐 FEED"], "p": "WAS ERSCHAFFEN?", "b": "STARTEN", "a": "KÜNSTLER", "m": "MODUS", "dur": "DAUER (SEK):", "v_label": "STIMME (MELODIE):", "live": "NEUESTE", "remix": "REMIX", "warn": "⚠️ WARNUNG: Lange Produktionszeit!", "ly_instr": "Schreib auf Deutsch."},
+    "Français": {"t": ["🪄 MAGIE", "🎬 RÉGIE", "🎧 MUSIQUE", "📚 ARCHIVE", "🌐 FEED"], "p": "QUE CRÉER?", "b": "LANCER", "a": "ARTISTE", "m": "MODE", "dur": "DURÉE (SEC):", "v_label": "VOIX (MÉLODIE):", "live": "RÉCENT", "remix": "REMIXER", "warn": "⚠️ ATTENTION: Temps de production long!", "ly_instr": "Écris en français."},
+    "Español": {"t": ["🪄 MAGIA", "🎬 CINE", "🎧 MÚSICA", "📚 ARCHIVE", "🌐 FEED"], "p": "¿QUÉ CREAR?", "b": "INICIAR", "a": "ARTISTA", "m": "MODO", "dur": "DURACIÓN (SEG):", "v_label": "VOZ (MELODÍA):", "live": "RECIENTE", "remix": "REMIX", "warn": "⚠️ ADVERTENCIA: ¡Largo tiempo de producción!", "ly_instr": "Escribe en español."},
+    "Italiano": {"t": ["🪄 MAGIA", "🎬 REGIA", "🎧 MUSICA", "📚 ARCHIVE", "🌐 FEED"], "p": "COSA CREARE?", "b": "AVVIA", "a": "ARTISTA", "m": "MODO", "dur": "DURATA (SEC):", "v_label": "VOCE (MELODIA):", "live": "RECENTI", "remix": "REMIX", "warn": "⚠️ ATTENZIONE: Tempi di produzione lunghi!", "ly_instr": "Scrivi in italiano."}
 }
 
-# --- 4. DESIGN-MOTORN (DYNAMISK FÄRG) ---
+# --- 3. DESIGN ---
 st.markdown(f"""
     <style>
     .stApp, [data-testid="stSidebar"] {{ background: linear-gradient(135deg, #050505 0%, #0b001a 100%) !important; color: white !important; }}
@@ -64,22 +60,29 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. SIDOMENY ---
+# --- 4. SIDOMENY ---
 with st.sidebar:
     st.markdown(f"""<div style="border: 1px solid {main_color}; padding: 10px; border-radius: 10px; text-align: center;"><p style="color:{main_color}; font-weight:900; margin:0; font-size:12px;">MAXIMUSIKAI ENGINE ONLINE</p><p style="color:#555; font-size:9px; margin:0;">TOMAS INGVARSSON PRODUCTION</p></div>""", unsafe_allow_html=True)
     
     sel_lang = st.selectbox("LANG / SPRÅK:", list(LANG_MAP.keys()))
     L = LANG_MAP[sel_lang]
     
-    # Theme Switcher
     chosen_theme = st.selectbox(L["theme"], list(theme_options.keys()))
     if theme_options[chosen_theme] != st.session_state.theme_color:
         st.session_state.theme_color = theme_options[chosen_theme]
         st.rerun()
 
     with st.expander(L["a"]): artist_name = st.text_input("", "ANONYM")
+    
     st.divider()
     mood = st.radio(L["m"], ["Cyberpunk 2077", "Retro VHS 80s", "Lo-fi Dreams", "Dark Techno", "Cinematic Epic", "Synthwave Neon", "Deep Space", "Urban Drill", "Psych Rock", "Minimalist Zen", "Horror Gothic", "Vaporwave"])
+    
+    st.divider()
+    music_duration = st.slider(L["dur"], 10, 240, 10, step=10)
+    
+    # VARNINGS-LOGIK
+    if music_duration > 60:
+        st.error(L["warn"])
     
     if st.session_state.gallery:
         st.divider()
@@ -88,11 +91,11 @@ with st.sidebar:
             st.markdown(f'<div class="live-preview-box">', unsafe_allow_html=True)
             st.video(item['video'])
             st.markdown('</div>', unsafe_allow_html=True)
-    st.caption("MAXIMUSIKAI v2.8.0")
+    st.caption("MAXIMUSIKAI v2.9.5")
 
 st.markdown(f"""<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p><p style="color:{main_color}; letter-spacing: 4px; font-size: 12px; margin-top: -5px; opacity: 0.8;">{sel_lang.upper()} PRO STUDIO</p></div>""", unsafe_allow_html=True)
 
-# --- 6. HUVUDAPPEN ---
+# --- 5. HUVUDAPPEN ---
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
     tab1, tab2, tab3, tab4, tab5 = st.tabs(L["t"])
@@ -105,29 +108,29 @@ if "REPLICATE_API_TOKEN" in st.secrets:
                 with st.status("BUILDING...") as status:
                     try:
                         with ThreadPoolExecutor() as exe:
-                            img_f = exe.submit(replicate.run, "black-forest-labs/flux-schnell", input={{"prompt": f"{{m_ide}}, {{mood}} style"}})
-                            mu_f = exe.submit(replicate.run, "facebookresearch/musicgen", input={{"prompt": f"{{mood}} music", "duration": 8}})
-                            ly_f = exe.submit(replicate.run, "meta/llama-2-70b-chat", input={{"prompt": f"Write 2 short rhyming lines about {{m_ide}}. No intro."}})
+                            img_f = exe.submit(replicate.run, "black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
+                            mu_f = exe.submit(replicate.run, "facebookresearch/musicgen", input={"prompt": f"{mood} music", "duration": music_duration})
+                            ly_f = exe.submit(replicate.run, "meta/llama-2-70b-chat", input={"prompt": f"{L['ly_instr']} Write 2 short rhyming lines about {m_ide}. No intro."})
                             img_url, mu_url, lyrics = str(img_f.result()), str(mu_f.result()), "".join(ly_f.result()).replace('"', '')
-                        vid_url = replicate.run("luma-ai/luma-dream-machine", input={{"prompt": "Cinematic", "image_url": img_url}})
-                        entry = {{"id": time.time(), "name": m_ide[:15], "video": str(vid_url), "audio": mu_url, "lyrics": lyrics, "time": datetime.datetime.now().strftime("%H:%M"), "full_prompt": m_ide}}
+                        vid_url = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic", "image_url": img_url})
+                        entry = {"id": time.time(), "name": m_ide[:15], "video": str(vid_url), "audio": mu_url, "lyrics": lyrics, "time": datetime.datetime.now().strftime("%H:%M"), "full_prompt": m_ide}
                         st.session_state.gallery.append(entry); save_data(st.session_state.gallery)
-                        st.session_state.remix_prompt = ""; status.update(label="COMPLETE!", state="complete"); st.rerun()
-                    except Exception as e: st.error(f"Error: {{e}}")
+                        st.session_state.remix_prompt = ""; st.rerun()
+                    except Exception as e: st.error(f"Error: {e}")
 
     with tab2: # REGI
         up_file = st.file_uploader("UPLOAD IMAGE:", type=["jpg", "png", "jpeg"])
         if up_file and st.button("ANIMATE"):
             with st.status("..."):
-                res = replicate.run("luma-ai/luma-dream-machine", input={{"prompt": "Cinematic motion", "image_url": up_file}})
+                res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic motion", "image_url": up_file})
                 st.video(str(res))
 
     with tab3: # MUSIK
         voice_file = st.file_uploader(L["v_label"], type=["mp3", "wav", "m4a"])
-        mu_ide = st.text_input("PROMPT:", f"{{mood}} beat")
+        mu_ide = st.text_input("PROMPT:", f"{mood} beat")
         if st.button("GENERATE"):
             with st.status("..."):
-                p = {{"prompt": mu_ide, "duration": 10}}
+                p = {"prompt": mu_ide, "duration": music_duration}
                 if voice_file: p["input_audio"] = voice_file
                 st.audio(str(replicate.run("facebookresearch/musicgen", input=p)))
 
@@ -137,14 +140,14 @@ if "REPLICATE_API_TOKEN" in st.secrets:
             with zipfile.ZipFile(buf, "w") as zf: zf.writestr("history.json", json.dumps(st.session_state.gallery))
             st.download_button("DOWNLOAD", data=buf.getvalue(), file_name="maximusikai_pro.zip")
         for item in reversed(st.session_state.gallery):
-            with st.expander(f"📁 {{item['name']}} ({{item['time']}})"):
+            with st.expander(f"📁 {item['name']} ({item['time']})"):
                 st.video(item['video']); st.audio(item['audio'])
                 c_rem, c_del = st.columns(2)
                 with c_rem:
-                    if st.button(f"🔄 {{L['remix']}}", key=f"rem_{{item['id']}}"):
+                    if st.button(f"🔄 {L['remix']}", key=f"rem_{item['id']}"):
                         st.session_state.remix_prompt = item.get('full_prompt', item['name']); st.rerun()
                 with c_del:
-                    if st.button("🗑️", key=f"del_{{item['id']}}"):
+                    if st.button("🗑️", key=f"del_{item['id']}"):
                         st.session_state.gallery = [x for x in st.session_state.gallery if x['id'] != item['id']]
                         save_data(st.session_state.gallery); st.rerun()
 
@@ -152,7 +155,7 @@ if "REPLICATE_API_TOKEN" in st.secrets:
         if st.button("SHARE LATEST"):
             if st.session_state.gallery: st.session_state.community_feed.append(st.session_state.gallery[-1])
         for post in reversed(st.session_state.community_feed):
-            st.divider(); st.video(post['video']); st.caption(f"Artist: {{artist_name}}")
+            st.divider(); st.video(post['video']); st.caption(f"Artist: {artist_name}")
 
 else: st.error("REPLICATE_API_TOKEN MISSING")
 st.markdown("<center><p style='color:#333; font-size:10px;'>MAXIMUSIKAI SPEED PRO // 2026 // T.I.</p></center>", unsafe_allow_html=True)
