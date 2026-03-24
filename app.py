@@ -1,6 +1,17 @@
 import streamlit as st
-import replicate
+import sys
 import os
+
+# --- AKUT-FIX FÖR PYDANTIC / PYTHON 3.14 FELET ---
+# Detta måste ligga absolut först för att försöka laga biblioteket "i luften"
+try:
+    from pydantic.v1 import fields
+    if not hasattr(fields.ModelField, '_type_display'):
+        fields.ModelField._type_display = lambda x: str(x)
+except Exception:
+    pass
+
+import replicate
 import requests
 import time
 from moviepy.editor import VideoFileClip, AudioFileClip, vfx
@@ -11,7 +22,7 @@ st.set_page_config(page_title="MAXIMUSIKAI STUDIO", page_icon="🎵", layout="wi
 
 st.markdown("""
     <style>
-    /* Bakgrunds-animation */
+    /* Animerad mörk bakgrund */
     .stApp {
         background: linear-gradient(125deg, #050505, #0a0a0a, #0b001a, #050505);
         background-size: 400% 400%;
@@ -52,12 +63,11 @@ st.markdown("""
         color: #fff; text-shadow: 0 0 15px #bf00ff, 0 0 40px #bf00ff; margin: 0; 
     }
 
-    /* Snyggare knappar */
+    /* Knappar */
     .stButton>button {
         background: rgba(191, 0, 255, 0.1); color: #bf00ff; 
         border: 2px solid #bf00ff; width: 100%; font-weight: bold; 
         border-radius: 12px; height: 3.5em; text-transform: uppercase;
-        transition: 0.4s;
     }
     .stButton>button:hover {
         background: #bf00ff; color: #000; box-shadow: 0px 0px 40px #bf00ff;
@@ -65,9 +75,9 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.markdown('<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p><p style="color:#bf00ff; letter-spacing: 5px;">AI MUSIC & VIDEO STUDIO</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p></div>', unsafe_allow_html=True)
 
-# HJÄLPFUNKTION FÖR URL
+# HJÄLPFUNKTION
 def get_url(output):
     if isinstance(output, list): return str(output[0])
     if hasattr(output, 'url'): return str(output.url)
@@ -83,31 +93,34 @@ else:
 
 # --- 2. HUVUDMENY ---
 if api_ready:
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🪄 TOTAL MAGI", "🎬 REGISSÖREN", "🎧 BARA MUSIK", "📚 MITT ARKIV", "🌐 COMMUNITY"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🪄 TOTAL MAGI", "🎬 REGISSÖREN", "🎧 BARA MUSIK", "📚 BIBLIOTEK", "🌐 COMMUNITY"])
 
     with tab1:
         c1, c2 = st.columns([1, 1.2])
         with c1:
-            m_ide = st.text_area("VAD SKA VI SKAPA IDAG?", "En futuristisk cyberpunk-stad i neon-lila regn")
+            m_ide = st.text_area("VAD SKALL VI SKAPA IDAG?", "En futuristisk cyberpunk-stad i lila neon-lila regn")
             m_stil = st.selectbox("STIL:", ["Cyberpunk", "Cinematic", "Anime", "Vintage 8mm"])
             
             if st.button("🚀 STARTA FULL MAXI-PRODUKTION"):
                 with st.status("🏗️ MAXIMUSIKAI BYGGER...") as status:
                     try:
                         # 1. Bild
+                        status.write("🎨 Genererar bild...")
                         img_raw = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {m_stil} style", "aspect_ratio": "16:9"})
                         img_url = get_url(img_raw)
                         time.sleep(5)
                         
                         # 2. Text
-                        lyrics_res = replicate.run("meta/llama-2-70b-chat", input={"prompt": f"Write 4 short rhyming lines about: {m_ide}. ONLY lyrics."})
+                        status.write("✍️ Skriver text...")
+                        lyrics_res = replicate.run("meta/llama-2-70b-chat", input={"prompt": f"Write 4 short lines about: {m_ide}. ONLY lyrics.", "max_new_tokens": 100})
                         lyrics = "".join(lyrics_res).replace('"', '').strip()
                         time.sleep(5)
                         
                         # 3. Video
+                        status.write("📽️ Animerar...")
                         v_url = get_url(replicate.run("minimax/video-01", input={"prompt": "Cinematic movement", "first_frame_image": img_url}))
                         
-                        status.update(label="✅ PRODUKTION KLAR!", state="complete")
+                        status.update(label="✅ KLART!", state="complete")
                         with c2:
                             st.video(v_url)
                             st.markdown(f"<div style='background:rgba(20,20,20,0.8); padding:15px; border-left:5px solid #bf00ff;'>{lyrics}</div>", unsafe_allow_html=True)
@@ -116,7 +129,8 @@ if api_ready:
 
     with tab5:
         st.markdown("<h2 style='text-align:center; color:#bf00ff;'>🌐 COMMUNITY HUB</h2>", unsafe_allow_html=True)
-        st.info("Koppla Supabase i framtiden för att se allas musik här!")
+        st.info("Här delar vi allas musik när databasen är på plats!")
 
 st.markdown("<br><center><small>MAXIMUSIKAI // 2024</small></center>", unsafe_allow_html=True)
+True)
 
