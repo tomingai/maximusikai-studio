@@ -28,23 +28,33 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# TITEL MED DITT NAMN
+# TITEL (RENT DESIGN UTAN NAMN)
 st.markdown("""
 <div class="neon-container">
     <p class="neon-title">MAXIMUSIKAI</p>
-    <p style="color:#bf00ff; letter-spacing: 3px; font-size: 14px; margin-top: -10px;">
-        ENGINEERED BY <span style="color:#fff; font-weight:bold;">TOMAS INGVARSSON</span>
+    <p style="color:#bf00ff; letter-spacing: 5px; font-size: 14px; margin-top: -10px; opacity: 0.8;">
+        ULTIMATE PRODUCTION STUDIO PRO
     </p>
 </div>
 """, unsafe_allow_html=True)
 
-# --- 3. SIDOMENY ---
+# --- 3. SIDOMENY (VÄNSTER FLIK) ---
 with st.sidebar:
-    st.markdown("### 👤 ARTIST")
-    artist_name = st.text_input("DITT NAMN:", "ANONYM ARTIST")
+    st.markdown("""
+        <div style="background: rgba(191, 0, 255, 0.05); padding: 15px; border-radius: 15px; border: 1px solid rgba(191, 0, 255, 0.2); margin-bottom: 20px;">
+            <p style="color:#bf00ff; font-weight:900; margin:0; font-size:12px; letter-spacing:1px;">STUDIO STATUS: <span style="color:#00ff00;">● ONLINE</span></p>
+            <p style="color:#555; font-size:10px; margin:0;">ENGINEERED BY TOMAS INGVARSSON</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    with st.expander("👤 ARTIST"):
+        artist_name = st.text_input("DITT NAMN:", "ANONYM ARTIST")
+    
     st.divider()
     st.markdown("### 🎨 STIL-PRESET")
     mood = st.radio("VÄLJ MOOD:", ["Cyberpunk", "Retro VHS", "Lo-fi Dreams", "Dark Techno"])
+    st.divider()
+    st.info("MAXIMUSIKAI 2026.1.4")
 
 # --- 4. HUVUDAPPEN ---
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -107,7 +117,6 @@ if "REPLICATE_API_TOKEN" in st.secrets:
                             st.session_state.gallery = [x for x in st.session_state.gallery if x['id'] != item['id']]; st.rerun()
 
     with tab5: # --- COMMUNITY ---
-        st.markdown(f"<p style='text-align:center; color:#aaa; font-style:italic;'>Community System Engineered by Tomas Ingvarsson</p>", unsafe_allow_html=True)
         if st.button("DELA SENASTE"):
             if st.session_state.gallery: st.session_state.community_feed.append(st.session_state.gallery[-1]); st.success("Delad!")
         for post in reversed(st.session_state.community_feed):
@@ -115,8 +124,9 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 
 else: st.error("⚠️ REPLICATE_API_TOKEN saknas!")
 
-# FOOTER MED DITT NAMN
-st.markdown(f"<br><center><small>MAXIMUSIKAI SPEED PRO // 2026 // CREATED BY <b>TOMAS INGVARSSON</b></small></center>", unsafe_allow_html=True)
+# FOOTER
+st.markdown("<br><center><p style='color:#333; font-size:10px;'>MAXIMUSIKAI SPEED PRO // 2026 // T.I.</p></center>", unsafe_allow_html=True)
+
 
 
 
