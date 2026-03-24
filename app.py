@@ -1,25 +1,25 @@
 import streamlit as st
 import replicate
 import os
+import requests
 import time
 import datetime
 
 # --- 1. SETUP & SESSION STATE ---
-st.set_page_config(page_title="MAXIMUSIKAI SPEED PRO 2026", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", layout="wide")
 
 if "gallery" not in st.session_state: st.session_state.gallery = []
 if "community_feed" not in st.session_state: st.session_state.community_feed = []
 
-# --- 2. DEN STORA DESIGN-MOTORN (2026 EDITION) ---
+# --- 2. DEN STORA DESIGN-MOTORN (2026 STUDIO EDITION) ---
 st.markdown("""
     <style>
-    /* Bakgrund */
     .stApp, [data-testid="stSidebar"] {
         background: linear-gradient(135deg, #050505 0%, #0b001a 100%) !important;
         color: white !important;
     }
     
-    /* FIXA SYNLIGHET I SIDOMENYN - EXTRA LILA NEON */
+    /* SIDOMENY - NEON LILA */
     [data-testid="stSidebar"] .stMarkdown h3, [data-testid="stSidebar"] label p {
         color: #bf00ff !important;
         font-weight: 900 !important;
@@ -28,14 +28,13 @@ st.markdown("""
         text-shadow: 0 0 10px rgba(191, 0, 255, 0.5);
     }
     
-    /* INPUT-FÄLT I SIDOMENYN */
     [data-testid="stSidebar"] input {
         color: #bf00ff !important;
         background-color: rgba(191, 0, 255, 0.05) !important;
         border: 1px solid #bf00ff !important;
     }
 
-    /* FIXA FLIKARNA (TABS) - KRITVITA */
+    /* FLIKARNA - KRITVITA & STORA */
     div[data-baseweb="tab-list"] {
         background-color: rgba(255, 255, 255, 0.05) !important;
         padding: 10px !important;
@@ -52,7 +51,7 @@ st.markdown("""
         text-shadow: 0 0 15px #bf00ff;
     }
 
-    /* TITEL-CONTAINER */
+    /* TITEL & CONTAINERS */
     .neon-container {
         background: rgba(10, 10, 10, 0.85);
         padding: 30px; border-radius: 25px; 
@@ -65,10 +64,13 @@ st.markdown("""
         color: #fff; text-shadow: 0 0 15px #bf00ff, 0 0 30px #bf00ff; margin: 0; 
     }
     
-    /* LABELS OCH TEXT */
-    label p, .stMarkdown p {
-        color: #FFFFFF !important;
-        font-weight: 700 !important;
+    .stButton>button {
+        background: rgba(191, 0, 255, 0.1); color: #bf00ff; 
+        border: 2px solid #bf00ff; width: 100%; font-weight: bold; 
+        border-radius: 12px; height: 3.5em; text-transform: uppercase;
+    }
+    .stButton>button:hover {
+        background: #bf00ff; color: #000; box-shadow: 0px 0px 40px #bf00ff;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -81,7 +83,7 @@ with st.sidebar:
     artist_name = st.text_input("DITT NAMN:", "ANONYM ARTIST")
     st.divider()
     st.markdown("### 🎨 STIL")
-    mood = st.radio("VÄLJ MOOD:", ["Cyberpunk", "Retro VHS", "Lo-fi Dreams"])
+    mood = st.radio("VÄLJ MOOD:", ["Cyberpunk", "Retro VHS", "Lo-fi Dreams", "Dark Techno"])
 
 # --- 4. HUVUDAPPEN ---
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -101,45 +103,70 @@ if "REPLICATE_API_TOKEN" in st.secrets:
                         img_output = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
                         img_url = img_output if isinstance(img_output, str) else img_output
                         time.sleep(6)
-                        status.write("📽️ Animerar...")
-                        video_url = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic movement", "image_url": img_url})
-                        st.session_state.gallery.append({"name": m_ide[:20], "video": video_url, "time": datetime.datetime.now().strftime("%H:%M")})
+                        
+                        status.write("🎵 Komponerar musik...")
+                        mu_output = replicate.run("facebookresearch/musicgen", input={"prompt": f"{mood} melodic music", "duration": 8})
+                        mu_url = str(mu_output)
+                        time.sleep(6)
+
+                        status.write("📽️ Animerar video...")
+                        video_output = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic movement", "image_url": img_url})
+                        video_url = str(video_output)
+                        
+                        # Spara i arkivet
+                        st.session_state.gallery.append({
+                            "id": time.time(),
+                            "name": m_ide[:20], 
+                            "video": video_url, 
+                            "audio": mu_url,
+                            "time": datetime.datetime.now().strftime("%H:%M")
+                        })
                         status.update(label="✅ KLART!", state="complete")
-                        with c2: st.video(video_url)
+                        with c2: 
+                            st.video(video_url)
+                            st.audio(mu_url)
                     except Exception as e: st.error(f"Fel: {e}")
 
-    with tab2:
-        up_file = st.file_uploader("LADDA UPP BILD:", type=["jpg", "png", "jpeg"])
-        if up_file and st.button("⚡ ANIMERA DIN BILD"):
-            with st.spinner("Animerar..."):
-                res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Slow cinematic zoom", "image_url": up_file})
-                st.video(res)
-
-    with tab3:
-        mu_ide = st.text_input("BESKRIV MUSIKEN:", "Cyberpunk techno beat")
-        if st.button("🎵 SKAPA LJUD"):
-            with st.spinner("Komponerar..."):
-                mu_res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_ide, "duration": 8})
-                st.audio(mu_res)
-
+    # --- FLIK 4: ARKIV (UPPGRADERAD MED MP3) ---
     with tab4:
-        for item in reversed(st.session_state.gallery):
-            with st.expander(f"📁 {item['name']} ({item['time']})"):
-                st.video(item['video'])
+        st.subheader("📁 DINA SPARADE MÄSTERVERK")
+        if not st.session_state.gallery:
+            st.info("Arkivet är tomt. Skapa något i fliken TOTAL MAGI!")
+        else:
+            for i, item in enumerate(reversed(st.session_state.gallery)):
+                with st.expander(f"PROJEKT: {item['name']} ({item['time']})"):
+                    st.video(item['video'])
+                    st.audio(item['audio'])
+                    
+                    col_dl1, col_dl2, col_del = st.columns(3)
+                    with col_dl1:
+                        v_resp = requests.get(item['video']).content
+                        st.download_button("💾 VIDEO (MP4)", v_resp, file_name=f"video_{item['id']}.mp4", key=f"vdl_{item['id']}")
+                    with col_dl2:
+                        a_resp = requests.get(item['audio']).content
+                        st.download_button("🎵 LJUD (MP3)", a_resp, file_name=f"audio_{item['id']}.mp3", key=f"adl_{item['id']}")
+                    with col_del:
+                        if st.button("🗑️ RADERA", key=f"del_{item['id']}"):
+                            st.session_state.gallery = [x for x in st.session_state.gallery if x['id'] != item['id']]
+                            st.rerun()
 
+    # --- FLIK 5: COMMUNITY ---
     with tab5:
         st.markdown("### 🌐 COMMUNITY FEED")
-        if st.button("DELA SENASTE"):
+        if st.button("DELA SENASTE SKAPELSEN"):
             if st.session_state.gallery: st.session_state.community_feed.append(st.session_state.gallery[-1])
+            st.success("Publicerad!")
         for post in reversed(st.session_state.community_feed):
             st.divider()
             st.video(post['video'])
+            st.audio(post['audio'])
+            st.caption(f"Skapad av {artist_name}")
 
 else:
     st.error("⚠️ REPLICATE_API_TOKEN saknas i Secrets!")
 
-# UPPDATERAD FOOTER TILL 2026
 st.markdown("<br><center><small>MAXIMUSIKAI SPEED PRO // 2026</small></center>", unsafe_allow_html=True)
+
 
 
 
