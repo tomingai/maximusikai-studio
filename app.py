@@ -26,7 +26,6 @@ st.markdown("""
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
-    
     .stWidget label p, label, .stMarkdown p {
         color: #FFFFFF !important;
         font-weight: 800 !important;
@@ -35,7 +34,6 @@ st.markdown("""
         text-shadow: 0 0 10px rgba(255,255,255,0.5) !important;
         font-size: 16px !important;
     }
-
     div[data-baseweb="tab-list"] {
         background-color: rgba(255, 255, 255, 0.05) !important;
         padding: 10px !important;
@@ -53,14 +51,12 @@ st.markdown("""
         color: #bf00ff !important;
         text-shadow: 0 0 25px #bf00ff !important;
     }
-
     .neon-container {
         background: rgba(10, 10, 10, 0.85);
         padding: 40px; border-radius: 30px; 
         border: 2px solid rgba(191, 0, 255, 0.6);
         box-shadow: 0px 0px 60px rgba(191, 0, 255, 0.3);
         text-align: center; margin-bottom: 40px;
-        backdrop-filter: blur(15px);
     }
     .neon-title { 
         font-family: 'Arial Black', sans-serif; font-size: 70px; font-weight: 900; 
@@ -94,7 +90,7 @@ else:
 if api_ready:
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["🪄 TOTAL MAGI", "🎬 REGISSÖREN", "🎧 BARA MUSIK", "📚 BIBLIOTEK", "🌐 COMMUNITY"])
 
-    # --- FLIK 1: TOTAL MAGI ---
+    # --- FLIK 1: TOTAL MAGI (MED RATE LIMIT SKYDD) ---
     with tab1:
         c1, c2 = st.columns([1, 1.2])
         with c1:
@@ -103,20 +99,35 @@ if api_ready:
             if st.button("🚀 STARTA PRODUKTION"):
                 with st.status("🏗️ MAXIMUSIKAI BYGGER...") as status:
                     try:
+                        # 1. Bild
+                        status.write("🎨 Genererar bild...")
                         img_raw = replicate.run("black-forest-labs/flux-schnell", input={"prompt": m_ide, "aspect_ratio": "16:9"})
                         img_url = get_url(img_raw)
-                        time.sleep(1)
-                        lyrics_res = replicate.run("meta/llama-2-70b-chat", input={"prompt": f"Write 4 lines about: {m_ide}. ONLY lyrics."})
+                        
+                        status.write("⏳ Pausar för att undvika Rate Limit (12s)...")
+                        time.sleep(12) 
+
+                        # 2. Text
+                        status.write("✍️ Skriver text...")
+                        lyrics_res = replicate.run("meta/llama-2-70b-chat", input={"prompt": f"Write 4 short lines about: {m_ide}. ONLY lyrics.", "max_new_tokens": 100})
                         lyrics = "".join(lyrics_res).replace('"', '').strip()
-                        v_url = get_url(replicate.run("minimax/video-01", input={"prompt": "Cinematic", "first_frame_image": img_url}))
+                        
+                        status.write("⏳ Pausar igen (12s)...")
+                        time.sleep(12)
+
+                        # 3. Video
+                        status.write("📽️ Animerar video...")
+                        v_url = get_url(replicate.run("minimax/video-01", input={"prompt": "Cinematic camera movement", "first_frame_image": img_url}))
                         
                         entry = {"name": proj_name, "video": v_url, "lyrics": lyrics, "time": datetime.datetime.now().strftime("%H:%M")}
                         st.session_state.gallery.append(entry)
-                        status.update(label="✅ KLART!", state="complete")
+                        
+                        status.update(label="✅ PRODUKTION KLAR!", state="complete")
                         with c2:
                             st.video(v_url)
                             st.markdown(f"<div style='padding:15px; border-left:5px solid #bf00ff; background:rgba(0,0,0,0.5);'>{lyrics}</div>", unsafe_allow_html=True)
-                    except Exception as e: st.error(f"Fel: {e}")
+                    except Exception as e:
+                        st.error(f"Fel: {e}. Försök att vänta en stund till.")
 
     # --- FLIK 2: REGISSÖREN ---
     with tab2:
@@ -133,30 +144,23 @@ if api_ready:
 
     # --- FLIK 3: BARA MUSIK ---
     with tab3:
-        col_mu1, col_mu2 = st.columns([1, 1.2])
-        with col_mu1:
-            mu_desc = st.text_input("BESKRIV MUSIKEN:", "Synthwave beat med tunga trummor")
-            mu_dur = st.slider("LÄNGD (SEK):", 5, 20, 10)
-            if st.button("🎵 GENERERA LJUDSPÅR"):
-                with st.status("🎸 Komponerar...") as status:
-                    mu_output = replicate.run("facebookresearch/musicgen", input={"prompt": mu_desc, "duration": mu_dur})
-                    mu_url = get_url(mu_output)
-                    st.session_state.gallery.append({"name": f"Musik: {mu_desc}", "video": None, "audio": mu_url, "time": datetime.datetime.now().strftime("%H:%M"), "lyrics": "Endast musik"})
-                    with col_mu2: st.audio(mu_url)
+        mu_desc = st.text_input("BESKRIV MUSIKEN:", "Synthwave beat")
+        if st.button("🎵 GENERERA LJUD"):
+            with st.status("🎸 Komponerar..."):
+                mu_output = replicate.run("facebookresearch/musicgen", input={"prompt": mu_desc, "duration": 8})
+                mu_url = get_url(mu_output)
+                st.audio(mu_url)
 
     # --- FLIK 4: BIBLIOTEK ---
     with tab4:
         st.subheader("DITT LOKALA ARKIV")
         if not st.session_state.gallery:
-            st.info("Arkivet är tomt. Skapa något först!")
+            st.info("Arkivet är tomt.")
         else:
             for item in reversed(st.session_state.gallery):
                 with st.expander(f"📁 {item['name']} ({item['time']})"):
-                    if "video" in item and item["video"]:
-                        st.video(item["video"])
-                    elif "audio" in item and item["audio"]:
-                        st.audio(item["audio"])
-                    st.write(item["lyrics"])
+                    st.video(item['video'])
+                    st.write(item['lyrics'])
 
     # --- FLIK 5: COMMUNITY ---
     with tab5:
@@ -166,7 +170,7 @@ if api_ready:
             st.success("Delat!")
         for post in reversed(st.session_state.community_feed):
             st.divider()
-            if post["video"]: st.video(post["video"])
+            st.video(post['video'])
             st.write(f"**{post['name']}** - {post['lyrics']}")
 
 st.markdown("<br><center><small>MAXIMUSIKAI // 2024</small></center>", unsafe_allow_html=True)
