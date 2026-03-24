@@ -1,5 +1,7 @@
 streamlit
 replicate
-pydantic
-moviepy
+moviepy==1.0.3
 requests
+st-supabase-connection
+supabase
+
