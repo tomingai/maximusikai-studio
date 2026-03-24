@@ -36,12 +36,12 @@ theme_options = {"Neon Purple": "#bf00ff", "Cyber Amber": "#ffaa00", "Electric B
 main_color = st.session_state.theme_color
 
 LANG_MAP = {
-    "Svenska": {"t": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED"], "p": "VAD SKALL VI SKAPA?", "b": "STARTA", "a": "ARTIST", "m": "STIL", "dur": "LÄNGD (SEK):", "v_label": "RÖST (MELODI):", "live": "SENASTE", "remix": "REMIX", "theme": "FÄRGTEMA:", "warn": "⚠️ VARNING: Lång produktionstid vald!", "ly_instr": "Skriv på svenska."},
-    "English": {"t": ["🪄 MAGIC", "🎬 DIRECT", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED"], "p": "WHAT TO CREATE?", "b": "START", "a": "ARTIST", "m": "MODE", "dur": "DURATION (SEC):", "v_label": "VOICE (MELODY):", "live": "LATEST", "remix": "REMIX", "theme": "THEME COLOR:", "warn": "⚠️ WARNING: Long production time!", "ly_instr": "Write in English."},
-    "Deutsch": {"t": ["🪄 MAGIE", "🎬 REGIE", "🎧 MUSIK", "📚 ARCHIV", "🌐 FEED"], "p": "WAS ERSCHAFFEN?", "b": "STARTEN", "a": "KÜNSTLER", "m": "MODUS", "dur": "DAUER (SEK):", "v_label": "STIMME (MELODIE):", "live": "NEUESTE", "remix": "REMIX", "theme": "FARBTHEMA:", "warn": "⚠️ WARNUNG: Lange Dauer!", "ly_instr": "Schreib auf Deutsch."},
-    "Français": {"t": ["🪄 MAGIE", "🎬 RÉGIE", "🎧 MUSIQUE", "📚 ARCHIVE", "🌐 FEED"], "p": "QUE CRÉER?", "b": "LANCER", "a": "ARTISTE", "m": "MODE", "dur": "DURÉE (SEC):", "v_label": "VOIX (MÉLODIE):", "live": "RÉCENT", "remix": "REMIXER", "theme": "THÈME:", "warn": "⚠️ ATTENTION: Temps long!", "ly_instr": "Écris en français."},
-    "Español": {"t": ["🪄 MAGIA", "🎬 CINE", "🎧 MÚSICA", "📚 ARCHIVE", "🌐 FEED"], "p": "¿QUÉ CREAR?", "b": "INICIAR", "a": "ARTISTA", "m": "MODO", "dur": "DURACIÓN (SEG):", "v_label": "VOZ (MELODÍA):", "live": "RECIENTE", "remix": "REMIX", "theme": "TEMA:", "warn": "⚠️ ADVERTENCIA: ¡Tiempo largo!", "ly_instr": "Escribe en español."},
-    "Italiano": {"t": ["🪄 MAGIA", "🎬 REGIA", "🎧 MUSICA", "📚 ARCHIVE", "🌐 FEED"], "p": "COSA CREARE?", "b": "AVVIA", "a": "ARTISTA", "m": "MODO", "dur": "DURATA (SEC):", "v_label": "VOCE (MELODIA):", "live": "RECENTI", "remix": "REMIX", "theme": "TEMA:", "warn": "⚠️ ATTENZIONE: Tempo lungo!", "ly_instr": "Scrivi in italiano."}
+    "Svenska": {"t": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED"], "p": "VAD SKALL VI SKAPA?", "b": "STARTA", "a": "ARTIST", "m": "VÄLJ STIL:", "dur": "LÄNGD (SEK):", "v_label": "RÖST (MELODI):", "live": "SENASTE", "remix": "REMIX", "theme": "FÄRGTEMA:", "warn": "⚠️ VARNING: Lång produktionstid vald!", "ly_instr": "Skriv på svenska."},
+    "English": {"t": ["🪄 MAGIC", "🎬 DIRECT", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED"], "p": "WHAT TO CREATE?", "b": "START", "a": "ARTIST", "m": "SELECT STYLE:", "dur": "DURATION (SEC):", "v_label": "VOICE (MELODY):", "live": "LATEST", "remix": "REMIX", "theme": "THEME COLOR:", "warn": "⚠️ WARNING: Long production time!", "ly_instr": "Write in English."},
+    "Deutsch": {"t": ["🪄 MAGIE", "🎬 REGIE", "🎧 MUSIK", "📚 ARCHIV", "🌐 FEED"], "p": "WAS ERSCHAFFEN?", "b": "STARTEN", "a": "KÜNSTLER", "m": "STIL WÄHLEN:", "dur": "DAUER (SEK):", "v_label": "STIMME (MELODIE):", "live": "NEUESTE", "remix": "REMIX", "theme": "FARBTHEMA:", "warn": "⚠️ WARNUNG: Lange Dauer!", "ly_instr": "Schreib auf Deutsch."},
+    "Français": {"t": ["🪄 MAGIE", "🎬 RÉGIE", "🎧 MUSIQUE", "📚 ARCHIVE", "🌐 FEED"], "p": "QUE CRÉER?", "b": "LANCER", "a": "ARTISTE", "m": "CHOISIR STYLE:", "dur": "DURÉE (SEC):", "v_label": "VOIX (MÉLODIE):", "live": "RÉCENT", "remix": "REMIXER", "theme": "THÈME:", "warn": "⚠️ ATTENTION: Temps long!", "ly_instr": "Écris en français."},
+    "Español": {"t": ["🪄 MAGIA", "🎬 CINE", "🎧 MÚSICA", "📚 ARCHIVE", "🌐 FEED"], "p": "¿QUÉ CREAR?", "b": "INICIAR", "a": "ARTISTA", "m": "ESTILO:", "dur": "DURACIÓN (SEG):", "v_label": "VOZ (MELODÍA):", "live": "RECIENTE", "remix": "REMIX", "theme": "TEMA:", "warn": "⚠️ ADVERTENCIA: ¡Tiempo largo!", "ly_instr": "Escribe en español."},
+    "Italiano": {"t": ["🪄 MAGIA", "🎬 REGIA", "🎧 MUSICA", "📚 ARCHIVE", "🌐 FEED"], "p": "COSA CREARE?", "b": "AVVIA", "a": "ARTISTA", "m": "STILE:", "dur": "DURATA (SEC):", "v_label": "VOCE (MELODIA):", "live": "RECENTI", "remix": "REMIX", "theme": "TEMA:", "warn": "⚠️ ATTENZIONE: Tempo lungo!", "ly_instr": "Scrivi in italiano."}
 }
 
 # --- 3. DESIGN ---
@@ -67,7 +67,6 @@ with st.sidebar:
     sel_lang = st.selectbox("LANG / SPRÅK:", list(LANG_MAP.keys()))
     L = LANG_MAP[sel_lang]
     
-    # Theme väljaren använder nu översatt text från L["theme"]
     chosen_theme_name = st.selectbox(L["theme"], list(theme_options.keys()))
     if theme_options[chosen_theme_name] != st.session_state.theme_color:
         st.session_state.theme_color = theme_options[chosen_theme_name]
@@ -76,7 +75,12 @@ with st.sidebar:
     with st.expander(L["a"]): artist_name = st.text_input("", "ANONYM")
     
     st.divider()
-    mood = st.radio(L["m"], ["Cyberpunk 2077", "Retro VHS 80s", "Lo-fi Dreams", "Dark Techno", "Cinematic Epic", "Synthwave Neon", "Deep Space", "Urban Drill", "Psych Rock", "Minimalist Zen", "Horror Gothic", "Vaporwave"])
+    # RULLMENY FÖR STIL/MOOD
+    mood = st.selectbox(L["m"], [
+        "Cyberpunk 2077", "Retro VHS 80s", "Lo-fi Dreams", "Dark Techno", 
+        "Cinematic Epic", "Synthwave Neon", "Deep Space", "Urban Drill", 
+        "Psych Rock", "Minimalist Zen", "Horror Gothic", "Vaporwave"
+    ])
     
     st.divider()
     music_duration = st.slider(L["dur"], 10, 240, 10, step=10)
@@ -89,7 +93,7 @@ with st.sidebar:
             st.markdown(f'<div class="live-preview-box">', unsafe_allow_html=True)
             st.video(item['video'])
             st.markdown('</div>', unsafe_allow_html=True)
-    st.caption("MAXIMUSIKAI v2.9.6")
+    st.caption("MAXIMUSIKAI v2.9.7")
 
 st.markdown(f"""<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p><p style="color:{main_color}; letter-spacing: 4px; font-size: 12px; margin-top: -5px; opacity: 0.8;">{sel_lang.upper()} PRO STUDIO</p></div>""", unsafe_allow_html=True)
 
@@ -157,6 +161,7 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 
 else: st.error("REPLICATE_API_TOKEN MISSING")
 st.markdown("<center><p style='color:#333; font-size:10px;'>MAXIMUSIKAI SPEED PRO // 2026 // T.I.</p></center>", unsafe_allow_html=True)
+
 
 
 
