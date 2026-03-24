@@ -36,14 +36,14 @@ if "is_pro" not in st.session_state: st.session_state.is_pro = False
 # --- 2. GLOBAL SPRÅK ---
 LANG_MAP = {
     "Svenska": {
-        "t": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED", "⚙️ ADMIN"],
+        "t": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED", "🛠️ ADMIN"],
         "p": "VAD SKALL VI SKAPA?", "b": "STARTA", "a": "ARTIST", "m": "VÄLJ STIL:", "dur": "LÄNGD (SEK):",
         "v_label": "RÖST (MELODI):", "theme": "FÄRGTEMA:", "buy_btn": "⭐ UPPGRADERA TILL PRO",
         "legal_title": "📜 VILLKOR", "help_title": "🆘 HJÄLP & FEEDBACK", "help_label": "Meddelande till Tomas:",
         "pro_msg": "🔓 Endast PRO.", "send": "SKICKA", "maint_msg": "⚠️ STUDION ÄR STÄNGD FÖR UNDERHÅLL."
     },
     "English": {
-        "t": ["🪄 MAGIC", "🎬 DIRECT", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED", "⚙️ ADMIN"],
+        "t": ["🪄 MAGIC", "🎬 DIRECT", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED", "🛠️ ADMIN"],
         "p": "WHAT TO CREATE?", "b": "START", "a": "ARTIST", "m": "SELECT STYLE:", "dur": "DURATION (SEC):",
         "v_label": "VOICE (MELODY):", "theme": "THEME COLOR:", "buy_btn": "⭐ UPGRADE TO PRO",
         "legal_title": "📜 TERMS", "help_title": "🆘 HELP & FEEDBACK", "help_label": "Message to Tomas:",
@@ -65,6 +65,11 @@ st.markdown(f"""
     .stButton>button:hover {{ background: {main_color}; color: #000; box-shadow: 0px 0px 25px {main_color}; }}
     .stripe-btn {{ background: #635bff; color: white; padding: 10px; border-radius: 10px; text-decoration: none; font-weight: bold; display: block; text-align: center; margin-bottom: 10px; }}
     .broadcast-banner {{ background: {main_color}33; border: 1px dashed {main_color}; color: {main_color}; padding: 10px; border-radius: 10px; text-align: center; font-weight: bold; margin-bottom: 20px; }}
+    
+    /* ADMIN SPECIFIC DESIGN */
+    .admin-card {{ background: rgba(255, 75, 75, 0.05); border: 2px solid #ff4b4b; padding: 20px; border-radius: 15px; margin-bottom: 20px; }}
+    .admin-stat-box {{ background: rgba(255, 255, 255, 0.05); border-left: 5px solid {main_color}; padding: 15px; border-radius: 5px; margin-bottom: 10px; }}
+    .feedback-item {{ background: #111; border-bottom: 1px solid #222; padding: 10px; margin-bottom: 5px; border-radius: 5px; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -95,11 +100,11 @@ with st.sidebar:
         f_msg = st.text_area(L["help_label"])
         if st.button(L["send"]):
             feedback_list = load_data(FEEDBACK_FILE)
-            feedback_list.append({"time": str(datetime.datetime.now())[:16], "user": artist_name, "msg": f_msg})
+            feedback_list.append({"id": time.time(), "time": str(datetime.datetime.now())[:16], "user": artist_name, "msg": f_msg})
             save_data(feedback_list, FEEDBACK_FILE); st.success("OK!")
-    st.caption("v3.7.0 // TOMAS INGVARSSON")
+    st.caption("v3.8.0 // TOMAS INGVARSSON")
 
-# --- GLOBAL BROADCAST & MAINTENANCE CHECK ---
+# --- GLOBAL BROADCAST & MAINTENANCE ---
 sys_data = load_data(SYSTEM_FILE)
 is_maintenance = sys_data.get("maintenance", False)
 is_admin = artist_name == ADMIN_KEY
@@ -118,7 +123,6 @@ if "REPLICATE_API_TOKEN" in st.secrets:
     with tabs[0]: # MAGI
         if is_maintenance and not is_admin:
             st.error(L["maint_msg"])
-            st.info("Tomas jobbar på studion. Vi öppnar snart igen!")
         else:
             c1, c2 = st.columns([1, 1.2])
             with c1:
@@ -139,7 +143,7 @@ if "REPLICATE_API_TOKEN" in st.secrets:
                             st.session_state.gallery.append(entry); save_data(st.session_state.gallery, DB_FILE); st.rerun()
                         except Exception as e: st.error(f"Error: {e}")
 
-    with tabs[1]: # REGI (Här kan vi också lägga spärr om vi vill)
+    with tabs[1]: # REGI
         if is_maintenance and not is_admin: st.error(L["maint_msg"])
         else:
             up_file = st.file_uploader("IMG:", type=["jpg", "png", "jpeg"])
@@ -155,7 +159,7 @@ if "REPLICATE_API_TOKEN" in st.secrets:
             if st.button("GENERATE"):
                 st.audio(str(replicate.run("facebookresearch/musicgen", input={"prompt": m_prompt, "duration": music_duration, "input_audio": v_file} if v_file else {"prompt": m_prompt, "duration": music_duration})))
 
-    with tabs[3]: # ARKIV (Alltid öppet för att titta/ladda ner egna saker)
+    with tabs[3]: # ARKIV
         for item in reversed(st.session_state.gallery):
             with st.expander(f"📁 {item['name']}"):
                 st.video(item['video']); st.audio(item['audio'])
@@ -167,37 +171,54 @@ if "REPLICATE_API_TOKEN" in st.secrets:
         for item in reversed(st.session_state.gallery[-5:]): st.video(item['video'])
 
     if is_admin:
-        with tabs[5]: # ADMIN
-            st.subheader("🛠️ TOMAS CONTROL CENTER")
+        with tabs[5]: # --- ADMIN MASTER PANEL ---
+            st.markdown('<h1 style="color:#ff4b4b;">🛠️ COMMAND CENTER</h1>', unsafe_allow_html=True)
             
-            # BROADCAST & MAINTENANCE
+            # SEKTION 1: SYSTEMKONTROLL
+            st.markdown('<div class="admin-card">', unsafe_allow_html=True)
+            st.subheader("🚧 SYSTEM CRITICAL")
             c_m1, c_m2 = st.columns(2)
             with c_m1:
-                new_bc = st.text_input("Broadcasting Message:", sys_data.get("broadcast", ""))
-                if st.button("Update Banner"):
+                new_bc = st.text_input("Broadcast Banner Text:", sys_data.get("broadcast", ""))
+                if st.button("🚀 UPDATE BANNER"):
                     sys_data["broadcast"] = new_bc
-                    save_data(sys_data, SYSTEM_FILE); st.rerun()
+                    save_data(sys_data, SYSTEM_FILE); st.success("Updated!"); st.rerun()
             with c_m2:
-                m_state = st.toggle("MAINTENANCE MODE (LOCK STUDIO)", sys_data.get("maintenance", False))
-                if st.button("Save System Status"):
+                m_state = st.toggle("MAINTENANCE MODE (LOCK APP)", sys_data.get("maintenance", False))
+                if st.button("💾 SAVE STATUS"):
                     sys_data["maintenance"] = m_state
                     save_data(sys_data, SYSTEM_FILE); st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            st.divider()
-            # ANALYTICS
-            stats = load_data(STATS_FILE)
-            col_a, col_b = st.columns(2)
+            # SEKTION 2: DASHBOARD & STATS
+            st.subheader("📊 STUDIO ANALYTICS")
+            col_a, col_b = st.columns([1, 2])
+            stats_list = load_data(STATS_FILE)
             with col_a:
-                st.metric("Total Creations", len(st.session_state.gallery))
-                if stats: st.bar_chart(pd.DataFrame(stats)['mode'].value_counts())
+                st.markdown(f'<div class="admin-stat-box"><h4>Katalog</h4><h2>{len(st.session_state.gallery)}</h2>filer</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="admin-stat-box"><h4>API Anrop</h4><h2>{len(stats_list)}</h2>totalt</div>', unsafe_allow_html=True)
             with col_b:
-                st.write("**Recent Feedback:**")
-                feedbacks = load_data(FEEDBACK_FILE)
-                for f in reversed(feedbacks): st.info(f"{f['time']} | {f['user']}: {f['msg']}")
-                if st.button("Clear Feedback"): save_data([], FEEDBACK_FILE); st.rerun()
+                if stats_list:
+                    df = pd.DataFrame(stats_list)
+                    st.bar_chart(df['mode'].value_counts())
+
+            st.divider()
+
+            # SEKTION 3: FEEDBACK MANAGEMENT
+            st.subheader("📬 USER FEEDBACK")
+            feedbacks = load_data(FEEDBACK_FILE)
+            if not feedbacks: st.info("Ingen ny feedback.")
+            else:
+                for f in reversed(feedbacks):
+                    with st.container():
+                        st.markdown(f"""<div class="feedback-item">
+                            <small>{f['time']} | Från: <b>{f['user']}</b></small><br>{f['msg']}
+                        </div>""", unsafe_allow_html=True)
+                        if st.button(f"Markera som läst (Radera)", key=f"fdel_{f['id']}"):
+                            new_feedback = [x for x in feedbacks if x['id'] != f['id']]
+                            save_data(new_feedback, FEEDBACK_FILE); st.rerun()
 
 else: st.error("REPLICATE_API_TOKEN MISSING")
-
 
 
 
