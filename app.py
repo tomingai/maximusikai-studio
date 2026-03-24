@@ -2,41 +2,21 @@ import streamlit as st
 import replicate
 import os
 import datetime
-import pandas as pd
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
-from st_supabase_connection import SupabaseConnection
 
-# --- 1. KONFIGURATION & ANSLUTNING ---
+# --- 1. SETUP ---
 st.set_page_config(page_title="MAXIMUSIKAI STUDIO 2026", page_icon="⚡", layout="wide")
 
-# Kontrollera Secrets (Viktigt!)
-if "connections" not in st.secrets or "supabase" not in st.secrets["connections"]:
-    st.error("❌ SUPABASE-INSTÄLLNINGAR SAKNAS! Gå till Settings -> Secrets i Streamlit Cloud.")
-    st.info("Klistra in: [connections.supabase] \n url = 'DIN_URL' \n key = 'jgvyqwvcwjjxlnsywqho'")
-    st.stop()
+# Vi skapar en lokal "databas" i minnet som nollställs vid omstart
+if "gallery" not in st.session_state:
+    st.session_state.gallery = []
+if "remix_prompt" not in st.session_state:
+    st.session_state.remix_prompt = ""
+if "user_credits" not in st.session_state:
+    st.session_state.user_credits = 3
 
-# Anslut till Supabase
-conn = st.connection("supabase", type=SupabaseConnection)
-
-# --- 2. DATABAS-FUNKTIONER ---
-def get_user_data(artist_id):
-    try:
-        res = conn.table("users").select("*").eq("artist", artist_id).execute()
-        return res.data[0] if res.data else None
-    except: return None
-
-def update_user_data(user_data):
-    conn.table("users").upsert(user_data).execute()
-
-def get_gallery_data():
-    res = conn.table("gallery").select("*").order("id", desc=True).limit(20).execute()
-    return res.data if res.data else []
-
-def save_to_gallery(entry):
-    conn.table("gallery").insert(entry).execute()
-
-# --- 3. DESIGN (CYBERPUNK) ---
+# --- 2. DESIGN (CYBERPUNK) ---
 main_color = "#bf00ff"
 st.markdown(f"""
     <style>
@@ -49,81 +29,81 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. SIDOMENY ---
+# --- 3. SIDOMENY ---
 with st.sidebar:
     st.markdown(f'<h2 style="color:{main_color};">MAXIMUSIKAI</h2>', unsafe_allow_html=True)
     artist_id = st.text_input("DITT ARTIST-ID:", "ANONYM").strip().upper()
     
-    # Hämta/Skapa användare
-    user = get_user_data(artist_id)
-    if not user:
-        user = {"artist": artist_id, "is_pro": False, "credits": 3}
-        update_user_data(user)
-
-    is_admin = (artist_id == "TOMAS2026")
-    status = "💎 PRO" if user["is_pro"] else f"⚡ {user['credits']} CREDITS"
+    is_pro = (artist_id == "TOMAS2026")
+    status = "💎 PRO" if is_pro else f"⚡ {st.session_state.user_credits} CREDITS"
     st.info(f"STATUS: {status}")
     
-    if not user["is_pro"]:
-        with st.expander("UPPGRADERA"):
-            if st.button("LÅS UPP PRO (KOD)"):
-                if st.text_input("KOD:", type="password") == "PRO2026":
-                    user["is_pro"] = True
-                    update_user_data(user); st.rerun()
-
     mood = st.selectbox("STIL:", ["Cyberpunk", "80s Retro", "Dark Techno", "Cinematic"])
-    st.caption("v6.0 // BAKNINGS-EDITION 🥐")
+    st.caption("v6.1 // LOCAL EDITION 🥐")
 
-# --- 5. SOCIAL DELNING ---
+# --- 4. FUNKTIONER ---
 def share_ui(name, url):
     text = f"Kolla min AI-konst: {name} #MAXIMUSIKAI"
     tweet = f"https://twitter.com{urllib.parse.quote(text)}&url={urllib.parse.quote(url)}"
     st.markdown(f'<a class="share-btn" href="{tweet}" target="_blank">𝕏 DELA PÅ X</a>', unsafe_allow_html=True)
 
-# --- 6. HUVUDAPP ---
+# --- 5. HUVUDAPP ---
 st.markdown('<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p></div>', unsafe_allow_html=True)
 
+# Hämta token från Secrets
 replicate_token = st.secrets.get("REPLICATE_API_TOKEN")
+
 if replicate_token:
     os.environ["REPLICATE_API_TOKEN"] = replicate_token
-    tabs = st.tabs(["🪄 SKAPA", "📚 ARKIV", "🌐 FEED"])
+    tabs = st.tabs(["🪄 SKAPA", "📚 DITT ARKIV", "🌐 FEED (LOCAL)"])
 
     with tabs[0]: # SKAPA
-        col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns([1, 1.2])
         with col1:
-            prompt = st.text_area("VAD SKALL VI BYGGA?", placeholder="En rymdstation i neon...")
+            prompt = st.text_area("VAD SKALL VI BYGGA?", value=st.session_state.remix_prompt, placeholder="En rymdstation i neon...")
             if st.button("STARTA MAGIN"):
-                if user["credits"] > 0 or user["is_pro"]:
+                if st.session_state.user_credits > 0 or is_pro:
                     with st.status("AI:N BAKAR DIN IDÉ... 🥐"):
-                        if not user["is_pro"]:
-                            user["credits"] -= 1
-                            update_user_data(user)
+                        if not is_pro:
+                            st.session_state.user_credits -= 1
                         
+                        # Kör bild och musik parallellt
                         with ThreadPoolExecutor() as exe:
                             img_f = exe.submit(replicate.run, "black-forest-labs/flux-schnell", input={"prompt": f"{prompt}, {mood} style"})
-                            mu_f = exe.submit(replicate.run, "facebookresearch/musicgen", input={"prompt": f"{mood} music for {prompt}", "duration": 8})
-                            img_url = img_f.result()
-                            mu_url = mu_f.result()
+                            mu_f = exe.submit(replicate.run, "facebookresearch/musicgen", input={"prompt": f"{mood} music för {prompt}", "duration": 8})
+                            
+                            img_res = img_f.result()
+                            mu_res = mu_f.result()
 
-                        save_to_gallery({
+                        # Spara till galleriet (endast i minnet)
+                        img_url = img_res if isinstance(img_res, list) else img_res
+                        entry = {
+                            "id": datetime.datetime.now().timestamp(),
                             "artist": artist_id,
                             "name": prompt[:20] if prompt else "Untitled",
-                            "video": str(img_url[0] if isinstance(img_url, list) else img_url),
-                            "audio": str(mu_url)
-                        })
+                            "video": str(img_url),
+                            "audio": str(mu_res)
+                        }
+                        st.session_state.gallery.append(entry)
                         st.rerun()
+                else:
+                    st.warning("Dina credits är slut! Logga in som ADMIN för att köra obegränsat.")
 
-    with tabs[1]: # ARKIV
-        files = [p for p in get_gallery_data() if p["artist"] == artist_id or is_admin]
-        for item in files:
+    with tabs[1]: # DITT ARKIV
+        my_files = [p for p in st.session_state.gallery if p["artist"] == artist_id]
+        if not my_files:
+            st.info("Här hamnar det du skapar!")
+        for item in reversed(my_files):
             with st.expander(f"📁 {item['name'].upper()}"):
                 st.image(item['video'])
                 if item.get('audio'): st.audio(item['audio'])
                 share_ui(item['name'], item['video'])
 
     with tabs[2]: # FEED
-        for item in get_gallery_data():
-            c1, c2 = st.columns([1, 2])
+        if not st.session_state.gallery:
+            st.write("Ingen har skapat något än i denna session.")
+        for item in reversed(st.session_state.gallery):
+            c1, c2 = st.columns([1, 1.5])
             with c1: st.image(item['video'])
             with c2:
                 st.write(f"**{item['name']}** - *{item['artist']}*")
@@ -131,7 +111,8 @@ if replicate_token:
                 share_ui(item['name'], item['video'])
             st.divider()
 else:
-    st.error("REPLICATE_API_TOKEN saknas i Secrets!")
+    st.error("Lägg till 'REPLICATE_API_TOKEN' i dina Secrets på Streamlit Cloud för att starta!")
+
 
 
 
