@@ -2,138 +2,175 @@ import streamlit as st
 import replicate
 import os
 import datetime
-import json
-import zipfile
-import io
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
+from st_supabase_connection import SupabaseConnection
 
-# --- 1. SETUP & CORE ---
+# --- 1. SETUP & DATABAS (SUPABASE) ---
 st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", layout="wide")
 
-STRIPE_PRO = "https://buy.stripe.com" 
-DB_FILE = "maximusikai_archive.json"
-USERS_FILE = "maximusikai_users.json"
-SYSTEM_FILE = "maximusikai_system.json"
-ADMIN_KEY = "TOMAS2026"
+# Initiera Supabase-anslutning
+# Kräver [connections.supabase] url och key i .streamlit/secrets.toml
+conn = st.connection("supabase", type=SupabaseConnection)
 
-def load_data(file, default):
-    if os.path.exists(file):
-        try:
-            with open(file, "r") as f: return json.load(f)
-        except: return default
-    return default
+def get_user_db(artist):
+    res = conn.table("users").select("*").eq("artist", artist).execute()
+    return res.data[0] if res.data else None
 
-def save_data(data, file):
-    with open(file, "w") as f: json.dump(data, f)
+def update_user_db(user_data):
+    conn.table("users").upsert(user_data).execute()
 
-if "gallery" not in st.session_state: st.session_state.gallery = load_data(DB_FILE, [])
+def get_full_gallery():
+    res = conn.table("gallery").select("*").order("created_at", desc=True).execute()
+    return res.data if res.data else []
+
+def add_to_gallery(entry):
+    conn.table("gallery").insert(entry).execute()
+
+# --- 2. THEME & DESIGN ---
 if "theme_color" not in st.session_state: st.session_state.theme_color = "#bf00ff"
 if "remix_prompt" not in st.session_state: st.session_state.remix_prompt = ""
 
-# --- 2. DESIGN (DEN RENODLADE GRUNDEN) ---
 main_color = st.session_state.theme_color
 st.markdown(f"""
     <style>
-    .stApp, [data-testid="stSidebar"] {{ background: linear-gradient(135deg, #050505 0%, #0b001a 100%) !important; color: white !important; }}
+    .stApp {{ background: linear-gradient(135deg, #050505 0%, #0b001a 100%) !important; color: white !important; }}
+    [data-testid="stSidebar"] {{ background: #0a0a0a !important; border-right: 1px solid {main_color}33; }}
     .neon-container {{ background: rgba(10, 10, 10, 0.9); padding: 25px; border-radius: 20px; border: 1px solid {main_color}44; text-align: center; margin-bottom: 25px; }}
-    .neon-title {{ font-family: 'Arial Black', sans-serif; font-size: 50px; font-weight: 900; color: #fff; text-shadow: 0 0 15px {main_color}; margin: 0; }}
-    div[data-baseweb="tab-list"] {{ background: transparent !important; border-bottom: 1px solid #222 !important; }}
-    button[data-baseweb="tab"] div p {{ font-size: 14px !important; font-weight: 900 !important; text-transform: uppercase; }}
-    .stButton>button {{ background: transparent; color: {main_color}; border: 1px solid {main_color}; border-radius: 5px; font-weight: bold; text-transform: uppercase; }}
+    .neon-title {{ font-family: 'Arial Black', sans-serif; font-size: clamp(30px, 5vw, 60px); font-weight: 900; color: #fff; text-shadow: 0 0 15px {main_color}; margin: 0; }}
+    .stButton>button {{ background: transparent; color: {main_color}; border: 1px solid {main_color}; width: 100%; border-radius: 8px; transition: 0.3s; font-weight: bold; }}
     .stButton>button:hover {{ background: {main_color}; color: #000; box-shadow: 0 0 20px {main_color}; }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SIDOMENY (USER & STATUS) ---
+# --- 3. SIDOMENY ---
 with st.sidebar:
-    st.markdown(f'<p style="color:{main_color}; font-weight:900; letter-spacing:2px;">MAXIMUSIKAI STUDIO</p>', unsafe_allow_html=True)
-    artist_name = st.text_input("ARTIST ID:", "ANONYM")
+    st.markdown(f'<p style="color:{main_color}; font-weight:900; letter-spacing:2px; font-size:20px;">MAXIMUSIKAI</p>', unsafe_allow_html=True)
+    artist_name = st.text_input("ARTIST ID:", "ANONYM").strip().upper()
     
-    user_db = load_data(USERS_FILE, [])
-    current_user = next((u for u in user_db if u["artist"] == artist_name), None)
+    # Hämta eller skapa användare i Supabase
+    current_user = get_user_db(artist_name)
     if not current_user:
         current_user = {"artist": artist_name, "is_pro": False, "credits": 3}
-        user_db.append(current_user); save_data(user_db, USERS_FILE)
+        update_user_db(current_user)
 
+    is_admin = (artist_name == "TOMAS2026")
     status_txt = "PREMIUM ACCESS 💎" if current_user["is_pro"] else f"POWER: {current_user['credits']} units ⚡"
-    st.markdown(f'<div style="font-size:10px; color:{main_color}; border-top:1px solid #333; padding-top:5px;">{status_txt}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:12px; color:{main_color}; padding:10px; border:1px solid {main_color}33; border-radius:5px;">{status_txt}</div>', unsafe_allow_html=True)
     
     if not current_user["is_pro"]:
         with st.expander("⚡ UPGRADE"):
-            st.markdown(f'[ACTIVATE PRO SUBSCRIPTION]({STRIPE_PRO})')
-            if st.button("USE MASTER KEY"):
-                if st.text_input("KEY:", type="password") == "PRO2026": 
-                    current_user["is_pro"] = True; save_data(user_db, USERS_FILE); st.rerun()
+            st.markdown(f'[ACTIVATE PRO SUBSCRIPTION](https://buy.stripe.com)')
+            master_key = st.text_input("USE MASTER KEY:", type="password")
+            if st.button("UNLOCK"):
+                if master_key == "PRO2026": 
+                    current_user["is_pro"] = True
+                    update_user_db(current_user)
+                    st.success("PRO AKTIVERAT!")
+                    st.rerun()
 
     st.divider()
-    mood = st.selectbox("MOOD:", ["Cyberpunk", "Retro VHS", "Lo-fi", "Dark Techno", "Epic Cinematic"])
-    music_duration = st.slider("LENGTH:", 10, 240 if current_user["is_pro"] else 11, 10)
-    st.caption("v4.6.0 // T. INGVARSSON")
+    mood = st.selectbox("MOOD:", ["Cyberpunk", "Retro VHS", "Lo-fi", "Dark Techno", "Epic Cinematic", "Vaporwave"])
+    music_duration = st.slider("LENGTH (SEC):", 5, 30 if current_user["is_pro"] else 10, 8)
+    st.caption(f"v5.0.0-DB // BY T. INGVARSSON")
 
-# --- 4. HUVUDAPPEN (ALLA FLIKAR ÅTERSTÄLLDA) ---
-st.markdown(f"""<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p></div>""", unsafe_allow_html=True)
+# --- 4. HUVUDAPPEN ---
+st.markdown(f'<div class="neon-container"><p class="neon-title">MAXIMUSIKAI STUDIO</p></div>', unsafe_allow_html=True)
 
-if "REPLICATE_API_TOKEN" in st.secrets:
-    os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
-    is_admin = (artist_name == ADMIN_KEY)
+# Kontrollera API-nyckel
+replicate_token = st.secrets.get("REPLICATE_API_TOKEN") or os.environ.get("REPLICATE_API_TOKEN")
+
+if replicate_token:
+    os.environ["REPLICATE_API_TOKEN"] = replicate_token
     
-    # Här är din kompletta lista med flikar
     tab_labels = ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED"]
     if is_admin: tab_labels.append("⚙️ ADMIN")
-    
     tabs = st.tabs(tab_labels)
 
-    with tabs[0]: # --- TOTAL MAGI ---
+    with tabs[0]: # --- MAGI (ASYNKRON) ---
         c1, c2 = st.columns([1, 1.2])
         with c1:
-            m_ide = st.text_area("VAD SKALL VI SKAPA?", value=st.session_state.remix_prompt if st.session_state.remix_prompt else f"A {mood} scene")
-            if st.button("STARTA"):
+            m_ide = st.text_area("VAD SKALL VI SKAPA?", value=st.session_state.remix_prompt, placeholder="En futuristisk stad i regn...")
+            if st.button("STARTA GENERERING"):
                 if current_user["credits"] > 0 or current_user["is_pro"]:
-                    with st.status("BUILDING..."):
-                        if not current_user["is_pro"]: current_user["credits"] -= 1
-                        save_data(user_db, USERS_FILE)
-                        img = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
-                        mu = replicate.run("facebookresearch/musicgen", input={"prompt": f"{mood} music", "duration": 8})
-                        entry = {"id": datetime.datetime.now().timestamp(), "artist": artist_name, "name": m_ide[:15], "video": str(img), "audio": str(mu)}
-                        st.session_state.gallery.append(entry); save_data(st.session_state.gallery, DB_FILE); st.rerun()
+                    with st.status("MAGI PÅGÅR... ✨") as status:
+                        try:
+                            # Dra av credits om inte Pro
+                            if not current_user["is_pro"]: 
+                                current_user["credits"] -= 1
+                                update_user_db(current_user)
+                            
+                            with ThreadPoolExecutor() as executor:
+                                img_task = executor.submit(replicate.run, "black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
+                                mu_task = executor.submit(replicate.run, "facebookresearch/musicgen", input={"prompt": f"{mood} music, {m_ide}", "duration": music_duration})
+                                
+                                img_res = img_task.result()
+                                mu_res = mu_task.result()
+
+                            img_url = img_res[0] if isinstance(img_res, list) else img_res
+                            
+                            new_entry = {
+                                "artist": artist_name,
+                                "name": m_ide[:30] if m_ide else "Untitled",
+                                "video": str(img_url),
+                                "audio": str(mu_res)
+                            }
+                            
+                            add_to_gallery(new_entry)
+                            status.update(label="KLART!", state="complete")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Fel: {e}")
+                else:
+                    st.warning("Credits slut! Uppgradera till PRO.")
 
     with tabs[1]: # --- REGISSÖREN ---
-        up_file = st.file_uploader("ANIMERA BILD:", type=["jpg", "png"])
-        if up_file and st.button("KÖR ANIMATION"):
-            res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic zoom", "image_url": up_file})
-            st.video(str(res))
+        up_file = st.file_uploader("ANIMERA BILD:", type=["jpg", "png", "jpeg"])
+        if up_file and st.button("KÖR LUMA DREAM"):
+            with st.spinner("Animerar..."):
+                # Obs: Kräver ofta publik URL, fungerar bäst med Replicate upload API
+                res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Slow cinematic motion", "image_url": up_file})
+                st.video(str(res))
 
-    with tabs[2]: # --- BARA MUSIK ---
-        mu_prompt = st.text_input("BESKRIV BEATET:", f"{mood} vibes")
+    with tabs[2]: # --- MUSIK ---
+        mu_p = st.text_input("BESKRIV BEATET:", f"{mood} vibes")
         if st.button("SKAPA LJUD"):
-            mu_res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_prompt, "duration": 10})
-            st.audio(str(mu_res))
+            with st.spinner("Komponerar..."):
+                mu_res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_p, "duration": 15})
+                st.audio(str(mu_res))
 
     with tabs[3]: # --- ARKIV ---
-        my_files = [p for p in st.session_state.gallery if p.get("artist") == artist_name or is_admin]
-        for item in reversed(my_files):
+        all_data = get_full_gallery()
+        my_files = [p for p in all_data if p["artist"] == artist_name or is_admin]
+        if not my_files: st.write("Inga filer hittades.")
+        for item in my_files:
             with st.expander(f"📁 {item['name'].upper()}"):
-                st.video(item['video'])
-                if "audio" in item: st.audio(item['audio'])
+                st.image(item['video'])
+                if item.get('audio'): st.audio(item['audio'])
                 if st.button("REMIX", key=f"rem_{item['id']}"):
-                    st.session_state.remix_prompt = item['name']; st.rerun()
+                    st.session_state.remix_prompt = item['name']
+                    st.rerun()
 
-    with tabs[4]: # --- COMMUNITY FEED ---
-        st.caption("Senaste skapelserna från alla artister")
-        for item in reversed(st.session_state.gallery[-5:]):
-            st.video(item['video']); st.caption(f"Artist: {item.get('artist', 'Okänd')}")
+    with tabs[4]: # --- FEED ---
+        feed_data = get_full_gallery()[:10]
+        for item in feed_data:
+            c1, c2 = st.columns([1, 2])
+            with c1: st.image(item['video'])
+            with c2:
+                st.write(f"**Artist:** {item['artist']}")
+                if item.get('audio'): st.audio(item['audio'])
+            st.divider()
 
     if is_admin:
-        with tabs[5]: # --- ADMIN COMMAND ---
-            st.subheader("SYSTEM OVERVIEW")
-            st.write(f"Användare: {len(user_db)}")
-            st.dataframe(pd.DataFrame(user_db))
-            if st.button("EXPORT ALL DATA"):
-                save_data(st.session_state.gallery, "backup.json")
-                st.success("Backup sparad.")
+        with tabs[5]:
+            st.subheader("ADMIN DASHBOARD")
+            users = conn.table("users").select("*").execute().data
+            st.dataframe(pd.DataFrame(users))
+            if st.button("RADERA ALLA ANVÄNDARE (FARLIGT)"):
+                conn.table("users").delete().neq("artist", "ADMIN").execute()
 
-else: st.error("API TOKEN SAKNAS")
+else:
+    st.error("REPLICATE_API_TOKEN saknas i Secrets.")
 
 
 
