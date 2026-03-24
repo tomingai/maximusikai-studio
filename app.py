@@ -3,7 +3,7 @@ import replicate
 import os
 import time
 
-# --- 1. SETUP & DESIGN (TOTAL PRO LOOK) ---
+# --- 1. SETUP & DESIGN (STABIL PRO-LOOK) ---
 st.set_page_config(page_title="MAXIMUSIKAI PRO", layout="wide")
 
 st.markdown("""
@@ -14,31 +14,38 @@ st.markdown("""
         color: white !important;
     }
     
-    /* FIX: SIDOMENY TEXT (LILA & VIT) */
-    [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label p {
-        color: #bf00ff !important;
-        font-weight: 900 !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        text-shadow: 0 0 10px rgba(191, 0, 255, 0.3);
+    /* FIX: TEXT OVANFÖR RUTOR OCH I SIDOMENY */
+    .stWidget label p, label, [data-testid="stSidebar"] .stMarkdown p {
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 2px !important;
+        text-shadow: 0 0 10px rgba(255,255,255,0.5) !important;
+        font-size: 16px !important;
     }
     
-    /* INPUT-FÄLT I SIDOMENY */
-    [data-testid="stSidebar"] input {
+    /* INPUT-FÄLT */
+    input, textarea {
         background-color: rgba(191, 0, 255, 0.05) !important;
         border: 1px solid #bf00ff !important;
         color: #bf00ff !important;
+        font-weight: bold !important;
     }
 
     /* FLIKARNA (TABS) - KRITVITA */
-    .stTabs [data-baseweb="tab"] p {
+    div[data-baseweb="tab-list"] {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        padding: 10px !important;
+        border-radius: 15px !important;
+    }
+    button[data-baseweb="tab"] div p {
         color: #FFFFFF !important; 
         font-weight: 900 !important;
-        font-size: 22px !important;
-        text-shadow: 0 0 10px rgba(255,255,255,0.6);
+        font-size: 24px !important;
+        text-shadow: 0 0 10px rgba(255,255,255,0.8);
         text-transform: uppercase;
     }
-    .stTabs [aria-selected="true"] p {
+    button[aria-selected="true"] div p {
         color: #bf00ff !important;
         text-shadow: 0 0 20px #bf00ff;
     }
@@ -89,27 +96,29 @@ if "REPLICATE_API_TOKEN" in st.secrets:
         c1, c2 = st.columns([1, 1.2])
         with c1:
             m_ide = st.text_area("VAD SKALL VI SKAPA IDAG?", f"En scen i {mood}-stil")
-            if st.button("🚀 STARTA PRODUKTION"):
-                with st.status("🏗️ MAXIMUSIKAI BYGGER...") as status:
-                    try:
-                        # 1. Bild
-                        status.write("🎨 Skapar bild...")
-                        img = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
-                        img_url = img if isinstance(img, str) else img[0]
-                        
-                        # Paus för rate limit
-                        time.sleep(10)
-                        
-                        # 2. Video
-                        status.write("📽️ Animerar scenen...")
-                        video_url = replicate.run("minimax/video-01", input={"prompt": "Cinematic movement", "first_frame_image": img_url})
-                        
-                        status.update(label="✅ KLART!", state="complete")
-                        with c2:
-                            st.video(video_url)
-                            st.success(f"Skapad av {artist}")
-                    except Exception as e:
-                        st.error(f"Fel: {e}")
+            btn = st.button("🚀 STARTA PRODUKTION")
+
+        if btn:
+            with st.status("🏗️ MAXIMUSIKAI BYGGER...") as status:
+                try:
+                    # 1. Bild
+                    status.write("🎨 Skapar bild...")
+                    img_output = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
+                    img_url = img_output[0] if isinstance(img_output, list) else img_output
+                    
+                    # Paus för rate limit
+                    time.sleep(10)
+                    
+                    # 2. Video
+                    status.write("📽️ Animerar scenen...")
+                    video_url = replicate.run("minimax/video-01", input={"prompt": "Cinematic movement", "first_frame_image": img_url})
+                    
+                    status.update(label="✅ KLART!", state="complete")
+                    with c2:
+                        st.video(video_url)
+                        st.success(f"Skapad av {artist}")
+                except Exception as e:
+                    st.error(f"Fel: {e}")
 else:
     st.error("Gå till Settings -> Secrets och lägg till din REPLICATE_API_TOKEN!")
 
