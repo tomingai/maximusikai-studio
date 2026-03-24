@@ -6,100 +6,168 @@ import time
 import datetime
 
 # --- 1. SETUP & DESIGN ---
-st.set_page_config(page_title="MAXIMUSIKAI STUDIO", page_icon="🎬", layout="wide")
+st.set_page_config(page_title="MAXIMUSIKAI STUDIO", page_icon="🎵", layout="wide")
 
-if "gallery" not in st.session_state: st.session_state.gallery = []
-if "community_feed" not in st.session_state: st.session_state.community_feed = []
+if "gallery" not in st.session_state:
+    st.session_state.gallery = []
+if "community_feed" not in st.session_state:
+    st.session_state.community_feed = []
 
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(125deg, #050505, #0a0a0a, #0b001a, #050505); background-size: 400% 400%; animation: gradientBG 15s ease infinite; color: #fff; }
-    @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-    .stWidget label p, label, .stMarkdown p { color: #FFFFFF !important; font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: 2px !important; text-shadow: 0 0 10px rgba(255,255,255,0.5) !important; font-size: 16px !important; }
-    div[data-baseweb="tab-list"] { background-color: rgba(255, 255, 255, 0.05) !important; padding: 10px !important; border-radius: 15px !important; gap: 20px !important; }
-    button[data-baseweb="tab"] div p { color: #FFFFFF !important; font-weight: 900 !important; font-size: 26px !important; text-shadow: 0 0 15px rgba(255,255,255,1) !important; text-transform: uppercase !important; }
-    button[aria-selected="true"] div p { color: #bf00ff !important; text-shadow: 0 0 25px #bf00ff !important; }
-    .neon-container { background: rgba(10, 10, 10, 0.85); padding: 40px; border-radius: 30px; border: 2px solid rgba(191, 0, 255, 0.6); box-shadow: 0px 0px 60px rgba(191, 0, 255, 0.3); text-align: center; margin-bottom: 40px; backdrop-filter: blur(15px); }
-    .neon-title { font-family: 'Arial Black', sans-serif; font-size: 80px; font-weight: 900; color: #fff; text-shadow: 0 0 15px #bf00ff, 0 0 40px #bf00ff; margin: 0; }
-    .stButton>button { background: rgba(191, 0, 255, 0.1); color: #bf00ff; border: 2px solid #bf00ff; width: 100%; font-weight: bold; border-radius: 12px; height: 3.5em; text-transform: uppercase; }
-    .stButton>button:hover { background: #bf00ff; color: #000; box-shadow: 0px 0px 40px #bf00ff; }
+    .stApp {
+        background: linear-gradient(125deg, #050505, #0a0a0a, #0b001a, #050505);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+        color: #fff;
+    }
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    .stWidget label p, label, .stMarkdown p {
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 2px !important;
+        text-shadow: 0 0 10px rgba(255,255,255,0.5) !important;
+        font-size: 16px !important;
+    }
+
+    div[data-baseweb="tab-list"] {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        padding: 10px !important;
+        border-radius: 15px !important;
+        gap: 20px !important;
+    }
+    button[data-baseweb="tab"] div p {
+        color: #FFFFFF !important; 
+        font-weight: 900 !important;
+        font-size: 26px !important;
+        text-shadow: 0 0 15px rgba(255,255,255,1) !important;
+        text-transform: uppercase !important;
+    }
+    button[aria-selected="true"] div p {
+        color: #bf00ff !important;
+        text-shadow: 0 0 25px #bf00ff !important;
+    }
+
+    .neon-container {
+        background: rgba(10, 10, 10, 0.85);
+        padding: 40px; border-radius: 30px; 
+        border: 2px solid rgba(191, 0, 255, 0.6);
+        box-shadow: 0px 0px 60px rgba(191, 0, 255, 0.3);
+        text-align: center; margin-bottom: 40px;
+        backdrop-filter: blur(15px);
+    }
+    .neon-title { 
+        font-family: 'Arial Black', sans-serif; font-size: 70px; font-weight: 900; 
+        color: #fff; text-shadow: 0 0 15px #bf00ff, 0 0 40px #bf00ff; margin: 0; 
+    }
+    .stButton>button {
+        background: rgba(191, 0, 255, 0.1); color: #bf00ff; 
+        border: 2px solid #bf00ff; width: 100%; font-weight: bold; 
+        border-radius: 12px; height: 3.5em; text-transform: uppercase;
+    }
+    .stButton>button:hover {
+        background: #bf00ff; color: #000; box-shadow: 0px 0px 40px #bf00ff;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 st.markdown('<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p></div>', unsafe_allow_html=True)
 
-# API-KOLL
+def get_url(output):
+    if isinstance(output, list): return str(output[0])
+    if hasattr(output, 'url'): return str(output.url)
+    return str(output)
+
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
     api_ready = True
 else:
-    st.error("⚠️ REPLICATE_API_TOKEN saknas i Secrets!")
+    st.error("⚠️ REPLICATE_API_TOKEN saknas!")
     api_ready = False
 
 if api_ready:
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["🪄 TOTAL MAGI", "🎬 REGISSÖREN", "🎧 BARA MUSIK", "📚 BIBLIOTEK", "🌐 COMMUNITY"])
 
-    # --- FLIK 1: TOTAL MAGI (Samma som förut) ---
+    # --- FLIK 1: TOTAL MAGI ---
     with tab1:
-        st.write("Skapa allt från grunden med AI.")
-        # ... (Här ligger din befintliga kod för flik 1)
+        c1, c2 = st.columns([1, 1.2])
+        with c1:
+            proj_name = st.text_input("PROJEKTETS NAMN:", f"MAXI-{len(st.session_state.gallery)+1}")
+            m_ide = st.text_area("VAD SKALL VI SKAPA IDAG?", "En cyberpunk-stad i neon-lila regn")
+            if st.button("🚀 STARTA PRODUKTION"):
+                with st.status("🏗️ MAXIMUSIKAI BYGGER...") as status:
+                    try:
+                        img_raw = replicate.run("black-forest-labs/flux-schnell", input={"prompt": m_ide, "aspect_ratio": "16:9"})
+                        img_url = get_url(img_raw)
+                        time.sleep(1)
+                        lyrics_res = replicate.run("meta/llama-2-70b-chat", input={"prompt": f"Write 4 lines about: {m_ide}. ONLY lyrics."})
+                        lyrics = "".join(lyrics_res).replace('"', '').strip()
+                        v_url = get_url(replicate.run("minimax/video-01", input={"prompt": "Cinematic", "first_frame_image": img_url}))
+                        
+                        entry = {"name": proj_name, "video": v_url, "lyrics": lyrics, "time": datetime.datetime.now().strftime("%H:%M")}
+                        st.session_state.gallery.append(entry)
+                        status.update(label="✅ KLART!", state="complete")
+                        with c2:
+                            st.video(v_url)
+                            st.markdown(f"<div style='padding:15px; border-left:5px solid #bf00ff; background:rgba(0,0,0,0.5);'>{lyrics}</div>", unsafe_allow_html=True)
+                    except Exception as e: st.error(f"Fel: {e}")
 
-    # --- FLIK 2: REGISSÖREN (UPPGRADERAD!) ---
+    # --- FLIK 2: REGISSÖREN ---
     with tab2:
         col_r1, col_r2 = st.columns([1, 1.2])
         with col_r1:
             uploaded_file = st.file_uploader("LADDA UPP DIN SCEN (BILD):", type=["jpg", "png", "jpeg"])
-            if uploaded_file:
-                st.image(uploaded_file, caption="Din uppladdade scen", use_container_width=True)
-            
-            st.divider()
-            motion_type = st.selectbox("VÄLJ KAMERARÖRELSE:", [
-                "Cinematic Slow Zoom", 
-                "Pan Right to Left", 
-                "Drone Flyover", 
-                "Fast Action Push", 
-                "Slow motion dream"
-            ])
-            
-            r_btn = st.button("⚡ ANIMERA SCENEN")
+            motion_type = st.selectbox("VÄLJ KAMERARÖRELSE:", ["Cinematic Slow Zoom", "Pan Right to Left", "Drone Flyover"])
+            if st.button("⚡ ANIMERA SCENEN") and uploaded_file:
+                with st.status("🎬 Regisserar...") as status:
+                    video_output = replicate.run("minimax/video-01", input={"prompt": motion_type, "first_frame_image": uploaded_file})
+                    v_regi_url = get_url(video_output)
+                    st.session_state.gallery.append({"name": f"Regi: {motion_type}", "video": v_regi_url, "time": datetime.datetime.now().strftime("%H:%M"), "lyrics": "Endast video"})
+                    with col_r2: st.video(v_regi_url)
 
-        with col_r2:
-            if r_btn and uploaded_file:
-                with st.status("🎬 Regisserar din scen...") as status:
-                    try:
-                        # Animera bilden med Minimax
-                        video_output = replicate.run(
-                            "minimax/video-01",
-                            input={
-                                "prompt": f"{motion_type}, high quality, cinematic lighting",
-                                "first_frame_image": uploaded_file
-                            }
-                        )
-                        video_url = str(video_output)
-                        
-                        status.update(label="✅ Scenen är filmad!", state="complete")
-                        st.video(video_url)
-                        
-                        # Möjlighet att spara till arkiv
-                        if st.button("💾 SPARA I ARKIVET"):
-                            st.session_state.gallery.append({
-                                "name": f"Regi: {motion_type}",
-                                "video": video_url,
-                                "time": datetime.datetime.now().strftime("%H:%M"),
-                                "lyrics": "Endast video (Regissören)"
-                            })
-                            st.success("Sparad!")
-                            
-                    except Exception as e:
-                        st.error(f"Kameran hängde sig: {e}")
-            elif r_btn and not uploaded_file:
-                st.warning("Du måste ladda upp en bild först, Regissören!")
+    # --- FLIK 3: BARA MUSIK ---
+    with tab3:
+        col_mu1, col_mu2 = st.columns([1, 1.2])
+        with col_mu1:
+            mu_desc = st.text_input("BESKRIV MUSIKEN:", "Synthwave beat med tunga trummor")
+            mu_dur = st.slider("LÄNGD (SEK):", 5, 20, 10)
+            if st.button("🎵 GENERERA LJUDSPÅR"):
+                with st.status("🎸 Komponerar...") as status:
+                    mu_output = replicate.run("facebookresearch/musicgen", input={"prompt": mu_desc, "duration": mu_dur})
+                    mu_url = get_url(mu_output)
+                    st.session_state.gallery.append({"name": f"Musik: {mu_desc}", "video": None, "audio": mu_url, "time": datetime.datetime.now().strftime("%H:%M"), "lyrics": "Endast musik"})
+                    with col_mu2: st.audio(mu_url)
 
-    # --- ÖVRIGA FLIKAR (Samma som förut) ---
+    # --- FLIK 4: BIBLIOTEK ---
     with tab4:
-        for item in reversed(st.session_state.gallery):
-            with st.expander(f"📁 {item['name']}"):
-                st.video(item['video'])
+        st.subheader("DITT LOKALA ARKIV")
+        if not st.session_state.gallery:
+            st.info("Arkivet är tomt. Skapa något först!")
+        else:
+            for item in reversed(st.session_state.gallery):
+                with st.expander(f"📁 {item['name']} ({item['time']})"):
+                    if "video" in item and item["video"]:
+                        st.video(item["video"])
+                    elif "audio" in item and item["audio"]:
+                        st.audio(item["audio"])
+                    st.write(item["lyrics"])
+
+    # --- FLIK 5: COMMUNITY ---
+    with tab5:
+        st.markdown("<h2 style='text-align:center; color:#bf00ff;'>🌐 COMMUNITY HUB</h2>", unsafe_allow_html=True)
+        if st.button("DELA SENASTE PROJEKTET") and st.session_state.gallery:
+            st.session_state.community_feed.append(st.session_state.gallery[-1])
+            st.success("Delat!")
+        for post in reversed(st.session_state.community_feed):
+            st.divider()
+            if post["video"]: st.video(post["video"])
+            st.write(f"**{post['name']}** - {post['lyrics']}")
 
 st.markdown("<br><center><small>MAXIMUSIKAI // 2024</small></center>", unsafe_allow_html=True)
 
