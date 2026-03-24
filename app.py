@@ -79,10 +79,7 @@ with st.sidebar:
     
     st.divider()
     music_duration = st.slider(L["dur"], 10, 240, 10, step=10)
-    
-    # VARNINGS-LOGIK
-    if music_duration > 60:
-        st.error(L["warn"])
+    if music_duration > 60: st.error(L["warn"])
     
     if st.session_state.gallery:
         st.divider()
