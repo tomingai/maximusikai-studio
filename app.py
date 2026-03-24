@@ -30,18 +30,15 @@ if "gallery" not in st.session_state: st.session_state.gallery = load_data()
 if "community_feed" not in st.session_state: st.session_state.community_feed = []
 if "remix_prompt" not in st.session_state: st.session_state.remix_prompt = ""
 if "theme_color" not in st.session_state: st.session_state.theme_color = "#bf00ff"
+if "is_pro" not in st.session_state: st.session_state.is_pro = False
 
 # --- 2. THEME & LANGUAGES ---
 theme_options = {"Neon Purple": "#bf00ff", "Cyber Amber": "#ffaa00", "Electric Blue": "#00f2ff", "Acid Green": "#ccff00"}
 main_color = st.session_state.theme_color
 
 LANG_MAP = {
-    "Svenska": {"t": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED"], "p": "VAD SKALL VI SKAPA?", "b": "STARTA", "a": "ARTIST", "m": "VÄLJ STIL:", "dur": "LÄNGD (SEK):", "v_label": "RÖST (MELODI):", "live": "SENASTE", "remix": "REMIX", "theme": "FÄRGTEMA:", "warn": "⚠️ VARNING: Lång produktionstid vald!", "ly_instr": "Skriv på svenska."},
-    "English": {"t": ["🪄 MAGIC", "🎬 DIRECT", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED"], "p": "WHAT TO CREATE?", "b": "START", "a": "ARTIST", "m": "SELECT STYLE:", "dur": "DURATION (SEC):", "v_label": "VOICE (MELODY):", "live": "LATEST", "remix": "REMIX", "theme": "THEME COLOR:", "warn": "⚠️ WARNING: Long production time!", "ly_instr": "Write in English."},
-    "Deutsch": {"t": ["🪄 MAGIE", "🎬 REGIE", "🎧 MUSIK", "📚 ARCHIV", "🌐 FEED"], "p": "WAS ERSCHAFFEN?", "b": "STARTEN", "a": "KÜNSTLER", "m": "STIL WÄHLEN:", "dur": "DAUER (SEK):", "v_label": "STIMME (MELODIE):", "live": "NEUESTE", "remix": "REMIX", "theme": "FARBTHEMA:", "warn": "⚠️ WARNUNG: Lange Dauer!", "ly_instr": "Schreib auf Deutsch."},
-    "Français": {"t": ["🪄 MAGIE", "🎬 RÉGIE", "🎧 MUSIQUE", "📚 ARCHIVE", "🌐 FEED"], "p": "QUE CRÉER?", "b": "LANCER", "a": "ARTISTE", "m": "CHOISIR STYLE:", "dur": "DURÉE (SEC):", "v_label": "VOIX (MÉLODIE):", "live": "RÉCENT", "remix": "REMIXER", "theme": "THÈME:", "warn": "⚠️ ATTENTION: Temps long!", "ly_instr": "Écris en français."},
-    "Español": {"t": ["🪄 MAGIA", "🎬 CINE", "🎧 MÚSICA", "📚 ARCHIVE", "🌐 FEED"], "p": "¿QUÉ CREAR?", "b": "INICIAR", "a": "ARTISTA", "m": "ESTILO:", "dur": "DURACIÓN (SEG):", "v_label": "VOZ (MELODÍA):", "live": "RECIENTE", "remix": "REMIX", "theme": "TEMA:", "warn": "⚠️ ADVERTENCIA: ¡Tiempo largo!", "ly_instr": "Escribe en español."},
-    "Italiano": {"t": ["🪄 MAGIA", "🎬 REGIA", "🎧 MUSICA", "📚 ARCHIVE", "🌐 FEED"], "p": "COSA CREARE?", "b": "AVVIA", "a": "ARTISTA", "m": "STILE:", "dur": "DURATA (SEC):", "v_label": "VOCE (MELODIA):", "live": "RECENTI", "remix": "REMIX", "theme": "TEMA:", "warn": "⚠️ ATTENZIONE: Tempo lungo!", "ly_instr": "Scrivi in italiano."}
+    "Svenska": {"t": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED"], "p": "VAD SKALL VI SKAPA?", "b": "STARTA", "a": "ARTIST", "m": "VÄLJ STIL:", "dur": "LÄNGD (SEK):", "v_label": "RÖST (MELODI):", "live": "SENASTE", "remix": "REMIX", "theme": "FÄRGTEMA:", "warn": "⚠️ VARNING: Lång produktionstid vald!", "pro_msg": "🔓 PRO-FUNKTION: Uppgradera för full längd och export."},
+    "English": {"t": ["🪄 MAGIC", "🎬 DIRECT", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED"], "p": "WHAT TO CREATE?", "b": "START", "a": "ARTIST", "m": "SELECT STYLE:", "dur": "DURATION (SEC):", "v_label": "VOICE (MELODY):", "live": "LATEST", "remix": "REMIX", "theme": "THEME COLOR:", "warn": "⚠️ WARNING: Long production time!", "pro_msg": "🔓 PRO FEATURE: Upgrade for full length and export."}
 }
 
 # --- 3. DESIGN ---
@@ -56,17 +53,25 @@ st.markdown(f"""
     .neon-title {{ font-family: 'Arial Black', sans-serif; font-size: 50px; font-weight: 900; color: #fff; text-shadow: 0 0 15px {main_color}; margin: 0; }}
     .stButton>button {{ background: {main_color}1a; color: {main_color}; border: 1px solid {main_color}; border-radius: 10px; font-weight: bold; }}
     .stButton>button:hover {{ background: {main_color}; color: #000; box-shadow: 0px 0px 25px {main_color}; }}
-    .live-preview-box {{ border: 1px solid {main_color}; border-radius: 10px; padding: 5px; margin-bottom: 10px; background: {main_color}1a; }}
+    .pro-badge {{ background: gold; color: black; padding: 2px 8px; border-radius: 5px; font-size: 10px; font-weight: 900; vertical-align: middle; }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. SIDOMENY ---
+# --- 4. SIDOMENY (SUBSCRIPTION TEST) ---
 with st.sidebar:
     st.markdown(f"""<div style="border: 1px solid {main_color}; padding: 10px; border-radius: 10px; text-align: center;"><p style="color:{main_color}; font-weight:900; margin:0; font-size:12px;">MAXIMUSIKAI ENGINE ONLINE</p><p style="color:#555; font-size:9px; margin:0;">TOMAS INGVARSSON PRODUCTION</p></div>""", unsafe_allow_html=True)
     
-    sel_lang = st.selectbox("LANG / SPRÅK:", list(LANG_MAP.keys()))
+    sel_lang = st.selectbox("LANG / SPRÅK:", ["Svenska", "English"])
     L = LANG_MAP[sel_lang]
     
+    # SIMULERAD BETALVÄGG
+    with st.expander("💳 SUBSCRIPTION", expanded=not st.session_state.is_pro):
+        pro_code = st.text_input("LICENSE KEY:", type="password")
+        if pro_code == "2026": 
+            st.session_state.is_pro = True
+            st.success("PRO UNLOCKED")
+        elif pro_code: st.error("INVALID KEY")
+        
     chosen_theme_name = st.selectbox(L["theme"], list(theme_options.keys()))
     if theme_options[chosen_theme_name] != st.session_state.theme_color:
         st.session_state.theme_color = theme_options[chosen_theme_name]
@@ -75,27 +80,19 @@ with st.sidebar:
     with st.expander(L["a"]): artist_name = st.text_input("", "ANONYM")
     
     st.divider()
-    # RULLMENY FÖR STIL/MOOD
-    mood = st.selectbox(L["m"], [
-        "Cyberpunk 2077", "Retro VHS 80s", "Lo-fi Dreams", "Dark Techno", 
-        "Cinematic Epic", "Synthwave Neon", "Deep Space", "Urban Drill", 
-        "Psych Rock", "Minimalist Zen", "Horror Gothic", "Vaporwave"
-    ])
+    mood = st.selectbox(L["m"], ["Cyberpunk 2077", "Retro VHS 80s", "Lo-fi Dreams", "Dark Techno", "Cinematic Epic", "Synthwave Neon", "Deep Space", "Urban Drill", "Psych Rock", "Minimalist Zen", "Horror Gothic", "Vaporwave"])
     
+    # DURATION LIMITER
     st.divider()
-    music_duration = st.slider(L["dur"], 10, 240, 10, step=10)
-    if music_duration > 60: st.error(L["warn"])
+    max_dur = 240 if st.session_state.is_pro else 10
+    music_duration = st.slider(L["dur"], 10, max_dur, 10, step=10)
+    if not st.session_state.is_pro: st.caption(L["pro_msg"])
+    elif music_duration > 60: st.error(L["warn"])
     
-    if st.session_state.gallery:
-        st.divider()
-        st.markdown(f"### ⚡ {L['live']}")
-        for item in list(reversed(st.session_state.gallery))[:2]:
-            st.markdown(f'<div class="live-preview-box">', unsafe_allow_html=True)
-            st.video(item['video'])
-            st.markdown('</div>', unsafe_allow_html=True)
-    st.caption("MAXIMUSIKAI v2.9.7")
+    st.caption("MAXIMUSIKAI v3.0.0-BETA")
 
-st.markdown(f"""<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p><p style="color:{main_color}; letter-spacing: 4px; font-size: 12px; margin-top: -5px; opacity: 0.8;">{sel_lang.upper()} PRO STUDIO</p></div>""", unsafe_allow_html=True)
+pro_tag = '<span class="pro-badge">PRO</span>' if st.session_state.is_pro else ''
+st.markdown(f"""<div class="neon-container"><p class="neon-title">MAXIMUSIKAI {pro_tag}</p><p style="color:{main_color}; letter-spacing: 4px; font-size: 12px; margin-top: -5px; opacity: 0.8;">{sel_lang.upper()} STUDIO PRO</p></div>""", unsafe_allow_html=True)
 
 # --- 5. HUVUDAPPEN ---
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -107,7 +104,7 @@ if "REPLICATE_API_TOKEN" in st.secrets:
         with c1:
             m_ide = st.text_area(L["p"], value=st.session_state.remix_prompt if st.session_state.remix_prompt else f"A {mood} scene")
             if st.button(L["b"]):
-                with st.status("BUILDING...") as status:
+                with st.status("WORKING...") as status:
                     try:
                         with ThreadPoolExecutor() as exe:
                             img_f = exe.submit(replicate.run, "black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
@@ -127,8 +124,10 @@ if "REPLICATE_API_TOKEN" in st.secrets:
                 res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic motion", "image_url": up_file})
                 st.video(str(res))
 
-    with tab3: # MUSIK
-        voice_file = st.file_uploader(L["v_label"], type=["mp3", "wav", "m4a"])
+    with tab3: # MUSIK (LÅST FÖR GRATIS)
+        st.subheader("VOICE-TO-BEAT")
+        if not st.session_state.is_pro: st.warning(L["pro_msg"])
+        voice_file = st.file_uploader(L["v_label"], type=["mp3", "wav", "m4a"], disabled=not st.session_state.is_pro)
         mu_ide = st.text_input("PROMPT:", f"{mood} beat")
         if st.button("GENERATE"):
             with st.status("..."):
@@ -136,18 +135,22 @@ if "REPLICATE_API_TOKEN" in st.secrets:
                 if voice_file: p["input_audio"] = voice_file
                 st.audio(str(replicate.run("facebookresearch/musicgen", input=p)))
 
-    with tab4: # ARKIV
-        if st.button("ZIP EXPORT"):
-            buf = io.BytesIO()
-            with zipfile.ZipFile(buf, "w") as zf: zf.writestr("history.json", json.dumps(st.session_state.gallery))
-            st.download_button("DOWNLOAD", data=buf.getvalue(), file_name="maximusikai_pro.zip")
+    with tab4: # ARKIV (EXPORT LÅST)
+        if st.session_state.is_pro:
+            if st.button("ZIP EXPORT"):
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w") as zf: zf.writestr("history.json", json.dumps(st.session_state.gallery))
+                st.download_button("DOWNLOAD", data=buf.getvalue(), file_name="maximusikai_pro.zip")
+        else: st.info(L["pro_msg"])
+        
         for item in reversed(st.session_state.gallery):
             with st.expander(f"📁 {item['name']} ({item['time']})"):
                 st.video(item['video']); st.audio(item['audio'])
                 c_rem, c_del = st.columns(2)
                 with c_rem:
-                    if st.button(f"🔄 {L['remix']}", key=f"rem_{item['id']}"):
-                        st.session_state.remix_prompt = item.get('full_prompt', item['name']); st.rerun()
+                    if st.session_state.is_pro:
+                        if st.button(f"🔄 {L['remix']}", key=f"rem_{item['id']}"):
+                            st.session_state.remix_prompt = item.get('full_prompt', item['name']); st.rerun()
                 with c_del:
                     if st.button("🗑️", key=f"del_{item['id']}"):
                         st.session_state.gallery = [x for x in st.session_state.gallery if x['id'] != item['id']]
@@ -161,6 +164,7 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 
 else: st.error("REPLICATE_API_TOKEN MISSING")
 st.markdown("<center><p style='color:#333; font-size:10px;'>MAXIMUSIKAI SPEED PRO // 2026 // T.I.</p></center>", unsafe_allow_html=True)
+
 
 
 
