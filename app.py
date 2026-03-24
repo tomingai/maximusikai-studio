@@ -11,7 +11,7 @@ st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", la
 if "gallery" not in st.session_state: st.session_state.gallery = []
 if "community_feed" not in st.session_state: st.session_state.community_feed = []
 
-# --- 2. DESIGN ---
+# --- 2. DEN STORA DESIGN-MOTORN ---
 st.markdown("""
     <style>
     .stApp, [data-testid="stSidebar"] { background: linear-gradient(135deg, #050505 0%, #0b001a 100%) !important; color: white !important; }
@@ -28,7 +28,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p></div>', unsafe_allow_html=True)
+# TITEL MED DITT NAMN
+st.markdown("""
+<div class="neon-container">
+    <p class="neon-title">MAXIMUSIKAI</p>
+    <p style="color:#bf00ff; letter-spacing: 3px; font-size: 14px; margin-top: -10px;">
+        ENGINEERED BY <span style="color:#fff; font-weight:bold;">TOMAS INGVARSSON</span>
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
 # --- 3. SIDOMENY ---
 with st.sidebar:
@@ -91,7 +99,6 @@ if "REPLICATE_API_TOKEN" in st.secrets:
             for item in reversed(st.session_state.gallery):
                 with st.expander(f"📁 {item['name']} ({item['time']})"):
                     st.video(item['video']); st.audio(item['audio'])
-                    if "lyrics" in item: st.markdown(f"**Lyrics:** {item['lyrics']}")
                     c_dl1, c_dl2, c_del = st.columns(3)
                     with c_dl1: st.download_button("💾 VIDEO", requests.get(item['video']).content, file_name="vid.mp4", key=f"v_{item['id']}")
                     with c_dl2: st.download_button("🎵 LJUD", requests.get(item['audio']).content, file_name="aud.mp3", key=f"a_{item['id']}")
@@ -100,6 +107,7 @@ if "REPLICATE_API_TOKEN" in st.secrets:
                             st.session_state.gallery = [x for x in st.session_state.gallery if x['id'] != item['id']]; st.rerun()
 
     with tab5: # --- COMMUNITY ---
+        st.markdown(f"<p style='text-align:center; color:#aaa; font-style:italic;'>Community System Engineered by Tomas Ingvarsson</p>", unsafe_allow_html=True)
         if st.button("DELA SENASTE"):
             if st.session_state.gallery: st.session_state.community_feed.append(st.session_state.gallery[-1]); st.success("Delad!")
         for post in reversed(st.session_state.community_feed):
@@ -107,7 +115,8 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 
 else: st.error("⚠️ REPLICATE_API_TOKEN saknas!")
 
-st.markdown("<br><center><small>MAXIMUSIKAI SPEED PRO // 2026</small></center>", unsafe_allow_html=True)
+# FOOTER MED DITT NAMN
+st.markdown(f"<br><center><small>MAXIMUSIKAI SPEED PRO // 2026 // CREATED BY <b>TOMAS INGVARSSON</b></small></center>", unsafe_allow_html=True)
 
 
 
