@@ -35,7 +35,7 @@ texts = {
 }
 L = texts[st.session_state.lang]
 
-# --- 3. DYNAMISK DESIGN (FIXAD FÖR BILDER) ---
+# --- 3. DYNAMISK DESIGN (SÄKRAD FÖR BILDER) ---
 bg_img = st.session_state.app_bg
 if bg_img:
     bg_url = bg_img[0] if isinstance(bg_img, list) else str(bg_img)
@@ -45,7 +45,6 @@ if bg_img:
             background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("{bg_url}");
             background-size: cover; background-position: center; background-attachment: fixed;
         }}
-        /* Gör flikarna och texten vita och tydliga */
         label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
             color: white !important; text-shadow: 1px 1px 3px black !important; font-weight: bold !important; 
         }}
@@ -64,22 +63,39 @@ with st.sidebar:
     if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = 10
     is_admin = (artist_id == "TOMAS2026")
     
-    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {st.session_state.user_db[artist_id]} {L['units']}'}")
+    # --- FIX FÖR F-STRING ERROR (Säker hantering av variabler) ---
+    current_units = st.session_state.user_db[artist_id]
+    unit_label = L["units"]
+    status_label = L["status"]
+    
+    if is_admin:
+        st.info(f"{status_label}: 💎 ADMIN")
+    else:
+        st.info(f"{status_label}: ⚡ {current_units} {unit_label}")
     
     st.divider()
     st.subheader("ATMOSPHERE")
     c1, c2 = st.columns(2)
+    
+    # Atmosfär-prompts
+    atmo_prompts = {
+        "space": "Deep space nebula, cinematic stars, 4k",
+        "forest": "Mystic green forest, sunlight through trees, 4k",
+        "city": "Cyberpunk city night, neon rain, futuristic, 4k",
+        "bake": "Cozy rustic bakery, flour on table, warm golden light, 4k"
+    }
+
     if c1.button(L["atm_space"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, stars, 4k"})
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": atmo_prompts["space"]})
         st.session_state.app_bg = res; st.rerun()
     if c2.button(L["atm_forest"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, cinematic, 4k"})
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": atmo_prompts["forest"]})
         st.session_state.app_bg = res; st.rerun()
     if c1.button(L["atm_city"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Futuristic city night, 4k"})
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": atmo_prompts["city"]})
         st.session_state.app_bg = res; st.rerun()
     if c2.button(L["atm_bake"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cozy bakery, bread, golden light, 4k"})
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": atmo_prompts["bake"]})
         st.session_state.app_bg = res; st.rerun()
     
     if st.button("❌ RESET DESIGN"):
@@ -96,9 +112,12 @@ if not st.session_state.agreed:
 token = st.secrets.get("REPLICATE_API_TOKEN")
 if token:
     os.environ["REPLICATE_API_TOKEN"] = token
-    tabs = st.tabs([L["tab1"], L["tab2"], L["tab3"], L["tab4"], L["tab5"], L["tab6"] if is_admin else " "])
+    # Dynamiska flikar
+    tab_list = [L["tab1"], L["tab2"], L["tab3"], L["tab4"], L["tab5"]]
+    if is_admin: tab_list.append(L["tab6"])
+    tabs = st.tabs(tab_list)
 
-    with tabs[0]: # MAGIC
+    with tabs[0]: # MAGI
         prompt = st.text_area(L["prompt_label"], value=st.session_state.remix_prompt)
         if st.button(L["start_btn"]):
             if st.session_state.user_db[artist_id] > 0 or is_admin:
@@ -109,38 +128,42 @@ if token:
                     st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": prompt[:20], "url": img, "audio": mu})
                     st.rerun()
 
-    with tabs[1]: # DIRECTOR (LUMA)
+    with tabs[1]: # REGI (Luma)
         up = st.file_uploader("Image:", type=["jpg", "png"], key="l_up")
         if up and st.button("KÖR ANIMATION"):
-            res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic", "image_url": up})
+            res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic motion", "image_url": up})
             st.video(str(res))
 
-    with tabs[2]: # MUSIC
-        mu_p = st.text_input("Describe beat:")
+    with tabs[2]: # MUSIK
+        mu_p = st.text_input("Describe beat:", key="mu_p")
         if st.button("CREATE AUDIO"):
             res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_p, "duration": 10})
             st.audio(str(res))
 
-    with tabs[3]: # ARCHIVE
+    with tabs[3]: # ARKIV
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
+        if not my: st.info("Ditt arkiv är tomt.")
         for p in reversed(my):
             with st.expander(f"📁 {p['name'].upper()}"):
-                st.image(p["url"])
+                img_url = p["url"][0] if isinstance(p["url"], list) else p["url"]
+                st.image(img_url)
                 if st.button(L["set_bg"], key=f"set_{p['id']}"):
                     st.session_state.app_bg = p["url"]; st.rerun()
                 if p.get("audio"): st.audio(p["audio"])
 
     with tabs[4]: # FEED
         for p in reversed(st.session_state.gallery[-10:]):
-            st.image(p["url"], caption=f"Artist: {p['artist']}")
+            img_url = p["url"][0] if isinstance(p["url"], list) else p["url"]
+            st.image(img_url, caption=f"Artist: {p['artist']}")
             st.divider()
 
-    if is_admin:
+    if is_admin and len(tabs) > 5:
         with tabs[5]:
             st.write(st.session_state.user_db)
             if st.button("RENSA ALLT"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API KEY MISSING")
+
 
 
 
