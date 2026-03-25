@@ -3,17 +3,16 @@ import replicate
 import os
 import time
 
-# --- 1. SETUP & SESSION STATE (SÄKERHETSLAGER) ---
+# --- 1. SETUP & SESSION STATE ---
 st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", layout="wide")
 
-# Initiera variabler så de inte nollställs vid kodändring
 if "gallery" not in st.session_state: st.session_state.gallery = []
 if "user_db" not in st.session_state: st.session_state.user_db = {}
 if "app_bg" not in st.session_state: st.session_state.app_bg = None
 if "agreed" not in st.session_state: st.session_state.agreed = False
 if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 
-# --- 2. DESIGN-MOTORN (HÅLLER ALLT PÅ PLATS) ---
+# --- 2. DESIGN-MOTOR (HÅLLER ALLT PÅ PLATS) ---
 def apply_design():
     if st.session_state.app_bg:
         bg_url = st.session_state.app_bg
@@ -23,7 +22,6 @@ def apply_design():
                 background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url("{bg_url}");
                 background-size: cover; background-position: center; background-attachment: fixed;
             }}
-            /* GENOMSKINLIGA RUTOR UTAN GRÅTT */
             div[data-baseweb="base-input"], div[data-baseweb="textarea"] {{ background-color: transparent !important; }}
             .stTextArea textarea, .stTextInput input {{ 
                 background-color: rgba(255,255,255,0.08) !important; 
@@ -32,7 +30,6 @@ def apply_design():
                 border: 1px solid rgba(255,255,255,0.2) !important;
                 backdrop-filter: blur(15px);
             }}
-            /* TEXT-SYNLIGHET */
             label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
                 color: white !important; 
                 text-shadow: 2px 2px 8px rgba(0,0,0,1) !important; 
@@ -51,17 +48,19 @@ texts = {
     "Svenska": {
         "title": "MAXIMUSIKAI STUDIO",
         "tab_names": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED", "⚙️ ADMIN"],
+        "atm_space": "RYMDEN 🌌", "atm_forest": "SKOGEN 🌲", "atm_city": "STADEN 🌆", "atm_bake": "BAKNING 🥐",
         "status": "STATUS", "units": "UNITS", "set_bg": "🖼 SÄTT SOM BAKGRUND"
     },
     "English": {
         "title": "MAXIMUSIKAI STUDIO",
         "tab_names": ["🪄 MAGIC", "🎬 DIRECTOR", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED", "⚙️ ADMIN"],
+        "atm_space": "SPACE 🌌", "atm_forest": "FOREST 🌲", "atm_city": "CITY 🌆", "atm_bake": "BAKING 🥐",
         "status": "STATUS", "units": "UNITS", "set_bg": "🖼 SET AS BACKGROUND"
     }
 }
 L = texts[st.session_state.lang]
 
-# --- 4. SIDOMENY ---
+# --- 4. SIDOMENY (HÄR ÄR RYMDEN & SKOGEN TILLBAKA) ---
 with st.sidebar:
     st.title("STUDIO")
     st.session_state.lang = st.radio("Språk:", ["Svenska", "English"], horizontal=True)
@@ -72,10 +71,27 @@ with st.sidebar:
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
     
-    # Fixad f-string för att undvika unmatched bracket error
     u_unit_label = L["units"]
     status_display = "💎 ADMIN" if is_admin else f"⚡ {u_creds} {u_unit_label}"
     st.info(f"{L['status']}: {status_display}")
+    
+    st.divider()
+    st.subheader("ATMOSPHERE")
+    c1, c2 = st.columns(2)
+    c3, c4 = st.columns(2)
+    
+    if c1.button(L["atm_space"]):
+        st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
+        st.rerun()
+    if c2.button(L["atm_forest"]):
+        st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})
+        st.rerun()
+    if c3.button(L["atm_city"]):
+        st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})
+        st.rerun()
+    if c4.button(L["atm_bake"]):
+        st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, warm bread, 4k"})
+        st.rerun()
     
     if st.button("❌ NOLLSTÄLL DESIGN"):
         st.session_state.app_bg = None
@@ -94,23 +110,19 @@ token = st.secrets.get("REPLICATE_API_TOKEN")
 if token:
     os.environ["REPLICATE_API_TOKEN"] = token
     
-    # Skapa flikar (Admin ser alla 6, användare ser 5)
     tab_list = L["tab_names"] if is_admin else L["tab_names"][:-1]
     tabs = st.tabs(tab_list)
 
     with tabs[0]: # MAGI
-        prompt = st.text_area("VAD SKALL VI SKAPA?", key="main_p", placeholder="Beskriv din vision...")
+        prompt = st.text_area("VAD SKALL VI SKAPA?", key="main_p")
         if st.button("STARTA GENERERING", use_container_width=True):
             if u_creds > 0 or is_admin:
                 with st.status("AI arbetar..."):
                     if not is_admin: st.session_state.user_db[artist_id] -= 1
-                    
-                    # Generera Bild & Musik
                     img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
-                    img_url = img_res[0] if isinstance(img_res, list) else str(img_res)
+                    img_url = img_res if isinstance(img_res, list) else str(img_res)
                     mu_res = replicate.run("facebookresearch/musicgen", input={"prompt": prompt, "duration": 8})
                     
-                    # Lås bakgrunden om den är tom
                     if st.session_state.app_bg is None:
                         st.session_state.app_bg = img_url
                     
@@ -124,18 +136,16 @@ if token:
         st.subheader("BILD TILL VIDEO")
         up_img = st.file_uploader("Ladda upp bild:", type=["jpg", "png"], key="reg_up")
         if up_img and st.button("ANIMERA"):
-            st.info("Luma Dream Machine arbetar... (Detta kräver en hostad URL)")
+            st.info("Luma Dream Machine arbetar...")
 
     with tabs[2]: # MUSIK
         mu_in = st.text_input("Beskriv beatet:", key="mu_input")
         if st.button("SKAPA LJUD"):
-            with st.spinner("Komponerar..."):
-                res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_in, "duration": 10})
-                st.audio(str(res))
+            res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_in, "duration": 10})
+            st.audio(str(res))
 
     with tabs[3]: # ARKIV
         my_creations = [p for p in st.session_state.gallery if p["artist"] == artist_id]
-        if not my_creations: st.info("Här var det tomt!")
         for p in reversed(my_creations):
             with st.expander(f"📁 {p['name'].upper()}"):
                 st.image(p["url"])
@@ -156,7 +166,8 @@ if token:
                 st.session_state.gallery = []
                 st.rerun()
 else:
-    st.error("API TOKEN SAKNAS I SECRETS")
+    st.error("API TOKEN SAKNAS")
+
 
 
 
