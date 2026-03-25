@@ -23,29 +23,18 @@ def apply_design():
                 background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url("{bg_url}") !important;
                 background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
             }}
-            /* LOGGA GLOW */
             .logo-text {{
-                font-size: 3rem !important;
-                font-weight: 900 !important;
-                color: #fff !important;
-                text-align: center;
-                text-transform: uppercase;
-                letter-spacing: 5px;
+                font-size: 3rem !important; font-weight: 900 !important; color: #fff !important; text-align: center;
+                text-transform: uppercase; letter-spacing: 5px;
                 text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #00d2ff, 0 0 40px #00d2ff !important;
                 margin-bottom: 20px;
             }}
-            /* Transparenta rutor */
             div[data-baseweb="base-input"], div[data-baseweb="textarea"], .stTextArea textarea, .stTextInput input {{
-                background-color: rgba(255,255,255,0.1) !important;
-                color: white !important;
-                backdrop-filter: blur(15px) !important;
-                border: 1px solid rgba(255,255,255,0.2) !important;
-                border-radius: 12px !important;
+                background-color: rgba(255,255,255,0.1) !important; color: white !important;
+                backdrop-filter: blur(15px) !important; border: 1px solid rgba(255,255,255,0.2) !important; border-radius: 12px !important;
             }}
             label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
-                color: white !important; 
-                text-shadow: 2px 2px 8px rgba(0,0,0,1) !important; 
-                font-weight: 800 !important;
+                color: white !important; text-shadow: 2px 2px 8px rgba(0,0,0,1) !important; font-weight: 800 !important;
             }}
             .stTabs [data-baseweb="tab-list"] {{ background-color: rgba(0,0,0,0.4) !important; border-radius: 10px !important; }}
             </style>
@@ -84,33 +73,24 @@ with st.sidebar:
     if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = 10
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
-    
-    u_label = L["units"]
-    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_creds} {u_label}'}")
-    
+    u_unit_label = L["units"]
+    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_creds} {u_unit_label}'}")
     st.divider()
     st.subheader("ATMOSPHERE")
     c1, c2 = st.columns(2); c3, c4 = st.columns(2)
-    
     if c1.button(L["atm_space"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
-        st.session_state.app_bg = get_url(res); st.rerun()
+        st.session_state.app_bg = get_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})); st.rerun()
     if c2.button(L["atm_forest"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})
-        st.session_state.app_bg = get_url(res); st.rerun()
+        st.session_state.app_bg = get_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})); st.rerun()
     if c3.button(L["atm_city"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})
-        st.session_state.app_bg = get_url(res); st.rerun()
+        st.session_state.app_bg = get_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})); st.rerun()
     if c4.button(L["atm_bake"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, 4k"})
-        st.session_state.app_bg = get_url(res); st.rerun()
-    
+        st.session_state.app_bg = get_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, 4k"})); st.rerun()
     if st.button("❌ NOLLSTÄLL DESIGN"):
         st.session_state.app_bg = None; st.rerun()
 
 # --- 6. HUVUDAPP ---
 apply_design()
-# --- HÄR RITAS LOGGAN ---
 st.markdown(f'<div class="logo-text">⚡ {L["title"]} ⚡</div>', unsafe_allow_html=True)
 
 if not st.session_state.agreed:
@@ -131,22 +111,43 @@ if token:
                     if not is_admin: st.session_state.user_db[artist_id] -= 1
                     img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
                     img_url = get_url(img_res)
-                    
                     mu_url = None
                     try:
                         mu_res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", 
                                                input={"prompt": prompt, "duration": 8})
                         mu_url = str(mu_res)
                     except: mu_url = None
-
                     if st.session_state.app_bg is None: st.session_state.app_bg = img_url
                     st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": prompt[:20], "url": img_url, "audio": mu_url})
                     st.rerun()
 
     with tabs[1]: # REGI
-        st.subheader("BILD TILL VIDEO")
-        up_img = st.file_uploader("Ladda upp:", type=["jpg", "png"], key="reg_up")
-        if up_img and st.button("ANIMERA"): st.info("Luma Dream Machine redo!")
+        st.subheader("🎬 LUMA DREAM MACHINE")
+        st.write("Skapa film av dina AI-bilder.")
+        
+        # Välj en bild från galleriet att animera
+        my_imgs = [p for p in st.session_state.gallery if p["artist"] == artist_id]
+        if not my_imgs:
+            st.info("Skapa en bild i MAGI först för att kunna animera den!")
+        else:
+            img_to_anim = st.selectbox("Välj bild från arkivet:", [p["name"] for p in my_imgs])
+            selected_url = next(p["url"] for p in my_imgs if p["name"] == img_to_anim)
+            st.image(selected_url, width=300)
+            
+            vid_prompt = st.text_input("Rörelseinstruktion (t.ex. 'slow camera pan'):", "Cinematic motion")
+            
+            if st.button("SKAPA FILM (5 ENHETER)"):
+                if u_creds >= 5 or is_admin:
+                    with st.status("Luma skapar film..."):
+                        if not is_admin: st.session_state.user_db[artist_id] -= 5
+                        # Luma anrop
+                        vid_res = replicate.run(
+                            "luma-ai/luma-dream-machine",
+                            input={"prompt": vid_prompt, "image_url": selected_url}
+                        )
+                        st.video(get_url(vid_res))
+                else:
+                    st.error("Du behöver minst 5 Units för att skapa video!")
 
     with tabs[2]: # MUSIK
         mu_in = st.text_input("Beskriv beatet:", key="mu_input")
@@ -158,7 +159,6 @@ if token:
 
     with tabs[3]: # ARKIV
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
-        if not my: st.info("Tomt arkiv.")
         for p in reversed(my):
             with st.expander(f"📁 {p['name'].upper()}"):
                 st.image(str(p["url"])) 
@@ -183,6 +183,7 @@ if token:
             if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API TOKEN SAKNAS")
+
 
 
 
