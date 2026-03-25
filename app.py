@@ -2,8 +2,9 @@ import streamlit as st
 import replicate
 import os
 import time
+import requests
 
-# --- 1. SETUP & SESSION STATE (LÅST GRUND) ---
+# --- 1. SETUP & SESSION STATE ---
 st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", layout="wide")
 
 if "gallery" not in st.session_state: st.session_state.gallery = []
@@ -12,7 +13,7 @@ if "app_bg" not in st.session_state: st.session_state.app_bg = None
 if "agreed" not in st.session_state: st.session_state.agreed = False
 if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 
-# --- 2. DESIGN-MOTOR (LÅST & SÄKRAD) ---
+# --- 2. DESIGN-MOTOR ---
 def apply_design():
     if st.session_state.app_bg:
         bg_url = str(st.session_state.app_bg)
@@ -23,39 +24,31 @@ def apply_design():
                 background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
             }}
             div[data-baseweb="base-input"], div[data-baseweb="textarea"], .stTextArea textarea, .stTextInput input {{
-                background-color: rgba(255,255,255,0.1) !important;
-                color: white !important;
-                backdrop-filter: blur(15px) !important;
-                border: 1px solid rgba(255,255,255,0.2) !important;
-                border-radius: 12px !important;
+                background-color: rgba(255,255,255,0.1) !important; color: white !important;
+                backdrop-filter: blur(15px) !important; border: 1px solid rgba(255,255,255,0.2) !important; border-radius: 12px !important;
             }}
             label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
-                color: white !important; 
-                text-shadow: 2px 2px 8px rgba(0,0,0,1) !important; 
-                font-weight: 800 !important;
+                color: white !important; text-shadow: 2px 2px 8px rgba(0,0,0,1) !important; font-weight: 800 !important;
             }}
-            .stTabs [data-baseweb="tab-list"] {{ 
-                background-color: rgba(0,0,0,0.4) !important; 
-                border-radius: 10px !important; 
-            }}
+            .stTabs [data-baseweb="tab-list"] {{ background-color: rgba(0,0,0,0.4) !important; border-radius: 10px !important; }}
             </style>
         """, unsafe_allow_html=True)
     else:
         st.markdown("<style>.stApp { background-color: #050505 !important; }</style>", unsafe_allow_html=True)
 
-# --- 3. SPRÅK-ORDBOK ---
+# --- 3. SPRÅK ---
 texts = {
     "Svenska": {
         "title": "MAXIMUSIKAI STUDIO",
         "tab_names": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED", "⚙️ ADMIN"],
         "atm_space": "RYMDEN 🌌", "atm_forest": "SKOGEN 🌲", "atm_city": "STADEN 🌆", "atm_bake": "BAKNING 🥐",
-        "status": "STATUS", "units": "UNITS", "set_bg": "🖼 SÄTT SOM BAKGRUND"
+        "status": "STATUS", "units": "UNITS", "set_bg": "🖼 SÄTT SOM BAKGRUND", "download": "💾 LADDA NER BILD"
     },
     "English": {
         "title": "MAXIMUSIKAI STUDIO",
         "tab_names": ["🪄 MAGIC", "🎬 DIRECTOR", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED", "⚙️ ADMIN"],
         "atm_space": "SPACE 🌌", "atm_forest": "FOREST 🌲", "atm_city": "CITY 🌆", "atm_bake": "BAKING 🥐",
-        "status": "STATUS", "units": "UNITS", "set_bg": "🖼 SET AS BACKGROUND"
+        "status": "STATUS", "units": "UNITS", "set_bg": "🖼 SET AS BACKGROUND", "download": "💾 DOWNLOAD IMAGE"
     }
 }
 L = texts[st.session_state.lang]
@@ -68,33 +61,23 @@ with st.sidebar:
     if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = 10
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
-    
-    u_unit_label = L["units"]
-    status_display = "💎 ADMIN" if is_admin else f"⚡ {u_creds} {u_unit_label}"
-    st.info(f"{L['status']}: {status_display}")
-    
+    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_creds} {L['units']}'}")
     st.divider()
     st.subheader("ATMOSPHERE")
     c1, c2 = st.columns(2); c3, c4 = st.columns(2)
-    
-    def set_bg_from_res(res):
-        if hasattr(res, 'url'): return str(res.url)
-        if isinstance(res, list): return str(res[0])
-        return str(res)
-
+    def clean_url(res): return str(res[0]) if isinstance(res, list) else str(res)
     if c1.button(L["atm_space"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
-        st.session_state.app_bg = set_bg_from_res(res); st.rerun()
+        st.session_state.app_bg = clean_url(res); st.rerun()
     if c2.button(L["atm_forest"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})
-        st.session_state.app_bg = set_bg_from_res(res); st.rerun()
+        st.session_state.app_bg = clean_url(res); st.rerun()
     if c3.button(L["atm_city"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})
-        st.session_state.app_bg = set_bg_from_res(res); st.rerun()
+        st.session_state.app_bg = clean_url(res); st.rerun()
     if c4.button(L["atm_bake"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, warm bread, 4k"})
-        st.session_state.app_bg = set_bg_from_res(res); st.rerun()
-    
+        st.session_state.app_bg = clean_url(res); st.rerun()
     if st.button("❌ NOLLSTÄLL DESIGN"):
         st.session_state.app_bg = None; st.rerun()
 
@@ -119,15 +102,13 @@ if token:
                 with st.status("AI arbetar..."):
                     if not is_admin: st.session_state.user_db[artist_id] -= 1
                     img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
-                    img_url = set_bg_from_res(img_res)
-                    
+                    img_url = clean_url(img_res)
                     mu_url = None
                     try:
                         mu_res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", 
                                                input={"prompt": prompt, "duration": 8})
                         mu_url = str(mu_res)
                     except: mu_url = None
-
                     if st.session_state.app_bg is None: st.session_state.app_bg = img_url
                     st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": prompt[:20], "url": img_url, "audio": mu_url})
                     st.rerun()
@@ -151,9 +132,16 @@ if token:
         for p in reversed(my):
             with st.expander(f"📁 {p['name'].upper()}"):
                 st.image(str(p["url"])) 
-                if st.button(L["set_bg"], key=f"set_{p['id']}"):
-                    st.session_state.app_bg = str(p["url"])
-                    st.rerun()
+                c1, c2 = st.columns(2)
+                if c1.button(L["set_bg"], key=f"set_{p['id']}"):
+                    st.session_state.app_bg = str(p["url"]); st.rerun()
+                
+                # Nedladdnings-logik
+                try:
+                    img_data = requests.get(p["url"]).content
+                    c2.download_button(L["download"], data=img_data, file_name=f"{p['name']}.png", mime="image/png", key=f"dl_{p['id']}")
+                except: st.error("Kunde inte förbereda nedladdning.")
+                
                 if p["audio"]: st.audio(str(p["audio"]))
 
     with tabs[4]: # FEED
@@ -168,6 +156,7 @@ if token:
             if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API TOKEN SAKNAS")
+
 
 
 
