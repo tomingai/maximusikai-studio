@@ -13,7 +13,7 @@ if "app_bg" not in st.session_state: st.session_state.app_bg = None
 if "agreed" not in st.session_state: st.session_state.agreed = False
 if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 
-# --- 2. DESIGN-MOTOR (LÅST) ---
+# --- 2. DESIGN-MOTOR ---
 def apply_design():
     if st.session_state.app_bg:
         bg_url = str(st.session_state.app_bg)
@@ -62,7 +62,6 @@ with st.sidebar:
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
     
-    # --- FIXAD RAD ---
     u_units_label = L["units"]
     status_msg = "💎 ADMIN" if is_admin else f"⚡ {u_creds} {u_units_label}"
     st.info(f"{L['status']}: {status_msg}")
@@ -102,7 +101,7 @@ if token:
     tab_list = L["tab_names"] if is_admin else L["tab_names"][:-1]
     tabs = st.tabs(tab_list)
 
-    with tabs: # MAGI
+    with tabs[0]: # MAGI
         prompt = st.text_area("VAD SKALL VI SKAPA?", key="main_p")
         if st.button("STARTA GENERERING", use_container_width=True):
             if u_creds > 0 or is_admin:
@@ -120,12 +119,12 @@ if token:
                     st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": prompt[:20], "url": img_url, "audio": mu_url})
                     st.rerun()
 
-    with tabs: # REGI
+    with tabs[1]: # REGI
         st.subheader("BILD TILL VIDEO")
         up_img = st.file_uploader("Ladda upp:", type=["jpg", "png"], key="reg_up")
         if up_img and st.button("ANIMERA"): st.info("Luma Dream Machine redo!")
 
-    with tabs: # MUSIK
+    with tabs[2]: # MUSIK
         mu_in = st.text_input("Beskriv beatet:", key="mu_input")
         if st.button("SKAPA LJUD"):
             with st.spinner("Komponerar..."):
@@ -133,7 +132,7 @@ if token:
                                    input={"prompt": mu_in, "duration": 10})
                 st.audio(str(res))
 
-    with tabs: # ARKIV
+    with tabs[3]: # ARKIV
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
         if not my: st.info("Tomt arkiv.")
         for p in reversed(my):
@@ -142,22 +141,20 @@ if token:
                 c1, c2 = st.columns(2)
                 if c1.button(L["set_bg"], key=f"set_{p['id']}"):
                     st.session_state.app_bg = str(p["url"]); st.rerun()
-                
                 try:
                     img_data = requests.get(p["url"]).content
                     c2.download_button(L["download"], data=img_data, file_name=f"{p['name']}.png", mime="image/png", key=f"dl_{p['id']}")
                 except: pass
-                
                 if p["audio"]: st.audio(str(p["audio"]))
 
-    with tabs: # FEED
+    with tabs[4]: # FEED
         for p in reversed(st.session_state.gallery[-10:]):
             st.image(str(p["url"]), caption=f"Artist: {p['artist']}")
             if p["audio"]: st.audio(str(p["audio"]))
             st.divider()
 
-    if is_admin:
-        with tabs: # ADMIN
+    if is_admin and len(tabs) > 5:
+        with tabs[5]: # ADMIN
             st.write(st.session_state.user_db)
             if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
 else:
