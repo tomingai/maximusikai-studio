@@ -34,29 +34,32 @@ texts = {
 }
 L = texts[st.session_state.lang]
 
-# --- 3. DYNAMISK DESIGN (SÄKRAD) ---
+# --- 3. DYNAMISK DESIGN (TYDLIGARE BAKGRUND) ---
 if st.session_state.app_bg:
-    # Säkerställ att vi får en ren URL-sträng från Replicate-objekt
     raw_bg = st.session_state.app_bg
     bg_url = raw_bg[0] if isinstance(raw_bg, list) else str(raw_bg)
     
     st.markdown(f"""
         <style>
         .stApp {{
-            background-image: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), url("{bg_url}");
+            /* Sänkt opacitet från 0.75 till 0.35 för mer klarhet */
+            background-image: linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url("{bg_url}");
             background-size: cover; 
             background-position: center; 
             background-attachment: fixed;
+            background-repeat: no-repeat;
         }}
+        /* Kraftigare text-skugga för att kompensera för ljusare bakgrund */
         label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
             color: white !important; 
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8) !important; 
-            font-weight: bold !important; 
+            text-shadow: 2px 2px 8px rgba(0,0,0,1), 0px 0px 10px rgba(0,0,0,0.5) !important; 
+            font-weight: 800 !important; 
         }}
-        .stTabs [data-baseweb="tab-list"] {{ 
-            background-color: rgba(255,255,255,0.1); 
+        /* Gör flikarna och inmatningsfält halvtransparenta för att se bakgrunden igenom */
+        .stTabs [data-baseweb="tab-list"], .stTextArea textarea, .stTextInput input {{ 
+            background-color: rgba(0,0,0,0.4) !important; 
             border-radius: 10px; 
-            padding: 5px; 
+            border: 1px solid rgba(255,255,255,0.2) !important;
         }}
         </style>
     """, unsafe_allow_html=True)
@@ -85,11 +88,11 @@ with st.sidebar:
     c1, c2 = st.columns(2)
     
     if c1.button(L["atm_space"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, cinematic 4k"})
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, cinematic 4k, hyper-detailed"})
         st.session_state.app_bg = res
         st.rerun()
     if c2.button(L["atm_forest"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, bioluminescent plants, 4k"})
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 8k, sharp focus"})
         st.session_state.app_bg = res
         st.rerun()
     
@@ -107,7 +110,6 @@ if not st.session_state.agreed:
         st.rerun()
     st.stop()
 
-# API-Token hantering
 token = st.secrets.get("REPLICATE_API_TOKEN")
 if token:
     os.environ["REPLICATE_API_TOKEN"] = token
@@ -117,18 +119,16 @@ if token:
     tabs = st.tabs(tab_list)
 
     with tabs[0]: # MAGI
-        prompt = st.text_area(L["prompt_label"], key="main_p", placeholder="En futuristisk stad i neon...")
+        prompt = st.text_area(L["prompt_label"], key="main_p", placeholder="Beskriv din vision...")
         if st.button(L["start_btn"], use_container_width=True):
             if st.session_state.user_db[artist_id] > 0 or is_admin:
-                with st.status("AI genererar...", expanded=True) as status:
+                with st.status("AI skapar...", expanded=True) as status:
                     if not is_admin: st.session_state.user_db[artist_id] -= 1
                     
-                    # Generera Bild
                     img_out = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
                     img_url = img_out[0] if isinstance(img_out, list) else str(img_out)
                     
-                    # Generera Musik (snabbare version)
-                    mu_out = replicate.run("facebookresearch/musicgen", input={"prompt": "lofi hip hop beat for " + prompt, "duration": 8})
+                    mu_out = replicate.run("facebookresearch/musicgen", input={"prompt": "epic cinematic beat for " + prompt, "duration": 8})
                     
                     st.session_state.gallery.append({
                         "id": time.time(), 
@@ -139,30 +139,26 @@ if token:
                     })
                     status.update(label="KLART!", state="complete")
                     st.rerun()
-            else:
-                st.error("Slut på Units! Kontakta Tomas för påfyllning.")
 
-    with tabs[1]: # REGI (Video)
+    with tabs[1]: # REGI
         st.subheader("BILD TILL VIDEO")
-        up_img = st.file_uploader("Ladda upp bild för animering:", type=["jpg", "png"])
-        if up_img and st.button("SKAPA FILMER"):
-            st.info("Luma Dream Machine bearbetar... detta kan ta 1-2 minuter.")
-            # Obs: Kräver publik URL. För lokal testning fungerar detta bäst med prompt-only om bilden inte är hostad.
-            res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic motion, slow camera pan"})
+        up_img = st.file_uploader("Ladda upp bild:", type=["jpg", "png"])
+        if up_img and st.button("ANIMERA"):
+            st.info("Luma Dream Machine arbetar...")
+            res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic camera movement"})
             st.video(str(res))
 
     with tabs[2]: # MUSIK
         mu_prompt = st.text_input("Beskriv din symfoni:", key="mu_in")
-        dur = st.slider("Längd (sekunder):", 5, 20, 10)
         if st.button("SKAPA LJUDSPÅR"):
             with st.spinner("Komponerar..."):
-                res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_prompt, "duration": dur})
+                res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_prompt, "duration": 10})
                 st.audio(str(res))
 
     with tabs[3]: # ARKIV
         my_creations = [p for p in st.session_state.gallery if p["artist"] == artist_id]
         if not my_creations: 
-            st.info("Du har inte skapat något än. Gå till MAGI-fliken!")
+            st.info("Tomt arkiv.")
         else:
             for p in reversed(my_creations):
                 with st.expander(f"📁 {p['name'].upper()}"):
@@ -174,28 +170,20 @@ if token:
                         st.rerun()
 
     with tabs[4]: # FEED
-        st.subheader("GLOBALT FLÖDE")
-        for p in reversed(st.session_state.gallery[-15:]):
-            st.image(p["url"], caption=f"Skapad av: {p['artist']}")
+        for p in reversed(st.session_state.gallery[-10:]):
+            st.image(p["url"], caption=f"Artist: {p['artist']}")
             if p["audio"]: st.audio(p["audio"])
             st.divider()
 
     if is_admin:
         with tabs[5]: # ADMIN
-            st.subheader("SYSTEMKONTROLL")
-            st.write("Användardatabas:", st.session_state.user_db)
-            if st.button("RENSA ALLT GALLERI-DATA"): 
+            st.write(st.session_state.user_db)
+            if st.button("RENSA ALLT"): 
                 st.session_state.gallery = []
-                st.success("Galleriet är tömt.")
-                st.rerun()
-            
-            new_units = st.number_input("Ge units till alla:", 1, 100, 10)
-            if st.button("GE UNITS"):
-                for u in st.session_state.user_db:
-                    st.session_state.user_db[u] += new_units
                 st.rerun()
 else:
-    st.error("SYSTEMFEL: Replicate API Token saknas. Lägg till den i din Secrets-fil.")
+    st.error("Lägg in REPLICATE_API_TOKEN i Streamlit Secrets!")
+
 
 
 
