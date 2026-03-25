@@ -34,7 +34,7 @@ texts = {
 }
 L = texts[st.session_state.lang]
 
-# --- 3. DYNAMISK DESIGN (VERSION 2 - TYDLIGARE) ---
+# --- 3. DYNAMISK DESIGN (VERSION 2 - FIXAD MOT GRÅTT) ---
 if st.session_state.app_bg:
     raw_bg = st.session_state.app_bg
     bg_url = raw_bg if isinstance(raw_bg, list) else str(raw_bg)
@@ -42,23 +42,32 @@ if st.session_state.app_bg:
     st.markdown(f"""
         <style>
         .stApp {{
-            background-image: linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url("{bg_url}");
+            background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url("{bg_url}");
             background-size: cover; background-position: center; background-attachment: fixed;
         }}
+        
+        /* FIXAR TEXTRUTORNA - TAR BORT GRÅ BAKGRUND */
+        .stTextArea textarea, .stTextInput input {{ 
+            background-color: rgba(255,255,255,0.1) !important; 
+            color: white !important;
+            border: 1px solid rgba(255,255,255,0.3) !important;
+            backdrop-filter: blur(10px) !important;
+            border-radius: 12px;
+        }}
+        
+        /* TAR BORT DEN GRÅA RAMEN RUNT TEXTRUTOR */
+        div[data-baseweb="base-input"] {{
+            background-color: transparent !important;
+        }}
+
         label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
             color: white !important; 
             text-shadow: 2px 2px 8px rgba(0,0,0,1) !important; 
             font-weight: 800 !important; 
         }}
-        /* TRANSPARENTA RUTOR */
-        .stTextArea textarea, .stTextInput input {{ 
-            background-color: rgba(0,0,0,0.4) !important; 
-            color: white !important;
-            border-radius: 10px; 
-            border: 1px solid rgba(255,255,255,0.2) !important;
-        }}
+        
         .stTabs [data-baseweb="tab-list"] {{ 
-            background-color: rgba(255,255,255,0.1); 
+            background-color: rgba(0,0,0,0.2); 
             border-radius: 10px; 
         }}
         </style>
@@ -76,7 +85,6 @@ with st.sidebar:
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
     
-    # FIXAD STRÄNG FÖR ATT UNDVIKA SYNTAXERROR
     u_units_label = L["units"]
     status_msg = "💎 ADMIN" if is_admin else f"⚡ {u_creds} {u_units_label}"
     st.info(f"{L['status']}: {status_msg}")
@@ -146,6 +154,7 @@ if token:
             st.image(p["url"], caption=f"Artist: {p['artist']}")
 else:
     st.error("API TOKEN MISSING")
+
 
 
 
