@@ -20,7 +20,7 @@ texts = {
     "Svenska": {
         "title": "MAXIMUSIKAI STUDIO",
         "tab1": "🪄 MAGI", "tab2": "🎬 REGI", "tab3": "🎧 MUSIK", "tab4": "📚 ARKIV", "tab5": "🌐 FEED", "tab6": "⚙️ ADMIN",
-        "prompt_label": "VAD SKALL WE SKAPA?", "start_btn": "STARTA GENERERING",
+        "prompt_label": "VAD SKALL VI SKAPA?", "start_btn": "STARTA GENERERING",
         "status": "STATUS", "units": "UNITS", "mood": "STÄMNING", "set_bg": "🖼 SÄTT SOM BAKGRUND",
         "atm_space": "RYMDEN 🌌", "atm_forest": "SKOGEN 🌲", "atm_city": "STADEN 🌆", "atm_bake": "BAKNING 🥐"
     },
@@ -34,7 +34,7 @@ texts = {
 }
 L = texts[st.session_state.lang]
 
-# --- 3. DYNAMISK DESIGN (GLASSMORPHISM TEXTRUTOR) ---
+# --- 3. DYNAMISK DESIGN (TYDLIG BAKGRUND & GENOMSKINLIGA RUTOR) ---
 if st.session_state.app_bg:
     raw_bg = st.session_state.app_bg
     bg_url = raw_bg if isinstance(raw_bg, list) else str(raw_bg)
@@ -42,32 +42,25 @@ if st.session_state.app_bg:
     st.markdown(f"""
         <style>
         .stApp {{
-            background-image: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.2)), url("{bg_url}");
+            background-image: linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)), url("{bg_url}");
             background-size: cover; background-position: center; background-attachment: fixed;
         }}
         
-        /* TEXT & RUBRIKER */
+        /* TEXTLÄSBARHET */
         label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
             color: white !important; 
-            text-shadow: 2px 2px 5px rgba(0,0,0,0.8) !important; 
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.9) !important; 
             font-weight: 700 !important; 
         }}
 
-        /* GENOMSKINLIGA TEXTRUTOR (FIXADE) */
+        /* GENOMSKINLIGA TEXTRUTOR */
         .stTextArea textarea, .stTextInput input {{
-            background-color: rgba(255, 255, 255, 0.07) !important;
-            backdrop-filter: blur(12px) !important;
-            -webkit-backdrop-filter: blur(12px) !important;
+            background-color: rgba(255, 255, 255, 0.08) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
             color: white !important;
             border: 1px solid rgba(255, 255, 255, 0.2) !important;
             border-radius: 12px !important;
-            padding: 15px !important;
-        }}
-        
-        /* TEXTRUTOR VID FOCUS */
-        .stTextArea textarea:focus, .stTextInput input:focus {{
-            border: 1px solid rgba(255, 255, 255, 0.5) !important;
-            background-color: rgba(255, 255, 255, 0.12) !important;
         }}
 
         /* TRANSPARENTA FLIKAR */
@@ -75,7 +68,7 @@ if st.session_state.app_bg:
             background-color: rgba(0, 0, 0, 0.3) !important;
             backdrop-filter: blur(10px);
             border-radius: 15px;
-            padding: 8px;
+            padding: 5px;
         }}
         
         /* KNAPPAR */
@@ -84,7 +77,6 @@ if st.session_state.app_bg:
             color: white !important;
             border: 1px solid rgba(255, 255, 255, 0.2) !important;
             backdrop-filter: blur(5px);
-            border-radius: 10px;
         }}
         </style>
     """, unsafe_allow_html=True)
@@ -103,7 +95,9 @@ with st.sidebar:
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
     
-    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_creds} {L['units']}'}")
+    # FIXAD RAD (Använder dubbla citattecken för ordboksnyckeln för att undvika SyntaxError)
+    status_text = "💎 ADMIN" if is_admin else f"⚡ {u_creds} {L['units']}"
+    st.info(f"{L['status']}: {status_text}")
     
     st.divider()
     st.subheader("ATMOSPHERE")
@@ -147,7 +141,7 @@ if token:
                     mu_out = replicate.run("facebookresearch/musicgen", input={"prompt": prompt, "duration": 8})
                     st.session_state.gallery.append({
                         "id": time.time(), "artist": artist_id, "name": prompt[:20], 
-                        "url": img_out if isinstance(img_out, list) else str(img_out), 
+                        "url": img_out[0] if isinstance(img_out, list) else str(img_out), 
                         "audio": str(mu_out)
                     })
                     st.rerun()
@@ -185,6 +179,7 @@ if token:
             if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API Token saknas!")
+
 
 
 
