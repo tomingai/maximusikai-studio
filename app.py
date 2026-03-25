@@ -13,7 +13,7 @@ if "app_bg" not in st.session_state: st.session_state.app_bg = None
 if "agreed" not in st.session_state: st.session_state.agreed = False
 if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 
-# --- 2. DESIGN-MOTOR ---
+# --- 2. DESIGN-MOTOR (HELT LÅST) ---
 def apply_design():
     if st.session_state.app_bg:
         bg_url = str(st.session_state.app_bg)
@@ -42,13 +42,13 @@ texts = {
         "title": "MAXIMUSIKAI STUDIO",
         "tab_names": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED", "⚙️ ADMIN"],
         "atm_space": "RYMDEN 🌌", "atm_forest": "SKOGEN 🌲", "atm_city": "STADEN 🌆", "atm_bake": "BAKNING 🥐",
-        "status": "STATUS", "units": "UNITS", "set_bg": "🖼 SÄTT SOM BAKGRUND", "download": "💾 LADDA NER BILD"
+        "status": "STATUS", "units": "UNITS", "set_bg": "🖼 SÄTT SOM BAKGRUND", "download": "💾 LADDA NER"
     },
     "English": {
         "title": "MAXIMUSIKAI STUDIO",
         "tab_names": ["🪄 MAGIC", "🎬 DIRECTOR", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED", "⚙️ ADMIN"],
         "atm_space": "SPACE 🌌", "atm_forest": "FOREST 🌲", "atm_city": "CITY 🌆", "atm_bake": "BAKING 🥐",
-        "status": "STATUS", "units": "UNITS", "set_bg": "🖼 SET AS BACKGROUND", "download": "💾 DOWNLOAD IMAGE"
+        "status": "STATUS", "units": "UNITS", "set_bg": "🖼 SET AS BACKGROUND", "download": "💾 DOWNLOAD"
     }
 }
 L = texts[st.session_state.lang]
@@ -62,9 +62,8 @@ with st.sidebar:
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
     
-    u_units_label = L["units"]
-    status_msg = "💎 ADMIN" if is_admin else f"⚡ {u_creds} {u_units_label}"
-    st.info(f"{L['status']}: {status_msg}")
+    u_label = L["units"]
+    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_creds} {u_label}'}")
     
     st.divider()
     st.subheader("ATMOSPHERE")
@@ -72,18 +71,13 @@ with st.sidebar:
     def clean_url(res): return str(res) if isinstance(res, list) else str(res)
     
     if c1.button(L["atm_space"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
-        st.session_state.app_bg = clean_url(res); st.rerun()
+        st.session_state.app_bg = clean_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})); st.rerun()
     if c2.button(L["atm_forest"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})
-        st.session_state.app_bg = clean_url(res); st.rerun()
+        st.session_state.app_bg = clean_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})); st.rerun()
     if c3.button(L["atm_city"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})
-        st.session_state.app_bg = clean_url(res); st.rerun()
+        st.session_state.app_bg = clean_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})); st.rerun()
     if c4.button(L["atm_bake"]):
-        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, warm bread, 4k"})
-        st.session_state.app_bg = clean_url(res); st.rerun()
-    
+        st.session_state.app_bg = clean_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, 4k"})); st.rerun()
     if st.button("❌ NOLLSTÄLL DESIGN"):
         st.session_state.app_bg = None; st.rerun()
 
@@ -134,7 +128,7 @@ if token:
 
     with tabs[3]: # ARKIV
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
-        if not my: st.info("Tomt arkiv.")
+        if not my: st.info("Här var det tomt.")
         for p in reversed(my):
             with st.expander(f"📁 {p['name'].upper()}"):
                 st.image(str(p["url"])) 
@@ -159,6 +153,7 @@ if token:
             if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API TOKEN SAKNAS")
+
 
 
 
