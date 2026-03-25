@@ -12,36 +12,41 @@ if "app_bg" not in st.session_state: st.session_state.app_bg = None
 if "agreed" not in st.session_state: st.session_state.agreed = False
 if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 
-# --- 2. DESIGN-MOTOR (HÅLLER ALLT PÅ PLATS) ---
+# --- 2. DESIGN-MOTOR (TVINGAR BORT GRÅTT) ---
 def apply_design():
     if st.session_state.app_bg:
         bg_url = st.session_state.app_bg
+        # Vi använder !important på allt för att krossa Streamlits standard-gråa teman
         st.markdown(f"""
             <style>
             .stApp {{
-                background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url("{bg_url}");
-                background-size: cover; background-position: center; background-attachment: fixed;
+                background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url("{bg_url}") !important;
+                background-size: cover !important;
+                background-position: center !important;
+                background-attachment: fixed !important;
             }}
-            div[data-baseweb="base-input"], div[data-baseweb="textarea"] {{ background-color: transparent !important; }}
-            .stTextArea textarea, .stTextInput input {{ 
-                background-color: rgba(255,255,255,0.08) !important; 
+            /* Transparenta rutor */
+            div[data-baseweb="base-input"], div[data-baseweb="textarea"], .stTextArea textarea, .stTextInput input {{
+                background-color: rgba(255,255,255,0.1) !important;
                 color: white !important;
-                border-radius: 12px !important;
+                backdrop-filter: blur(15px) !important;
                 border: 1px solid rgba(255,255,255,0.2) !important;
-                backdrop-filter: blur(15px);
+                border-radius: 12px !important;
             }}
+            /* Text-inställningar */
             label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
                 color: white !important; 
                 text-shadow: 2px 2px 8px rgba(0,0,0,1) !important; 
                 font-weight: 800 !important;
             }}
-            .stTabs [data-baseweb="tab-list"] {{ background-color: rgba(0,0,0,0.3) !important; border-radius: 10px; }}
+            .stTabs [data-baseweb="tab-list"] {{ 
+                background-color: rgba(0,0,0,0.4) !important; 
+                border-radius: 10px !important; 
+            }}
             </style>
         """, unsafe_allow_html=True)
     else:
         st.markdown("<style>.stApp { background-color: #050505 !important; }</style>", unsafe_allow_html=True)
-
-apply_design()
 
 # --- 3. SPRÅK-ORDBOK ---
 texts = {
@@ -60,7 +65,7 @@ texts = {
 }
 L = texts[st.session_state.lang]
 
-# --- 4. SIDOMENY (HÄR ÄR RYMDEN & SKOGEN TILLBAKA) ---
+# --- 4. SIDOMENY ---
 with st.sidebar:
     st.title("STUDIO")
     st.session_state.lang = st.radio("Språk:", ["Svenska", "English"], horizontal=True)
@@ -81,16 +86,20 @@ with st.sidebar:
     c3, c4 = st.columns(2)
     
     if c1.button(L["atm_space"]):
-        st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
+        st.session_state.app_bg = res[0] if isinstance(res, list) else str(res)
         st.rerun()
     if c2.button(L["atm_forest"]):
-        st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})
+        st.session_state.app_bg = res[0] if isinstance(res, list) else str(res)
         st.rerun()
     if c3.button(L["atm_city"]):
-        st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})
+        st.session_state.app_bg = res[0] if isinstance(res, list) else str(res)
         st.rerun()
     if c4.button(L["atm_bake"]):
-        st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, warm bread, 4k"})
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, warm bread, 4k"})
+        st.session_state.app_bg = res[0] if isinstance(res, list) else str(res)
         st.rerun()
     
     if st.button("❌ NOLLSTÄLL DESIGN"):
@@ -98,6 +107,7 @@ with st.sidebar:
         st.rerun()
 
 # --- 5. HUVUDAPP ---
+apply_design() # Kör designen här för att täcka allt
 st.markdown(f'<h1 style="text-align:center;">{L["title"]}</h1>', unsafe_allow_html=True)
 
 if not st.session_state.agreed:
@@ -120,7 +130,7 @@ if token:
                 with st.status("AI arbetar..."):
                     if not is_admin: st.session_state.user_db[artist_id] -= 1
                     img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
-                    img_url = img_res if isinstance(img_res, list) else str(img_res)
+                    img_url = img_res[0] if isinstance(img_res, list) else str(img_res)
                     mu_res = replicate.run("facebookresearch/musicgen", input={"prompt": prompt, "duration": 8})
                     
                     if st.session_state.app_bg is None:
@@ -167,6 +177,7 @@ if token:
                 st.rerun()
 else:
     st.error("API TOKEN SAKNAS")
+
 
 
 
