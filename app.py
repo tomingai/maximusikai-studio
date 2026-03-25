@@ -19,44 +19,28 @@ if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 texts = {
     "Svenska": {
         "title": "MAXIMUSIKAI STUDIO",
-        "agreement_title": "📜 ANVÄNDARAVTAL & VILLKOR",
-        "agreement_info": "Du måste godkänna villkoren för att använda studion.",
-        "agreement_body": "**1. Ansvar:** Du ansvarar för dina prompts. **2. AI:** Media skapas via Replicate. **3. Credits:** Varje körning drar en unit.",
-        "agreement_check": "Jag godkänner villkoren.",
-        "open_studio": "ÖPPNA STUDION ✨",
         "tab1": "🪄 MAGI", "tab2": "🎬 REGI", "tab3": "🎧 MUSIK", "tab4": "📚 ARKIV", "tab5": "🌐 FEED", "tab6": "⚙️ ADMIN",
-        "prompt_label": "VAD SKALL VI SKAPA? (Skriv på svenska!)",
-        "start_btn": "STARTA GENERERING",
-        "status": "STATUS", "units": "UNITS", "mood": "STÄMNING",
-        "set_bg": "🖼 SÄTT SOM BAKGRUND", "reset_bg": "ÅTERSTÄLL DESIGN",
-        "translating": "Översätter din vision...", "generating": "AI:n skapar..."
+        "start_btn": "STARTA GENERERING", "prompt_label": "VAD SKALL VI SKAPA?",
+        "units": "UNITS", "status": "STATUS", "set_bg": "🖼 SÄTT SOM BAKGRUND",
+        "upload_label": "LADDA UPP EGEN BILD TILL ARKIVET", "upload_btn": "SPARA I ARKIVET"
     },
     "English": {
         "title": "MAXIMUSIKAI STUDIO",
-        "agreement_title": "📜 TERMS & CONDITIONS",
-        "agreement_info": "You must accept the terms to enter the studio.",
-        "agreement_body": "**1. Responsibility:** You are responsible for your prompts. **2. AI:** Media is generated via Replicate. **3. Credits:** Each run costs one unit.",
-        "agreement_check": "I agree to the terms and conditions.",
-        "open_studio": "OPEN STUDIO ✨",
         "tab1": "🪄 MAGIC", "tab2": "🎬 DIRECTOR", "tab3": "🎧 MUSIC", "tab4": "📚 ARCHIVE", "tab5": "🌐 FEED", "tab6": "⚙️ ADMIN",
-        "prompt_label": "WHAT SHALL WE CREATE?",
-        "start_btn": "START GENERATING",
-        "status": "STATUS", "units": "UNITS", "mood": "MOOD",
-        "set_bg": "🖼 SET AS BACKGROUND", "reset_bg": "RESET DESIGN",
-        "translating": "Translating vision...", "generating": "AI is creating..."
+        "start_btn": "START GENERATING", "prompt_label": "WHAT SHALL WE CREATE?",
+        "units": "UNITS", "status": "STATUS", "set_bg": "🖼 SET AS BACKGROUND",
+        "upload_label": "UPLOAD OWN IMAGE TO ARCHIVE", "upload_btn": "SAVE TO ARCHIVE"
     }
 }
 L = texts[st.session_state.lang]
 
 # --- 3. DYNAMISK DESIGN ---
 with st.sidebar:
-    st.markdown(f"### 🌍 LANGUAGE / SPRÅK")
-    st.session_state.lang = st.radio("SELECT:", ["Svenska", "English"], horizontal=True, label_visibility="collapsed")
+    st.session_state.lang = st.radio("Language / Språk:", ["Svenska", "English"], horizontal=True)
     st.divider()
-    st.markdown("### 🎨 STUDIO DESIGN")
-    bg_color = st.color_picker("COLOR / FÄRG", "#050505")
-    neon_color = st.color_picker("NEON", "#bf00ff")
-    if st.button(L["reset_bg"]):
+    bg_color = st.color_picker("BAKGRUNDSFÄRG", "#050505")
+    neon_color = st.color_picker("NEON-FÄRG", "#bf00ff")
+    if st.button("ÅTERSTÄLL DESIGN"):
         st.session_state.app_bg_url = None
         st.rerun()
 
@@ -76,35 +60,22 @@ st.markdown(f"""
 
 # --- 4. SIDOMENY & ANVÄNDARE ---
 with st.sidebar:
-    st.divider()
     artist_id = st.text_input("ARTIST ID:", "ANONYM").strip().upper()
-    if artist_id not in st.session_state.user_db: 
-        st.session_state.user_db[artist_id] = {"credits": 10, "is_pro": False}
-    
+    if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = {"credits": 10, "is_pro": False}
     user_info = st.session_state.user_db[artist_id]
     is_admin = (artist_id == "TOMAS2026")
     
-    # Säker status-logik
-    if is_admin:
-        display_status = "💎 ADMIN"
-    else:
-        u_credits = user_info.get("credits", 0)
-        display_status = f"⚡ {u_credits} {L['units']}"
-        
-    st.info(f"{L['status']}: {display_status}")
-    mood_val = st.selectbox(L["mood"], ["Cinematic", "Surreal", "Vibrant", "Minimalist"])
+    u_credits = user_info.get("credits", 0)
+    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_credits} {L['units']}'}")
+    mood_val = st.selectbox("MOOD:", ["Cinematic", "Surreal", "Vibrant", "Minimalist"])
 
 # --- 5. HUVUDAPPEN ---
 st.markdown(f'<div class="neon-container"><p class="neon-title">{L["title"]}</p></div>', unsafe_allow_html=True)
 
 if not st.session_state.agreed:
-    st.markdown(f"### {L['agreement_title']}")
-    st.info(L["agreement_info"])
-    with st.expander("READ / LÄS"): st.write(L["agreement_body"])
-    if st.checkbox(L["agreement_check"]):
-        if st.button(L["open_studio"]):
-            st.session_state.agreed = True
-            st.rerun()
+    if st.button("GODKÄNN VILLKOR & ÖPPNA STUDION"): 
+        st.session_state.agreed = True
+        st.rerun()
     st.stop()
 
 token = st.secrets.get("REPLICATE_API_TOKEN")
@@ -112,80 +83,79 @@ if token:
     os.environ["REPLICATE_API_TOKEN"] = token
     tabs = st.tabs([L["tab1"], L["tab2"], L["tab3"], L["tab4"], L["tab5"], L["tab6"] if is_admin else " "])
 
-    with tabs[0]: # MAGI
-        c1, c2 = st.columns([1, 1.2])
-        with c1:
-            m_ide = st.text_area(L["prompt_label"], value=st.session_state.remix_prompt)
-            if st.button(L["start_btn"]):
-                if user_info["credits"] > 0 or is_admin:
-                    with st.status(L["generating"]):
+    with tabs[0]: # --- MAGI ---
+        m_ide = st.text_area(L["prompt_label"], value=st.session_state.remix_prompt)
+        if st.button(L["start_btn"]):
+            if user_info["credits"] > 0 or is_admin:
+                with st.status("AI SKAPAR..."):
+                    try:
+                        if not is_admin: user_info["credits"] -= 1
+                        img_output = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood_val} style"})
+                        img_url = img_output[0] if isinstance(img_output, list) else str(img_output)
+                        
+                        mu_url = None
                         try:
-                            if not is_admin: user_info["credits"] -= 1
-                            
-                            # Bild-anrop (Flux)
-                            img = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood_val} style, high quality"})
-                            
-                            # Säker musik-generering (med fallback)
-                            mu_url = None
-                            try:
-                                # Använder MusicGen-modellen utan ett raderat version-ID
-                                mu_res = replicate.run("facebookresearch/musicgen", input={"prompt": f"{mood_val} music", "duration": 5})
-                                mu_url = str(mu_res)
-                            except Exception:
-                                st.warning("Musiken kunde inte genereras just nu, men bilden sparades!")
+                            mu_output = replicate.run("facebookresearch/musicgen", input={"prompt": f"{mood_val} music", "duration": 5})
+                            mu_url = str(mu_output)
+                        except: pass
 
-                            st.session_state.gallery.append({
-                                "id": time.time(), 
-                                "artist": artist_id, 
-                                "name": m_ide[:20], 
-                                "video": str(img[0] if isinstance(img, list) else img), 
-                                "audio": mu_url
-                            })
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Ett fel uppstod: {e}")
+                        st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": m_ide[:20], "video": img_url, "audio": mu_url})
+                        st.rerun()
+                    except Exception as e: st.error(f"Fel: {e}")
 
-    with tabs[1]: # REGI (Luma)
-        up = st.file_uploader("IMAGE:", type=["jpg", "png"], key="reg_up")
-        if up and st.button("KÖR LUMA"):
-            with st.spinner("Animerar..."):
-                res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic motion", "image_url": up})
-                st.video(str(res))
+    with tabs[1]: # --- REGI (Luma) ---
+        up_luma = st.file_uploader("Bild till Video:", type=["jpg", "png"], key="l_up")
+        if up_luma and st.button("KÖR LUMA ANIMATION"):
+            res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic motion", "image_url": up_luma})
+            st.video(str(res))
 
-    with tabs[2]: # MUSIK STUDIO
-        mu_prompt = st.text_input("DESCRIBE BEAT:", f"{mood_val} vibes")
-        if st.button("CREATE AUDIO"):
-            with st.spinner("Komponerar..."):
-                try:
-                    res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_prompt, "duration": 10})
-                    st.audio(str(res))
-                except Exception as e:
-                    st.error(f"Kunde inte skapa musik: {e}")
+    with tabs[2]: # --- MUSIK ---
+        mu_p = st.text_input("Beskriv ljudet:")
+        if st.button("SKAPA BEAT"):
+            res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_p, "duration": 15})
+            st.audio(str(res))
 
-    with tabs[3]: # ARKIV
-        my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
-        for item in reversed(my):
+    with tabs[3]: # --- ARKIV (MED MANUELL UPPLADDNING) ---
+        st.subheader(L["upload_label"])
+        with st.form("manual_upload"):
+            new_img = st.file_uploader("Välj bild:", type=["jpg", "png", "jpeg"])
+            new_name = st.text_input("Namnge bilden:", "Min uppladdning")
+            if st.form_submit_button(L["upload_btn"]):
+                if new_img:
+                    # Spara lokalt i sessionen (Streamlit hanterar fil-objektet)
+                    st.session_state.gallery.append({
+                        "id": time.time(), 
+                        "artist": artist_id, 
+                        "name": new_name, 
+                        "video": new_img, # Här sparar vi filen direkt
+                        "audio": None,
+                        "is_manual": True
+                    })
+                    st.success("Bild sparad i arkivet!")
+                    st.rerun()
+
+        st.divider()
+        my_files = [p for p in st.session_state.gallery if p["artist"] == artist_id]
+        for item in reversed(my_files):
             with st.expander(f"📁 {item['name'].upper()}"):
                 st.image(item['video'])
                 if st.button(L["set_bg"], key=f"bg_{item['id']}"):
+                    # Vi använder Streamlits inbyggda sätt att hantera filer för bakgrund
                     st.session_state.app_bg_url = item['video']
                     st.rerun()
-                if item.get('audio'): st.audio(item['audio'])
+                if item['audio']: st.audio(item['audio'])
 
-    with tabs[4]: # FEED
+    with tabs[4]: # --- FEED ---
         for item in reversed(st.session_state.gallery[-10:]):
-            st.image(item['video'], caption=f"{item['name']} by {item['artist']}")
+            st.image(item['video'], caption=f"By: {item['artist']}")
             st.divider()
 
     if is_admin:
-        with tabs[5]: # ADMIN
-            st.write("### ADMIN DASHBOARD")
+        with tabs[5]:
             st.write(st.session_state.user_db)
-            if st.button("RESET ALL GALLERY"): 
-                st.session_state.gallery = []
-                st.rerun()
+            if st.button("RENSA ALLT"): st.session_state.gallery = []; st.rerun()
 else:
-    st.error("API KEY MISSING")
+    st.error("API-nyckel saknas i Secrets!")
 
 
 
