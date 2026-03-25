@@ -1,8 +1,7 @@
 streamlit
 replicate
-pandas
-st-supabase-connection
-supabase
+requests
+
 
 
 
