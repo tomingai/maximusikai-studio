@@ -13,7 +13,7 @@ if "app_bg" not in st.session_state: st.session_state.app_bg = None
 if "agreed" not in st.session_state: st.session_state.agreed = False
 if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 
-# --- 2. DESIGN-MOTOR ---
+# --- 2. DESIGN-MOTOR (LÅST) ---
 def apply_design():
     if st.session_state.app_bg:
         bg_url = str(st.session_state.app_bg)
@@ -61,11 +61,17 @@ with st.sidebar:
     if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = 10
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
-    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_creds} {L['units']}'}")
+    
+    # --- FIXAD RAD ---
+    u_units_label = L["units"]
+    status_msg = "💎 ADMIN" if is_admin else f"⚡ {u_creds} {u_units_label}"
+    st.info(f"{L['status']}: {status_msg}")
+    
     st.divider()
     st.subheader("ATMOSPHERE")
     c1, c2 = st.columns(2); c3, c4 = st.columns(2)
-    def clean_url(res): return str(res[0]) if isinstance(res, list) else str(res)
+    def clean_url(res): return str(res) if isinstance(res, list) else str(res)
+    
     if c1.button(L["atm_space"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
         st.session_state.app_bg = clean_url(res); st.rerun()
@@ -78,6 +84,7 @@ with st.sidebar:
     if c4.button(L["atm_bake"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, warm bread, 4k"})
         st.session_state.app_bg = clean_url(res); st.rerun()
+    
     if st.button("❌ NOLLSTÄLL DESIGN"):
         st.session_state.app_bg = None; st.rerun()
 
@@ -95,7 +102,7 @@ if token:
     tab_list = L["tab_names"] if is_admin else L["tab_names"][:-1]
     tabs = st.tabs(tab_list)
 
-    with tabs[0]: # MAGI
+    with tabs: # MAGI
         prompt = st.text_area("VAD SKALL VI SKAPA?", key="main_p")
         if st.button("STARTA GENERERING", use_container_width=True):
             if u_creds > 0 or is_admin:
@@ -113,12 +120,12 @@ if token:
                     st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": prompt[:20], "url": img_url, "audio": mu_url})
                     st.rerun()
 
-    with tabs[1]: # REGI
+    with tabs: # REGI
         st.subheader("BILD TILL VIDEO")
         up_img = st.file_uploader("Ladda upp:", type=["jpg", "png"], key="reg_up")
         if up_img and st.button("ANIMERA"): st.info("Luma Dream Machine redo!")
 
-    with tabs[2]: # MUSIK
+    with tabs: # MUSIK
         mu_in = st.text_input("Beskriv beatet:", key="mu_input")
         if st.button("SKAPA LJUD"):
             with st.spinner("Komponerar..."):
@@ -126,7 +133,7 @@ if token:
                                    input={"prompt": mu_in, "duration": 10})
                 st.audio(str(res))
 
-    with tabs[3]: # ARKIV
+    with tabs: # ARKIV
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
         if not my: st.info("Tomt arkiv.")
         for p in reversed(my):
@@ -136,26 +143,26 @@ if token:
                 if c1.button(L["set_bg"], key=f"set_{p['id']}"):
                     st.session_state.app_bg = str(p["url"]); st.rerun()
                 
-                # Nedladdnings-logik
                 try:
                     img_data = requests.get(p["url"]).content
                     c2.download_button(L["download"], data=img_data, file_name=f"{p['name']}.png", mime="image/png", key=f"dl_{p['id']}")
-                except: st.error("Kunde inte förbereda nedladdning.")
+                except: pass
                 
                 if p["audio"]: st.audio(str(p["audio"]))
 
-    with tabs[4]: # FEED
+    with tabs: # FEED
         for p in reversed(st.session_state.gallery[-10:]):
             st.image(str(p["url"]), caption=f"Artist: {p['artist']}")
             if p["audio"]: st.audio(str(p["audio"]))
             st.divider()
 
     if is_admin:
-        with tabs[5]: # ADMIN
+        with tabs: # ADMIN
             st.write(st.session_state.user_db)
             if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API TOKEN SAKNAS")
+
 
 
 
