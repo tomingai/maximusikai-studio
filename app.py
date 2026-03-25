@@ -8,18 +8,14 @@ import requests
 # --- 1. SETUP & SESSION STATE ---
 st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", layout="wide")
 
-# Globalt minne för galleri och användare
 if "gallery" not in st.session_state: st.session_state.gallery = []
 if "user_db" not in st.session_state: st.session_state.user_db = {}
-if "remix_prompt" not in st.session_state: st.session_state.remix_prompt = ""
-
-# NYTT: Minne för appens bakgrundsbild
 if "app_bg_url" not in st.session_state: st.session_state.app_bg_url = None
 
-# --- 2. DYNAMISK DESIGN (REGLERBAR + BILD-BAKGRUND) ---
+# --- 2. DYNAMISK DESIGN (BAKGRUNDSKONTROLL) ---
 with st.sidebar:
     st.markdown("### 🎨 STUDIO DESIGN")
-    preset = st.selectbox("VÄLJ STIL:", ["Mörk", "Ljus", "Neon"])
+    preset = st.selectbox("STIL:", ["Mörk", "Ljus", "Neon"])
     bg_color = "#050505" if preset == "Mörk" else "#ffffff" if preset == "Ljus" else "#0b001a"
     neon_color = st.color_picker("NEON-FÄRG", "#bf00ff")
     
@@ -27,15 +23,12 @@ with st.sidebar:
         st.session_state.app_bg_url = None
         st.rerun()
 
-# Logik för textfärg
-text_color = "#ffffff" if preset != "Ljus" else "#1a1a1a"
-
-# CSS för bakgrundsbild eller färg
+# CSS för bakgrund (Bild eller Färg)
 bg_style = ""
 if st.session_state.app_bg_url:
     bg_style = f"""
     .stApp {{
-        background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("{st.session_state.app_bg_url}");
+        background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("{st.session_state.app_bg_url}");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -47,10 +40,9 @@ else:
 st.markdown(f"""
     <style>
     {bg_style}
-    .stApp {{ color: {text_color} !important; }}
     [data-testid="stSidebar"] {{ background-color: rgba(10,10,10,0.8) !important; border-right: 1px solid {neon_color}44; }}
     .neon-container {{ 
-        background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); padding: 25px; 
+        background: rgba(0,0,0,0.5); backdrop-filter: blur(15px); padding: 25px; 
         border-radius: 20px; border: 2px solid {neon_color}; 
         text-align: center; margin-bottom: 25px; 
     }}
@@ -70,7 +62,15 @@ with st.sidebar:
     
     user_info = st.session_state.user_db[artist_id]
     is_admin = (artist_id == "TOMAS2026")
-    st.info(f"STATUS: {'💎 PRO' if is_admin else f'⚡ {user_info['credits']} UNITS'}")
+    
+    # RÄTTAD RAD (SyntaxError fixad här):
+    if is_admin or user_info.get("is_pro"):
+        status_txt = "💎 PRO ACCOUNT"
+    else:
+        credits_val = user_info.get("credits", 0)
+        status_txt = f"⚡ {credits_val} UNITS"
+        
+    st.info(f"STATUS: {status_txt}")
     mood = st.selectbox("AI MOOD:", ["Cinematic", "Epic Detail", "Surreal", "Vibrant"])
 
 # --- 4. HUVUDAPPEN ---
@@ -89,10 +89,10 @@ if token:
                 if user_info["credits"] > 0 or is_admin:
                     with st.status("AI SKAPAR..."):
                         if not is_admin: user_info["credits"] -= 1
-                        img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style, wallpaper quality"})
+                        img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style, 4k wallpaper"})
                         mu_res = replicate.run("facebookresearch/musicgen", input={"prompt": f"{mood} music", "duration": 8})
                         
-                        img_url = img_res if isinstance(img_res, list) else img_res
+                        img_url = img_res[0] if isinstance(img_res, list) else img_res
                         st.session_state.gallery.append({
                             "id": datetime.datetime.now().timestamp(), 
                             "artist": artist_id, "name": m_ide[:20] or "Vision", 
@@ -105,8 +105,7 @@ if token:
         for item in reversed(my_files):
             with st.expander(f"📁 {item['name'].upper()}"):
                 st.image(item['video'])
-                # NY KNAPP: SÄTT SOM BAKGRUND
-                if st.button("🖼 SÄTT SOM STUDIO-BAKGRUND", key=f"bg_{item['id']}"):
+                if st.button("🖼 ANVÄND SOM BAKGRUND", key=f"bg_{item['id']}"):
                     st.session_state.app_bg_url = item['video']
                     st.rerun()
                 if item.get('audio'): st.audio(item['audio'])
@@ -114,12 +113,12 @@ if token:
     with tabs[2]: # FEED
         for item in reversed(st.session_state.gallery[-5:]):
             st.image(item['video'], caption=f"Av: {item['artist']}")
-            if st.button("🖼 ANVÄND DENNA BAKGRUND", key=f"feed_bg_{item['id']}"):
+            if st.button("🖼 SÄTT BAKGRUND", key=f"feed_bg_{item['id']}"):
                 st.session_state.app_bg_url = item['video']
                 st.rerun()
             st.divider()
 else:
-    st.error("API-nyckel saknas!")
+    st.error("API-nyckel saknas i Secrets!")
 
 
 
