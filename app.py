@@ -65,7 +65,7 @@ texts = {
 }
 L = texts[st.session_state.lang]
 
-# --- 5. SIDOMENY (LÅST) ---
+# --- 5. SIDOMENY ---
 with st.sidebar:
     st.title("STUDIO")
     st.session_state.lang = st.radio("Språk:", ["Svenska", "English"], horizontal=True)
@@ -73,10 +73,16 @@ with st.sidebar:
     if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = 10
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
-    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_creds} {L['units']}'}")
+    
+    # --- FIXAD F-STRING (Dubbla citattecken för ordboksnyckeln) ---
+    u_units_label = L["units"]
+    status_msg = "💎 ADMIN" if is_admin else f"⚡ {u_creds} {u_units_label}"
+    st.info(f"{L['status']}: {status_msg}")
+    
     st.divider()
     st.subheader("ATMOSPHERE")
     c1, c2 = st.columns(2); c3, c4 = st.columns(2)
+    
     if c1.button(L["atm_space"]):
         st.session_state.app_bg = get_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})); st.rerun()
     if c2.button(L["atm_forest"]):
@@ -136,18 +142,20 @@ if token:
                             if not is_admin: st.session_state.user_db[artist_id] -= 5
                             vid_res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": vid_p, "image_url": selected_url})
                             st.video(get_url(vid_res))
-                        except: st.error("Luma är för tillfället upptagen eller kräver betalkonto.")
+                        except: st.error("Luma är upptagen eller kräver betalkonto.")
                 else: st.error("För få Units!")
 
     with tabs[2]: # MUSIK
         mu_in = st.text_input("Beskriv beatet:", key="mu_input")
         if st.button("SKAPA LJUD"):
             with st.spinner("Komponerar..."):
-                res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", input={"prompt": mu_in, "duration": 10})
+                res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", 
+                                   input={"prompt": mu_in, "duration": 10})
                 st.audio(str(res))
 
     with tabs[3]: # ARKIV
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
+        if not my: st.info("Inga sparade verk.")
         for p in reversed(my):
             with st.expander(f"📁 {p['name'].upper()}"):
                 st.image(str(p["url"])) 
@@ -166,7 +174,7 @@ if token:
             if p["audio"]: st.audio(str(p["audio"]))
             st.divider()
 
-    if is_admin:
+    if is_admin and len(tabs) > 5:
         with tabs[5]: # ADMIN
             st.write(st.session_state.user_db)
             if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
