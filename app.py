@@ -76,22 +76,24 @@ with st.sidebar:
     st.divider()
     st.subheader("ATMOSPHERE")
     c1, c2 = st.columns(2); c3, c4 = st.columns(2)
+    
+    def set_bg_from_res(res):
+        if hasattr(res, 'url'): return str(res.url)
+        if isinstance(res, list): return str(res[0])
+        return str(res)
+
     if c1.button(L["atm_space"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
-        st.session_state.app_bg = res[0] if isinstance(res, list) else res.url
-        st.rerun()
+        st.session_state.app_bg = set_bg_from_res(res); st.rerun()
     if c2.button(L["atm_forest"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})
-        st.session_state.app_bg = res[0] if isinstance(res, list) else res.url
-        st.rerun()
+        st.session_state.app_bg = set_bg_from_res(res); st.rerun()
     if c3.button(L["atm_city"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})
-        st.session_state.app_bg = res[0] if isinstance(res, list) else res.url
-        st.rerun()
+        st.session_state.app_bg = set_bg_from_res(res); st.rerun()
     if c4.button(L["atm_bake"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, warm bread, 4k"})
-        st.session_state.app_bg = res[0] if isinstance(res, list) else res.url
-        st.rerun()
+        st.session_state.app_bg = set_bg_from_res(res); st.rerun()
     
     if st.button("❌ NOLLSTÄLL DESIGN"):
         st.session_state.app_bg = None; st.rerun()
@@ -116,11 +118,9 @@ if token:
             if u_creds > 0 or is_admin:
                 with st.status("AI arbetar..."):
                     if not is_admin: st.session_state.user_db[artist_id] -= 1
-                    # Bildhantering
                     img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
-                    img_url = img_res[0] if isinstance(img_res, list) else img_res.url
+                    img_url = set_bg_from_res(img_res)
                     
-                    # Musikhantering
                     mu_url = None
                     try:
                         mu_res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", 
@@ -147,6 +147,7 @@ if token:
 
     with tabs[3]: # ARKIV
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
+        if not my: st.info("Tomt arkiv.")
         for p in reversed(my):
             with st.expander(f"📁 {p['name'].upper()}"):
                 st.image(str(p["url"])) 
@@ -167,6 +168,7 @@ if token:
             if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API TOKEN SAKNAS")
+
 
 
 
