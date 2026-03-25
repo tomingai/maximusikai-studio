@@ -13,7 +13,7 @@ if "app_bg" not in st.session_state: st.session_state.app_bg = None
 if "agreed" not in st.session_state: st.session_state.agreed = False
 if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 
-# --- 2. DESIGN-MOTOR (HELT LÅST) ---
+# --- 2. DESIGN-MOTOR (LÅST DESIGN + LOGO-GLOW) ---
 def apply_design():
     if st.session_state.app_bg:
         bg_url = str(st.session_state.app_bg)
@@ -23,12 +23,29 @@ def apply_design():
                 background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url("{bg_url}") !important;
                 background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
             }}
+            /* LOGGA GLOW */
+            .logo-text {{
+                font-size: 3rem !important;
+                font-weight: 900 !important;
+                color: #fff !important;
+                text-align: center;
+                text-transform: uppercase;
+                letter-spacing: 5px;
+                text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #00d2ff, 0 0 40px #00d2ff !important;
+                margin-bottom: 20px;
+            }}
+            /* Transparenta rutor */
             div[data-baseweb="base-input"], div[data-baseweb="textarea"], .stTextArea textarea, .stTextInput input {{
-                background-color: rgba(255,255,255,0.1) !important; color: white !important;
-                backdrop-filter: blur(15px) !important; border: 1px solid rgba(255,255,255,0.2) !important; border-radius: 12px !important;
+                background-color: rgba(255,255,255,0.1) !important;
+                color: white !important;
+                backdrop-filter: blur(15px) !important;
+                border: 1px solid rgba(255,255,255,0.2) !important;
+                border-radius: 12px !important;
             }}
             label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
-                color: white !important; text-shadow: 2px 2px 8px rgba(0,0,0,1) !important; font-weight: 800 !important;
+                color: white !important; 
+                text-shadow: 2px 2px 8px rgba(0,0,0,1) !important; 
+                font-weight: 800 !important;
             }}
             .stTabs [data-baseweb="tab-list"] {{ background-color: rgba(0,0,0,0.4) !important; border-radius: 10px !important; }}
             </style>
@@ -36,7 +53,13 @@ def apply_design():
     else:
         st.markdown("<style>.stApp { background-color: #050505 !important; }</style>", unsafe_allow_html=True)
 
-# --- 3. SPRÅK ---
+# --- 3. HJÄLPFUNKTION FÖR URL ---
+def get_url(res):
+    if isinstance(res, list): return str(res[0])
+    if hasattr(res, 'url'): return str(res.url)
+    return str(res)
+
+# --- 4. SPRÅK ---
 texts = {
     "Svenska": {
         "title": "MAXIMUSIKAI STUDIO",
@@ -53,7 +76,7 @@ texts = {
 }
 L = texts[st.session_state.lang]
 
-# --- 4. SIDOMENY ---
+# --- 5. SIDOMENY ---
 with st.sidebar:
     st.title("STUDIO")
     st.session_state.lang = st.radio("Språk:", ["Svenska", "English"], horizontal=True)
@@ -68,22 +91,27 @@ with st.sidebar:
     st.divider()
     st.subheader("ATMOSPHERE")
     c1, c2 = st.columns(2); c3, c4 = st.columns(2)
-    def clean_url(res): return str(res) if isinstance(res, list) else str(res)
     
     if c1.button(L["atm_space"]):
-        st.session_state.app_bg = clean_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})); st.rerun()
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
+        st.session_state.app_bg = get_url(res); st.rerun()
     if c2.button(L["atm_forest"]):
-        st.session_state.app_bg = clean_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})); st.rerun()
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})
+        st.session_state.app_bg = get_url(res); st.rerun()
     if c3.button(L["atm_city"]):
-        st.session_state.app_bg = clean_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})); st.rerun()
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})
+        st.session_state.app_bg = get_url(res); st.rerun()
     if c4.button(L["atm_bake"]):
-        st.session_state.app_bg = clean_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, 4k"})); st.rerun()
+        res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, 4k"})
+        st.session_state.app_bg = get_url(res); st.rerun()
+    
     if st.button("❌ NOLLSTÄLL DESIGN"):
         st.session_state.app_bg = None; st.rerun()
 
-# --- 5. HUVUDAPP ---
+# --- 6. HUVUDAPP ---
 apply_design()
-st.markdown(f'<h1 style="text-align:center;">{L["title"]}</h1>', unsafe_allow_html=True)
+# --- HÄR RITAS LOGGAN ---
+st.markdown(f'<div class="logo-text">⚡ {L["title"]} ⚡</div>', unsafe_allow_html=True)
 
 if not st.session_state.agreed:
     if st.button("GODKÄNN & ÖPPNA STUDION"): st.session_state.agreed = True; st.rerun()
@@ -102,13 +130,15 @@ if token:
                 with st.status("AI arbetar..."):
                     if not is_admin: st.session_state.user_db[artist_id] -= 1
                     img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
-                    img_url = clean_url(img_res)
+                    img_url = get_url(img_res)
+                    
                     mu_url = None
                     try:
                         mu_res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", 
                                                input={"prompt": prompt, "duration": 8})
                         mu_url = str(mu_res)
                     except: mu_url = None
+
                     if st.session_state.app_bg is None: st.session_state.app_bg = img_url
                     st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": prompt[:20], "url": img_url, "audio": mu_url})
                     st.rerun()
@@ -128,7 +158,7 @@ if token:
 
     with tabs[3]: # ARKIV
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
-        if not my: st.info("Här var det tomt.")
+        if not my: st.info("Tomt arkiv.")
         for p in reversed(my):
             with st.expander(f"📁 {p['name'].upper()}"):
                 st.image(str(p["url"])) 
@@ -147,12 +177,14 @@ if token:
             if p["audio"]: st.audio(str(p["audio"]))
             st.divider()
 
-    if is_admin and len(tabs) > 5:
+    if is_admin:
         with tabs[5]: # ADMIN
             st.write(st.session_state.user_db)
             if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API TOKEN SAKNAS")
+
+
 
 
 
