@@ -80,12 +80,22 @@ st.markdown(f"""
 # --- 4. SIDOMENY & ANVÄNDARE ---
 with st.sidebar:
     artist_id = st.text_input("ARTIST ID:", "ANONYM").strip().upper()
-    if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = {"credits": 10, "is_pro": False}
+    if artist_id not in st.session_state.user_db: 
+        st.session_state.user_db[artist_id] = {"credits": 10, "is_pro": False}
+    
     user_info = st.session_state.user_db[artist_id]
     is_admin = (artist_id == "TOMAS2026")
     
+    # --- FIX FÖR F-STRING ERROR ---
     u_creds = user_info.get("credits", 0)
-    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_creds} {L['units']}'}")
+    u_units_text = L["units"]
+    
+    if is_admin:
+        status_display = "💎 ADMIN"
+    else:
+        status_display = f"⚡ {u_creds} {u_units_text}"
+        
+    st.info(f"{L['status']}: {status_display}")
 
 # --- 5. HUVUDAPPEN ---
 st.markdown(f'<div class="neon-container"><h1 style="color:white; font-family:Arial Black;">{L["title"]}</h1></div>', unsafe_allow_html=True)
@@ -107,7 +117,7 @@ if token:
             if user_info["credits"] > 0 or is_admin:
                 with st.status("AI GENERERAR..."):
                     if not is_admin: user_info["credits"] -= 1
-                    img = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, high quality"})
+                    img = replicate.run("black-forest-labs/flux-schnell", input={"prompt": m_ide})
                     img_url = str(img[0]) if isinstance(img, list) else str(img)
                     st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": m_ide[:15], "video": img_url})
                     st.rerun()
@@ -146,12 +156,15 @@ if token:
             st.image(item['video'], caption=f"By: {item['artist']}")
             st.divider()
 
-    if is_admin:
+    if is_admin and len(tabs) > 5:
         with tabs[5]:
             st.write(st.session_state.user_db)
-            if st.button("RENSA ALLT"): st.session_state.gallery = []; st.rerun()
+            if st.button("RENSA ALLT"): 
+                st.session_state.gallery = []
+                st.rerun()
 else:
     st.error("API-nyckel saknas i Secrets!")
+
 
 
 
