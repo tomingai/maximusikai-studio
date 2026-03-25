@@ -15,7 +15,7 @@ if "remix_prompt" not in st.session_state: st.session_state.remix_prompt = ""
 if "agreed" not in st.session_state: st.session_state.agreed = False
 if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 
-# --- 2. SPRÅK & ÖVERSÄTTNINGSLOGIK ---
+# --- 2. SPRÅK-ORDBOK ---
 texts = {
     "Svenska": {
         "title": "MAXIMUSIKAI STUDIO",
@@ -52,7 +52,7 @@ def translate_to_ai(text):
     try:
         output = replicate.run(
             "meta/llama-2-70b-chat",
-            input={"prompt": f"Translate this to a short English image prompt: {text}", "system_prompt": "Only return translation.", "max_new_tokens": 50}
+            input={"prompt": f"Translate to a short English image prompt: {text}", "system_prompt": "Only return translation.", "max_new_tokens": 50}
         )
         return "".join(output).strip()
     except: return text
@@ -77,7 +77,7 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{ background-color: rgba(10,10,10,0.8) !important; border-right: 1px solid {neon_color}44; }}
     .neon-container {{ background: rgba(0,0,0,0.5); backdrop-filter: blur(15px); padding: 25px; border-radius: 20px; border: 2px solid {neon_color}; text-align: center; margin-bottom: 25px; }}
     .neon-title {{ font-family: 'Arial Black'; font-size: clamp(30px, 5vw, 60px); font-weight: 900; color: white; text-shadow: 2px 2px 15px {neon_color}; margin: 0; }}
-    .stButton>button {{ background: rgba(255,255,255,0.1); color: {neon_color}; border: 2px solid {neon_color}; border-radius: 12px; font-weight: bold; width: 100%; transition: 0.3s; }}
+    .stButton>button {{ background: rgba(255,255,255,0.1); color: {neon_color}; border: 2px solid {neon_color}; border-radius: 12px; font-weight: bold; width: 100%; }}
     .stButton>button:hover {{ background: {neon_color}; color: white; box-shadow: 0 0 20px {neon_color}; }}
     label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ color: white !important; font-weight: bold !important; }}
     </style>
@@ -87,10 +87,20 @@ st.markdown(f"""
 with st.sidebar:
     st.divider()
     artist_id = st.text_input("ARTIST ID:", "ANONYM").strip().upper()
-    if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = {"credits": 10, "is_pro": False}
+    if artist_id not in st.session_state.user_db: 
+        st.session_state.user_db[artist_id] = {"credits": 10, "is_pro": False}
+    
     user_info = st.session_state.user_db[artist_id]
     is_admin = (artist_id == "TOMAS2026")
-    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {user_info.get('credits')} {L['units']}'}")
+    
+    # SÄKER STATUS-LOGIK (Fixar f-string felet)
+    if is_admin:
+        display_status = "💎 ADMIN"
+    else:
+        u_credits = user_info.get("credits", 0)
+        display_status = f"⚡ {u_credits} {L['units']}"
+        
+    st.info(f"{L['status']}: {display_status}")
     mood_val = st.selectbox(L["mood"], ["Cinematic", "Surreal", "Vibrant", "Minimalist"])
 
 # --- 5. HUVUDAPPEN ---
@@ -120,12 +130,11 @@ if token:
                     with st.status(L["generating"]):
                         if not is_admin: user_info["credits"] -= 1
                         eng_prompt = translate_to_ai(m_ide)
-                        # Vattenstämpel-instruktion inbyggd i prompten
-                        final_prompt = f"{eng_prompt}, {mood_val} style, high quality, small watermark text 'MAXIMUSIKAI' in bottom corner"
+                        final_prompt = f"{eng_prompt}, {mood_val} style, high quality, watermark 'MAXIMUSIKAI'"
                         img = replicate.run("black-forest-labs/flux-schnell", input={"prompt": final_prompt})
-                        time.sleep(1.5) # Förhindra 429-fel
+                        time.sleep(1)
                         mu = replicate.run("facebookresearch/musicgen:7a76a825", input={"prompt": f"{mood_val} music", "duration": 5})
-                        st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": m_ide[:20], "video": str(img if isinstance(img, list) else img), "audio": str(mu)})
+                        st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": m_ide[:20], "video": str(img[0] if isinstance(img, list) else img), "audio": str(mu)})
                         st.rerun()
 
     with tabs[1]: # REGI
@@ -137,9 +146,8 @@ if token:
     with tabs[2]: # MUSIK
         mu_prompt = st.text_input("DESCRIBE BEAT:", f"{mood_val} vibes")
         if st.button("CREATE AUDIO"):
-            with st.spinner("..."):
-                res = replicate.run("facebookresearch/musicgen:7a76a825", input={"prompt": translate_to_ai(mu_prompt), "duration": 15})
-                st.audio(str(res))
+            res = replicate.run("facebookresearch/musicgen:7a76a825", input={"prompt": translate_to_ai(mu_prompt), "duration": 15})
+            st.audio(str(res))
 
     with tabs[3]: # ARKIV
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
@@ -159,9 +167,10 @@ if token:
     if is_admin:
         with tabs[5]:
             st.write(st.session_state.user_db)
-            if st.button("RENSA ALLA"): st.session_state.gallery = []; st.rerun()
+            if st.button("RESET ALL"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API KEY MISSING")
+
 
 
 
