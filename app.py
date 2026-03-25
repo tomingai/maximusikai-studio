@@ -43,10 +43,16 @@ st.markdown(f"""
 with st.sidebar:
     st.divider()
     artist_id = st.text_input("ARTIST ID:", "ANONYM").strip().upper()
-    if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = {"credits": 5, "is_pro": False}
+    if artist_id not in st.session_state.user_db: 
+        st.session_state.user_db[artist_id] = {"credits": 5, "is_pro": False}
+    
     user_info = st.session_state.user_db[artist_id]
     is_admin = (artist_id == "TOMAS2026")
-    st.info(f"STATUS: {'💎 PRO' if (user_info['is_pro'] or is_admin) else f'⚡ {user_info['credits']} UNITS'}")
+    
+    # FIXAD RAD HÄR:
+    status_msg = "💎 PRO" if (user_info["is_pro"] or is_admin) else f"⚡ {user_info['credits']} UNITS"
+    st.info(f"STATUS: {status_msg}")
+    
     mood = st.selectbox("AI MOOD:", ["Cinematic", "Epic Detail", "Surreal", "Vibrant", "Minimalist"])
 
 # --- 4. HUVUDAPPEN ---
@@ -55,48 +61,29 @@ st.markdown(f'<div class="neon-container"><p class="neon-title">MAXIMUSIKAI</p><
 token = st.secrets.get("REPLICATE_API_TOKEN")
 if token:
     os.environ["REPLICATE_API_TOKEN"] = token
-    tabs = st.tabs(["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED", "⚙️ ADMIN" if is_admin else ""])
+    tabs = st.tabs(["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED", "⚙️ ADMIN" if is_admin else " "])
 
     with tabs[0]: # MAGI
         c1, c2 = st.columns([1, 1.2])
         with c1:
             m_ide = st.text_area("VAD SKALL VI SKAPA?", value=st.session_state.remix_prompt)
-            
-            # --- FUNKTION: FÖLJ KONTURER ---
             use_canny = st.checkbox("Följ konturer från bild (ControlNet)")
             ref_img = st.file_uploader("Ladda upp bild/skiss:", type=["jpg", "png", "jpeg"]) if use_canny else None
             
             if st.button("STARTA GENERERING"):
                 if user_info["credits"] > 0 or is_admin:
-                    with st.status("AI ANALYSERAR KONTURER & SKAPAR..."):
+                    with st.status("AI SKAPAR..."):
                         if not is_admin: user_info["credits"] -= 1
-                        
                         with ThreadPoolExecutor() as exe:
-                            # Om Canny är vald använder vi en ControlNet-modell för Flux
                             if use_canny and ref_img:
-                                # Vi använder Flux ControlNet Canny för att följa linjer
-                                img_f = exe.submit(replicate.run, "lucataco/flux-canny:1134015699b8", input={"image": ref_img, "prompt": f"{m_ide}, {mood} style, high quality"})
+                                img_f = exe.submit(replicate.run, "lucataco/flux-canny:1134015699b8", input={"image": ref_img, "prompt": f"{m_ide}, {mood} style"})
                             else:
-                                img_f = exe.submit(replicate.run, "black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style, high quality"})
-                            
+                                img_f = exe.submit(replicate.run, "black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
                             mu_f = exe.submit(replicate.run, "facebookresearch/musicgen", input={"prompt": f"{mood} music for {m_ide}", "duration": 8})
                             img_res, mu_res = img_f.result(), mu_f.result()
                         
-                        st.session_state.gallery.append({
-                            "id": datetime.datetime.now().timestamp(), 
-                            "artist": artist_id, "name": m_ide[:20] or "Untitled", 
-                            "video": str(img_res[0] if isinstance(img_res, list) else img_res), 
-                            "audio": str(mu_res)
-                        })
+                        st.session_state.gallery.append({"id": datetime.datetime.now().timestamp(), "artist": artist_id, "name": m_ide[:20], "video": str(img_res), "audio": str(mu_res)})
                         st.rerun()
-
-    with tabs[1]: # REGI
-        st.subheader("ANIMERA BILDER")
-        luma_file = st.file_uploader("Ladda upp för Luma:", type=["jpg", "png"], key="l_up")
-        if luma_file and st.button("KÖR LUMA"):
-            with st.spinner("Animerar..."):
-                res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic motion", "image_url": luma_file})
-                st.video(str(res))
 
     with tabs[3]: # ARKIV
         my_files = [p for p in st.session_state.gallery if p["artist"] == artist_id]
@@ -110,11 +97,6 @@ if token:
             st.image(item['video'], caption=f"Artist: {item['artist']}")
             st.divider()
 
-    if is_admin:
-        with tabs[5]:
-            st.subheader("🛠 ADMIN")
-            st.write(f"Användare: {len(st.session_state.user_db)}")
-            st.download_button("BACKUP (JSON)", json.dumps(st.session_state.gallery), "backup.json")
 else:
     st.error("⚠️ REPLICATE_API_TOKEN saknas i Secrets!")
 
