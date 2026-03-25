@@ -34,7 +34,7 @@ texts = {
 }
 L = texts[st.session_state.lang]
 
-# --- 3. DYNAMISK DESIGN (TYDLIG BAKGRUND & GENOMSKINLIGA RUTOR) ---
+# --- 3. DYNAMISK DESIGN (VERSION 2 - TYDLIGARE) ---
 if st.session_state.app_bg:
     raw_bg = st.session_state.app_bg
     bg_url = raw_bg if isinstance(raw_bg, list) else str(raw_bg)
@@ -42,41 +42,24 @@ if st.session_state.app_bg:
     st.markdown(f"""
         <style>
         .stApp {{
-            background-image: linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)), url("{bg_url}");
+            background-image: linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url("{bg_url}");
             background-size: cover; background-position: center; background-attachment: fixed;
         }}
-        
-        /* TEXTLÄSBARHET */
         label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
             color: white !important; 
-            text-shadow: 2px 2px 6px rgba(0,0,0,0.9) !important; 
-            font-weight: 700 !important; 
+            text-shadow: 2px 2px 8px rgba(0,0,0,1) !important; 
+            font-weight: 800 !important; 
         }}
-
-        /* GENOMSKINLIGA TEXTRUTOR */
-        .stTextArea textarea, .stTextInput input {{
-            background-color: rgba(255, 255, 255, 0.08) !important;
-            backdrop-filter: blur(15px) !important;
-            -webkit-backdrop-filter: blur(15px) !important;
+        /* TRANSPARENTA RUTOR */
+        .stTextArea textarea, .stTextInput input {{ 
+            background-color: rgba(0,0,0,0.4) !important; 
             color: white !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
-            border-radius: 12px !important;
+            border-radius: 10px; 
+            border: 1px solid rgba(255,255,255,0.2) !important;
         }}
-
-        /* TRANSPARENTA FLIKAR */
-        .stTabs [data-baseweb="tab-list"] {{
-            background-color: rgba(0, 0, 0, 0.3) !important;
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 5px;
-        }}
-        
-        /* KNAPPAR */
-        .stButton button {{
-            background-color: rgba(255, 255, 255, 0.1) !important;
-            color: white !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
-            backdrop-filter: blur(5px);
+        .stTabs [data-baseweb="tab-list"] {{ 
+            background-color: rgba(255,255,255,0.1); 
+            border-radius: 10px; 
         }}
         </style>
     """, unsafe_allow_html=True)
@@ -89,73 +72,64 @@ with st.sidebar:
     st.session_state.lang = st.radio("Language:", ["Svenska", "English"], horizontal=True)
     
     artist_id = st.text_input("ARTIST ID:", "ANONYM").strip().upper()
-    if artist_id not in st.session_state.user_db: 
-        st.session_state.user_db[artist_id] = 10
-    
+    if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = 10
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
     
-    # FIXAD RAD (Använder dubbla citattecken för ordboksnyckeln för att undvika SyntaxError)
-    status_text = "💎 ADMIN" if is_admin else f"⚡ {u_creds} {L['units']}"
-    st.info(f"{L['status']}: {status_text}")
+    # FIXAD STRÄNG FÖR ATT UNDVIKA SYNTAXERROR
+    u_units_label = L["units"]
+    status_msg = "💎 ADMIN" if is_admin else f"⚡ {u_creds} {u_units_label}"
+    st.info(f"{L['status']}: {status_msg}")
     
     st.divider()
     st.subheader("ATMOSPHERE")
     c1, c2 = st.columns(2)
-    
     if c1.button(L["atm_space"]):
         st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
         st.rerun()
     if c2.button(L["atm_forest"]):
-        st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest sunbeams, 4k"})
+        st.session_state.app_bg = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, 4k"})
         st.rerun()
-    
     if st.button("❌ RESET DESIGN"):
-        st.session_state.app_bg = None
-        st.rerun()
+        st.session_state.app_bg = None; st.rerun()
 
 # --- 5. HUVUDAPP ---
 st.markdown(f'<h1 style="text-align:center;">{L["title"]}</h1>', unsafe_allow_html=True)
 
 if not st.session_state.agreed:
     if st.button("GODKÄNN & ÖPPNA STUDION"): 
-        st.session_state.agreed = True
-        st.rerun()
+        st.session_state.agreed = True; st.rerun()
     st.stop()
 
 token = st.secrets.get("REPLICATE_API_TOKEN")
 if token:
     os.environ["REPLICATE_API_TOKEN"] = token
-    
-    tab_list = [L["tab1"], L["tab2"], L["tab3"], L["tab4"], L["tab5"]]
-    if is_admin: tab_list.append(L["tab6"])
-    tabs = st.tabs(tab_list)
+    tabs = st.tabs([L["tab1"], L["tab2"], L["tab3"], L["tab4"], L["tab5"]])
 
     with tabs[0]: # MAGI
-        prompt = st.text_area(L["prompt_label"], key="main_p", height=150)
-        if st.button(L["start_btn"], use_container_width=True):
+        prompt = st.text_area(L["prompt_label"], key="main_p")
+        if st.button(L["start_btn"]):
             if st.session_state.user_db[artist_id] > 0 or is_admin:
-                with st.status("AI arbetar..."):
+                with st.status("AI..."):
                     if not is_admin: st.session_state.user_db[artist_id] -= 1
                     img_out = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
-                    mu_out = replicate.run("facebookresearch/musicgen", input={"prompt": prompt, "duration": 8})
+                    mu_out = replicate.run("facebookresearch/musicgen", input={"prompt": prompt, "duration": 5})
                     st.session_state.gallery.append({
-                        "id": time.time(), "artist": artist_id, "name": prompt[:20], 
-                        "url": img_out[0] if isinstance(img_out, list) else str(img_out), 
+                        "id": time.time(), "artist": artist_id, "name": prompt[:15], 
+                        "url": img_out if isinstance(img_out, list) else str(img_out), 
                         "audio": str(mu_out)
                     })
                     st.rerun()
 
     with tabs[1]: # REGI
-        st.subheader("BILD TILL VIDEO")
-        up_img = st.file_uploader("Ladda upp:", type=["jpg", "png"])
-        if up_img and st.button("ANIMERA"):
-            res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic move"})
+        up_img = st.file_uploader("Bild:", type=["jpg", "png"])
+        if up_img and st.button("KÖR LUMA"):
+            res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic"})
             st.video(str(res))
 
     with tabs[2]: # MUSIK
-        mu_prompt = st.text_input("Beskriv ljudet:", key="mu_in")
-        if st.button("SKAPA MUSIK"):
+        mu_prompt = st.text_input("Beat:", key="mu_in")
+        if st.button("SKAPA"):
             res = replicate.run("facebookresearch/musicgen", input={"prompt": mu_prompt, "duration": 10})
             st.audio(str(res))
 
@@ -165,20 +139,13 @@ if token:
             with st.expander(f"📁 {p['name'].upper()}"):
                 st.image(p["url"])
                 if st.button(L["set_bg"], key=f"set_{p['id']}"):
-                    st.session_state.app_bg = p["url"]
-                    st.rerun()
+                    st.session_state.app_bg = p["url"]; st.rerun()
 
     with tabs[4]: # FEED
         for p in reversed(st.session_state.gallery[-10:]):
             st.image(p["url"], caption=f"Artist: {p['artist']}")
-            st.divider()
-
-    if is_admin:
-        with tabs[5]: # ADMIN
-            st.write(st.session_state.user_db)
-            if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
 else:
-    st.error("API Token saknas!")
+    st.error("API TOKEN MISSING")
 
 
 
