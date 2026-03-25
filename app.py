@@ -4,7 +4,7 @@ import os
 import time
 import requests
 
-# --- 1. SETUP & SESSION STATE ---
+# --- 1. SETUP & SESSION STATE (LÅST GRUND) ---
 st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", layout="wide")
 
 if "gallery" not in st.session_state: st.session_state.gallery = []
@@ -13,7 +13,7 @@ if "app_bg" not in st.session_state: st.session_state.app_bg = None
 if "agreed" not in st.session_state: st.session_state.agreed = False
 if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 
-# --- 2. DESIGN-MOTOR (LÅST DESIGN + LOGO-GLOW) ---
+# --- 2. DESIGN-MOTOR (HELT LÅST) ---
 def apply_design():
     if st.session_state.app_bg:
         bg_url = str(st.session_state.app_bg)
@@ -65,7 +65,7 @@ texts = {
 }
 L = texts[st.session_state.lang]
 
-# --- 5. SIDOMENY ---
+# --- 5. SIDOMENY (LÅST) ---
 with st.sidebar:
     st.title("STUDIO")
     st.session_state.lang = st.radio("Språk:", ["Svenska", "English"], horizontal=True)
@@ -73,8 +73,7 @@ with st.sidebar:
     if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = 10
     is_admin = (artist_id == "TOMAS2026")
     u_creds = st.session_state.user_db[artist_id]
-    u_unit_label = L["units"]
-    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_creds} {u_unit_label}'}")
+    st.info(f"{L['status']}: {'💎 ADMIN' if is_admin else f'⚡ {u_creds} {L['units']}'}")
     st.divider()
     st.subheader("ATMOSPHERE")
     c1, c2 = st.columns(2); c3, c4 = st.columns(2)
@@ -123,38 +122,28 @@ if token:
 
     with tabs[1]: # REGI
         st.subheader("🎬 LUMA DREAM MACHINE")
-        st.write("Skapa film av dina AI-bilder.")
-        
-        # Välj en bild från galleriet att animera
         my_imgs = [p for p in st.session_state.gallery if p["artist"] == artist_id]
-        if not my_imgs:
-            st.info("Skapa en bild i MAGI först för att kunna animera den!")
+        if not my_imgs: st.info("Skapa en bild i MAGI först!")
         else:
-            img_to_anim = st.selectbox("Välj bild från arkivet:", [p["name"] for p in my_imgs])
-            selected_url = next(p["url"] for p in my_imgs if p["name"] == img_to_anim)
+            img_choice = st.selectbox("Välj bild:", [p["name"] for p in my_imgs])
+            selected_url = next(p["url"] for p in my_imgs if p["name"] == img_choice)
             st.image(selected_url, width=300)
-            
-            vid_prompt = st.text_input("Rörelseinstruktion (t.ex. 'slow camera pan'):", "Cinematic motion")
-            
-            if st.button("SKAPA FILM (5 ENHETER)"):
+            vid_p = st.text_input("Instruktion:", "Cinematic motion")
+            if st.button("SKAPA VIDEO (5 UNITS)"):
                 if u_creds >= 5 or is_admin:
-                    with st.status("Luma skapar film..."):
-                        if not is_admin: st.session_state.user_db[artist_id] -= 5
-                        # Luma anrop
-                        vid_res = replicate.run(
-                            "luma-ai/luma-dream-machine",
-                            input={"prompt": vid_prompt, "image_url": selected_url}
-                        )
-                        st.video(get_url(vid_res))
-                else:
-                    st.error("Du behöver minst 5 Units för att skapa video!")
+                    with st.status("Luma arbetar..."):
+                        try:
+                            if not is_admin: st.session_state.user_db[artist_id] -= 5
+                            vid_res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": vid_p, "image_url": selected_url})
+                            st.video(get_url(vid_res))
+                        except: st.error("Luma är för tillfället upptagen eller kräver betalkonto.")
+                else: st.error("För få Units!")
 
     with tabs[2]: # MUSIK
         mu_in = st.text_input("Beskriv beatet:", key="mu_input")
         if st.button("SKAPA LJUD"):
             with st.spinner("Komponerar..."):
-                res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", 
-                                   input={"prompt": mu_in, "duration": 10})
+                res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", input={"prompt": mu_in, "duration": 10})
                 st.audio(str(res))
 
     with tabs[3]: # ARKIV
