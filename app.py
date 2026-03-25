@@ -15,14 +15,13 @@ if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 # --- 2. DESIGN-MOTOR (LÅST & SÄKRAD) ---
 def apply_design():
     if st.session_state.app_bg:
-        bg_url = st.session_state.app_bg
+        bg_url = str(st.session_state.app_bg)
         st.markdown(f"""
             <style>
             .stApp {{
                 background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url("{bg_url}") !important;
                 background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
             }}
-            /* Transparenta rutor utan grått */
             div[data-baseweb="base-input"], div[data-baseweb="textarea"], .stTextArea textarea, .stTextInput input {{
                 background-color: rgba(255,255,255,0.1) !important;
                 color: white !important;
@@ -61,7 +60,7 @@ texts = {
 }
 L = texts[st.session_state.lang]
 
-# --- 4. SIDOMENY (LÅSTA ATMOSFÄRER) ---
+# --- 4. SIDOMENY ---
 with st.sidebar:
     st.title("STUDIO")
     st.session_state.lang = st.radio("Språk:", ["Svenska", "English"], horizontal=True)
@@ -79,16 +78,20 @@ with st.sidebar:
     c1, c2 = st.columns(2); c3, c4 = st.columns(2)
     if c1.button(L["atm_space"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Deep space nebula, 4k"})
-        st.session_state.app_bg = res[0] if isinstance(res, list) else str(res); st.rerun()
+        st.session_state.app_bg = str(res[0]) if isinstance(res, list) else str(res)
+        st.rerun()
     if c2.button(L["atm_forest"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Magic forest, sunlight, 4k"})
-        st.session_state.app_bg = res[0] if isinstance(res, list) else str(res); st.rerun()
+        st.session_state.app_bg = str(res[0]) if isinstance(res, list) else str(res)
+        st.rerun()
     if c3.button(L["atm_city"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cyberpunk city neon, 4k"})
-        st.session_state.app_bg = res[0] if isinstance(res, list) else str(res); st.rerun()
+        st.session_state.app_bg = str(res[0]) if isinstance(res, list) else str(res)
+        st.rerun()
     if c4.button(L["atm_bake"]):
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Artisan bakery, warm bread, 4k"})
-        st.session_state.app_bg = res[0] if isinstance(res, list) else str(res); st.rerun()
+        st.session_state.app_bg = str(res[0]) if isinstance(res, list) else str(res)
+        st.rerun()
     
     if st.button("❌ NOLLSTÄLL DESIGN"):
         st.session_state.app_bg = None; st.rerun()
@@ -113,19 +116,15 @@ if token:
             if u_creds > 0 or is_admin:
                 with st.status("AI arbetar..."):
                     if not is_admin: st.session_state.user_db[artist_id] -= 1
-                    
-                    # Bild
                     img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
-                    img_url = img_res[0] if isinstance(img_res, list) else str(img_res)
+                    img_url = str(img_res[0]) if isinstance(img_res, list) else str(img_res)
                     
-                    # Musik (Säkrad version)
                     mu_url = None
                     try:
                         mu_res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", 
                                                input={"prompt": prompt, "duration": 8})
                         mu_url = str(mu_res)
-                    except:
-                        st.warning("Musiken pausad pga anropstryck, men bilden skapas!")
+                    except: mu_url = None
 
                     if st.session_state.app_bg is None: st.session_state.app_bg = img_url
                     st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": prompt[:20], "url": img_url, "audio": mu_url})
@@ -134,7 +133,7 @@ if token:
     with tabs[1]: # REGI
         st.subheader("BILD TILL VIDEO")
         up_img = st.file_uploader("Ladda upp:", type=["jpg", "png"], key="reg_up")
-        if up_img and st.button("ANIMERA"): st.info("Luma Dream Machine är förberedd!")
+        if up_img and st.button("ANIMERA"): st.info("Luma Dream Machine redo!")
 
     with tabs[2]: # MUSIK
         mu_in = st.text_input("Beskriv beatet:", key="mu_input")
@@ -148,15 +147,16 @@ if token:
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
         for p in reversed(my):
             with st.expander(f"📁 {p['name'].upper()}"):
-                st.image(p["url"])
+                st.image(str(p["url"])) # Tvinga URL-sträng här
                 if st.button(L["set_bg"], key=f"set_{p['id']}"):
-                    st.session_state.app_bg = p["url"]; st.rerun()
-                if p["audio"]: st.audio(p["audio"])
+                    st.session_state.app_bg = str(p["url"])
+                    st.rerun()
+                if p["audio"]: st.audio(str(p["audio"]))
 
     with tabs[4]: # FEED
         for p in reversed(st.session_state.gallery[-10:]):
-            st.image(p["url"], caption=f"Artist: {p['artist']}")
-            if p["audio"]: st.audio(p["audio"])
+            st.image(str(p["url"]), caption=f"Artist: {p['artist']}")
+            if p["audio"]: st.audio(str(p["audio"]))
             st.divider()
 
     if is_admin:
@@ -165,6 +165,7 @@ if token:
             if st.button("RENSA"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API TOKEN SAKNAS")
+
 
 
 
