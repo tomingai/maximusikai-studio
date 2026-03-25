@@ -4,13 +4,13 @@ import os
 import time
 import requests
 
-# --- 1. SETUP & SESSION STATE (LÅST GRUND) ---
+# --- 1. SETUP & SESSION STATE (STENHÅRT LÅST) ---
 st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", layout="wide")
 
 for key, val in {"gallery": [], "user_db": {}, "app_bg": None, "agreed": False, "lang": "Svenska"}.items():
     if key not in st.session_state: st.session_state[key] = val
 
-# --- 2. DESIGN-MOTOR (LÅST DESIGN + TEXT-FIX) ---
+# --- 2. DESIGN-MOTOR (LÅST DESIGN) ---
 def apply_design():
     if st.session_state.app_bg:
         bg_url = str(st.session_state.app_bg)
@@ -20,38 +20,23 @@ def apply_design():
                 background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url("{bg_url}") !important;
                 background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
             }}
-            /* LOGGA GLOW */
             .logo-text {{
                 font-size: 3rem !important; font-weight: 900 !important; color: #fff !important; text-align: center;
                 text-transform: uppercase; letter-spacing: 5px;
                 text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #00d2ff, 0 0 40px #00d2ff !important;
                 margin-bottom: 25px;
             }}
-            /* TEXT-FIX FÖR ATT ALLT SKALL SYNAS */
-            div[data-testid="stMarkdownContainer"] p, 
-            label, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
+            /* TEXT-FIX: TVINGA SYNLIGHET */
+            p, label, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
                 color: white !important; 
-                text-shadow: 2px 2px 10px rgba(0,0,0,1), 0px 0px 5px rgba(0,0,0,0.8) !important; 
+                text-shadow: 2px 2px 10px rgba(0,0,0,1) !important; 
                 font-weight: 900 !important;
-                opacity: 1 !important;
             }}
-            /* GENOMSKINLIGA RUTOR UTAN GRÅTT */
             div[data-baseweb="base-input"], div[data-baseweb="textarea"], .stTextArea textarea, .stTextInput input {{
-                background-color: rgba(255,255,255,0.12) !important; 
-                color: white !important;
-                backdrop-filter: blur(20px) !important; 
-                border: 1px solid rgba(255,255,255,0.3) !important; 
-                border-radius: 12px !important;
+                background-color: rgba(255,255,255,0.12) !important; color: white !important;
+                backdrop-filter: blur(20px) !important; border: 1px solid rgba(255,255,255,0.3) !important; border-radius: 12px !important;
             }}
-            .stTabs [data-baseweb="tab-list"] {{ 
-                background-color: rgba(0,0,0,0.5) !important; 
-                border-radius: 10px !important; 
-            }}
-            /* Fix för sidomeny-text */
-            [data-testid="stSidebar"] {{
-                background-color: rgba(0,0,0,0.6) !important;
-                backdrop-filter: blur(10px);
-            }}
+            .stTabs [data-baseweb="tab-list"] {{ background-color: rgba(0,0,0,0.5) !important; border-radius: 10px !important; }}
             </style>
         """, unsafe_allow_html=True)
     else:
@@ -66,12 +51,12 @@ def get_url(res):
 texts = {
     "Svenska": {
         "title": "MAXIMUSIKAI STUDIO",
-        "tab_names": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED", "⚙️ ADMIN"],
+        "tabs": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED", "⚙️ ADMIN"],
         "units": "UNITS", "set_bg": "🖼 SÄTT SOM BAKGRUND", "download": "💾 LADDA NER"
     },
     "English": {
         "title": "MAXIMUSIKAI STUDIO",
-        "tab_names": ["🪄 MAGIC", "🎬 DIRECTOR", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED", "⚙️ ADMIN"],
+        "tabs": ["🪄 MAGIC", "🎬 DIRECTOR", "🎧 MUSIC", "📚 ARCHIVE", "🌐 FEED", "⚙️ ADMIN"],
         "units": "UNITS", "set_bg": "🖼 SET AS BACKGROUND", "download": "💾 DOWNLOAD"
     }
 }
@@ -84,11 +69,10 @@ with st.sidebar:
     if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = 10
     is_admin = (artist_id == "TOMAS2026")
     
-    u_label = L["units"]
-    # Tvinga textfärg här för säkerhet
-    st.markdown(f"**ARTIST STATUS:** {'💎 ADMIN' if is_admin else f'⚡ {st.session_state.user_db[artist_id]} {u_label}'}")
-    
-    st.divider()
+    # Säker f-string hantering
+    u_val = st.session_state.user_db[artist_id]
+    u_text = L["units"]
+    st.markdown(f"**STATUS:** {'💎 ADMIN' if is_admin else f'⚡ {u_val} {u_text}'}")
     if st.button("❌ RESET DESIGN"): st.session_state.app_bg = None; st.rerun()
 
 # --- 4. HUVUDAPP ---
@@ -102,9 +86,10 @@ if not st.session_state.agreed:
 token = st.secrets.get("REPLICATE_API_TOKEN")
 if token:
     os.environ["REPLICATE_API_TOKEN"] = token
-    tabs = st.tabs(L["tab_names"] if is_admin else L["tab_names"][:-1])
+    # SKAPA FLIKARNA EN GÅNG
+    t = st.tabs(L["tabs"] if is_admin else L["tabs"][:-1])
 
-    with tabs[0]: # MAGI
+    with t[0]: # MAGI
         prompt = st.text_area("VAD SKALL VI SKAPA?", key="m_p")
         if st.button("STARTA GENERERING", use_container_width=True):
             if is_admin or st.session_state.user_db[artist_id] > 0:
@@ -120,7 +105,7 @@ if token:
                     st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": prompt[:20], "url": img_url, "audio": mu_url})
                     st.rerun()
 
-    with tabs[1]: # REGI
+    with t[1]: # REGI
         st.subheader("🎬 LUMA DREAM MACHINE")
         my_imgs = [p for p in st.session_state.gallery if p["artist"] == artist_id]
         if not my_imgs: st.info("Skapa en bild först!")
@@ -135,16 +120,16 @@ if token:
                             if not is_admin: st.session_state.user_db[artist_id] -= 5
                             vid = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic motion", "image_url": selected_url})
                             st.video(get_url(vid))
-                        except: st.error("Tjänsten är högbelastad.")
+                        except: st.error("Luma är högbelastad.")
                 else: st.error("För få units.")
 
-    with tabs[2]: # MUSIK
-        mu_in = st.text_input("Beskriv ljudet:", key="mu_in")
+    with t[2]: # MUSIK
+        mu_in = st.text_input("Beskriv beatet:", key="mu_in")
         if st.button("SKAPA"):
             res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", input={"prompt": mu_in, "duration": 10})
             st.audio(str(res))
 
-    with tabs[3]: # ARKIV
+    with t[3]: # ARKIV
         my = [p for p in st.session_state.gallery if p["artist"] == artist_id]
         for p in reversed(my):
             with st.expander(f"📁 {p['name'].upper()}"):
@@ -155,18 +140,19 @@ if token:
                 except: pass
                 if p["audio"]: st.audio(p["audio"])
 
-    with tabs[4]: # FEED
+    with t[4]: # FEED
         for p in reversed(st.session_state.gallery[-10:]):
             st.image(p["url"], caption=f"Artist: {p['artist']}")
             if p["audio"]: st.audio(p["audio"])
             st.divider()
 
     if is_admin:
-        with tabs[5]: # ADMIN
+        with t[5]: # ADMIN
             st.write(st.session_state.user_db)
             if st.button("RENSA ALLT"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API TOKEN SAKNAS")
+
 
 
 
