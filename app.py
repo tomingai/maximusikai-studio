@@ -2,8 +2,8 @@ import streamlit as st
 import replicate
 import os
 import datetime
+import time
 import json
-from concurrent.futures import ThreadPoolExecutor
 
 # --- 1. SETUP & SESSION STATE ---
 st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", layout="wide")
@@ -44,12 +44,12 @@ with st.sidebar:
     st.divider()
     artist_id = st.text_input("ARTIST ID:", "ANONYM").strip().upper()
     if artist_id not in st.session_state.user_db: 
-        st.session_state.user_db[artist_id] = {"credits": 5, "is_pro": False}
+        st.session_state.user_db[artist_id] = {"credits": 10, "is_pro": False}
     
     user_info = st.session_state.user_db[artist_id]
     is_admin = (artist_id == "TOMAS2026")
     
-    # FIXAD RAD HÄR:
+    # Status med säker stränghantering
     status_msg = "💎 PRO" if (user_info["is_pro"] or is_admin) else f"⚡ {user_info['credits']} UNITS"
     st.info(f"STATUS: {status_msg}")
     
@@ -72,18 +72,45 @@ if token:
             
             if st.button("STARTA GENERERING"):
                 if user_info["credits"] > 0 or is_admin:
-                    with st.status("AI SKAPAR..."):
-                        if not is_admin: user_info["credits"] -= 1
-                        with ThreadPoolExecutor() as exe:
+                    with st.status("MAGI PÅGÅR..."):
+                        try:
+                            if not is_admin: user_info["credits"] -= 1
+                            
+                            # STEG 1: SKAPA BILD
+                            st.write("🎨 Skapar bild...")
                             if use_canny and ref_img:
-                                img_f = exe.submit(replicate.run, "lucataco/flux-canny:1134015699b8", input={"image": ref_img, "prompt": f"{m_ide}, {mood} style"})
+                                img_res = replicate.run("lucataco/flux-canny:1134015699b8", input={"image": ref_img, "prompt": f"{m_ide}, {mood} style"})
                             else:
-                                img_f = exe.submit(replicate.run, "black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
-                            mu_f = exe.submit(replicate.run, "facebookresearch/musicgen", input={"prompt": f"{mood} music for {m_ide}", "duration": 8})
-                            img_res, mu_res = img_f.result(), mu_f.result()
-                        
-                        st.session_state.gallery.append({"id": datetime.datetime.now().timestamp(), "artist": artist_id, "name": m_ide[:20], "video": str(img_res), "audio": str(mu_res)})
-                        st.rerun()
+                                img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"{m_ide}, {mood} style"})
+                            
+                            # KORT PAUS FÖR ATT UNDVIKA 429
+                            time.sleep(1.5)
+                            
+                            # STEG 2: SKAPA MUSIK
+                            st.write("🎧 Komponerar musik...")
+                            mu_res = replicate.run("facebookresearch/musicgen", input={"prompt": f"{mood} music for {m_ide}", "duration": 8})
+                            
+                            # SPARA
+                            img_url = img_res if isinstance(img_res, list) else img_res
+                            st.session_state.gallery.append({
+                                "id": datetime.datetime.now().timestamp(), 
+                                "artist": artist_id, 
+                                "name": m_ide[:20], 
+                                "video": str(img_url), 
+                                "audio": str(mu_res)
+                            })
+                            st.success("KLART!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Ett fel uppstod med Replicate: {e}")
+
+    with tabs[1]: # REGI
+        st.subheader("ANIMERA BILDER")
+        luma_file = st.file_uploader("Ladda upp för Luma:", type=["jpg", "png"], key="l_up")
+        if luma_file and st.button("KÖR LUMA"):
+            with st.spinner("Animerar..."):
+                res = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic motion", "image_url": luma_file})
+                st.video(str(res))
 
     with tabs[3]: # ARKIV
         my_files = [p for p in st.session_state.gallery if p["artist"] == artist_id]
@@ -99,6 +126,7 @@ if token:
 
 else:
     st.error("⚠️ REPLICATE_API_TOKEN saknas i Secrets!")
+
 
 
 
