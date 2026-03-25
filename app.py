@@ -7,18 +7,30 @@ import requests
 # --- 1. SETUP & SESSION STATE (STENHÅRT LÅST) ---
 st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", layout="wide")
 
-for key, val in {"gallery": [], "user_db": {}, "app_bg": None, "agreed": False, "lang": "Svenska"}.items():
-    if key not in st.session_state: st.session_state[key] = val
+if "gallery" not in st.session_state: st.session_state.gallery = []
+if "user_db" not in st.session_state: st.session_state.user_db = {}
+if "app_bg" not in st.session_state: st.session_state.app_bg = None
+if "agreed" not in st.session_state: st.session_state.agreed = False
+if "lang" not in st.session_state: st.session_state.lang = "Svenska"
 
-# --- 2. DESIGN-MOTOR (LÅST DESIGN) ---
+# --- 2. DESIGN-MOTOR (TVINGAR BORT GRÅ FÄRG) ---
 def apply_design():
     if st.session_state.app_bg:
         bg_url = str(st.session_state.app_bg)
         st.markdown(f"""
             <style>
+            /* TVINGA BAKGRUND PÅ HELA APPPEN */
             .stApp {{
-                background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url("{bg_url}") !important;
-                background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
+                background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("{bg_url}") !important;
+                background-size: cover !important;
+                background-position: center !important;
+                background-attachment: fixed !important;
+            }}
+            /* GÖR SIDOMENYN MATCHANDE */
+            [data-testid="stSidebar"] {{
+                background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("{bg_url}") !important;
+                background-size: cover !important;
+                background-position: center !important;
             }}
             .logo-text {{
                 font-size: 3.2rem !important; font-weight: 900 !important; color: #fff !important; text-align: center;
@@ -26,12 +38,19 @@ def apply_design():
                 text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #00d2ff, 0 0 40px #00d2ff !important;
                 margin-bottom: 25px;
             }}
+            /* TEXT-SYNLIGHET */
             p, label, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
-                color: white !important; text-shadow: 2px 2px 10px rgba(0,0,0,1) !important; font-weight: 900 !important;
+                color: white !important; 
+                text-shadow: 2px 2px 10px rgba(0,0,0,1) !important; 
+                font-weight: 900 !important;
             }}
+            /* GENOMSKINLIGA RUTOR */
             div[data-baseweb="base-input"], div[data-baseweb="textarea"], .stTextArea textarea, .stTextInput input {{
-                background-color: rgba(255,255,255,0.12) !important; color: white !important;
-                backdrop-filter: blur(20px) !important; border: 1px solid rgba(255,255,255,0.3) !important; border-radius: 12px !important;
+                background-color: rgba(255,255,255,0.1) !important; 
+                color: white !important;
+                backdrop-filter: blur(20px) !important; 
+                border: 1px solid rgba(255,255,255,0.2) !important; 
+                border-radius: 12px !important;
             }}
             .stTabs [data-baseweb="tab-list"] {{ background-color: rgba(0,0,0,0.5) !important; border-radius: 10px !important; }}
             </style>
@@ -39,7 +58,7 @@ def apply_design():
     else:
         st.markdown("<style>.stApp { background-color: #050505 !important; }</style>", unsafe_allow_html=True)
 
-# --- 3. ATMOSFÄR-BIBLIOTEK (10 FASTA BILDER) ---
+# --- 3. ATMOSFÄR-BIBLIOTEK (FIXADE LÄNKAR) ---
 atmospheres = {
     "Svenska": {
         "Välj Atmosfär 🖼": None,
@@ -49,43 +68,26 @@ atmospheres = {
         "Undervattnet 🌊": "https://images.unsplash.com",
         "Arktisk Is ❄️": "https://images.unsplash.com",
         "Guld-Öken 🏜️": "https://images.unsplash.com",
-        "Neon-Laboratorium 🧪": "https://images.unsplash.com",
+        "Neon-Lab 🧪": "https://images.unsplash.com",
         "Gotiskt Slott 🏰": "https://images.unsplash.com",
         "Bageri 🥐": "https://images.unsplash.com",
         "Abstrakt Konst 🌈": "https://images.unsplash.com"
-    },
-    "English": {
-        "Choose Atmosphere 🖼": None,
-        "Deep Space 🌌": "https://images.unsplash.com",
-        "Magic Forest 🌲": "https://images.unsplash.com",
-        "Cyber City 🌆": "https://images.unsplash.com",
-        "Underwater 🌊": "https://images.unsplash.com",
-        "Arctic Ice ❄️": "https://images.unsplash.com",
-        "Golden Desert 🏜️": "https://images.unsplash.com",
-        "Tech Lab 🧪": "https://images.unsplash.com",
-        "Dark Castle 🏰": "https://images.unsplash.com",
-        "Bakery 🥐": "https://images.unsplash.com",
-        "Abstract Art 🌈": "https://images.unsplash.com"
     }
 }
 
-# --- 4. SPRÅK & SIDOMENY ---
-lang = st.session_state.lang
-L = atmospheres[lang]
-
+# --- 4. SIDOMENY ---
 with st.sidebar:
     st.title("STUDIO SETTINGS")
-    new_lang = st.radio("Language:", ["Svenska", "English"], index=0 if lang=="Svenska" else 1, horizontal=True)
-    if new_lang != st.session_state.lang:
-        st.session_state.lang = new_lang
-        st.rerun()
-
-    st.divider()
+    
     # RULLMENY FÖR 10 ATMOSFÄRER
-    choice = st.selectbox(list(L.keys())[0], list(L.keys()))
-    if L[choice] != st.session_state.app_bg and L[choice] is not None:
-        st.session_state.app_bg = L[choice]
-        st.rerun()
+    choice = st.selectbox("BYT ATMOSFÄR", list(atmospheres["Svenska"].keys()))
+    if st.button("AKTIVERA ✨"):
+        if atmospheres["Svenska"][choice]:
+            st.session_state.app_bg = atmospheres["Svenska"][choice]
+            st.rerun()
+        else:
+            st.session_state.app_bg = None
+            st.rerun()
 
     st.divider()
     artist_id = st.text_input("ARTIST ID:", "ANONYM").strip().upper()
@@ -94,14 +96,18 @@ with st.sidebar:
     
     u_val = st.session_state.user_db[artist_id]
     st.markdown(f"**STATUS:** {'💎 ADMIN' if is_admin else f'⚡ {u_val} UNITS'}")
-    if st.button("❌ RESET"): st.session_state.app_bg = None; st.rerun()
+    if st.button("❌ RESET"): 
+        st.session_state.app_bg = None
+        st.rerun()
 
 # --- 5. HUVUDAPP ---
 apply_design()
-st.markdown(f'<div class="logo-text">⚡ {st.session_state.lang == "Svenska" and "MAXIMUSIKAI STUDIO" or "MAXIMUSIKAI STUDIO"} ⚡</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="logo-text">⚡ MAXIMUSIKAI STUDIO ⚡</div>', unsafe_allow_html=True)
 
 if not st.session_state.agreed:
-    if st.button("GODKÄNN & ÖPPNA STUDION"): st.session_state.agreed = True; st.rerun()
+    if st.button("GODKÄNN & ÖPPNA STUDION"): 
+        st.session_state.agreed = True
+        st.rerun()
     st.stop()
 
 # --- FLIKAR ---
@@ -142,10 +148,10 @@ if token:
                             if not is_admin: st.session_state.user_db[artist_id] -= 5
                             vid = replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic motion", "image_url": selected_url})
                             st.video(str(vid))
-                        except: st.error("Luma är högbelastad just nu.")
+                        except: st.error("Luma är högbelastad.")
 
     with t[2]: # MUSIK
-        mu_in = st.text_input("Beskriv ljudet:", key="mu_in_f")
+        mu_in = st.text_input("Beskriv beatet:", key="mu_in_f")
         if st.button("SKAPA"):
             res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", input={"prompt": mu_in, "duration": 10})
             st.audio(str(res))
@@ -172,6 +178,7 @@ if token:
             if st.button("RENSA ALLT"): st.session_state.gallery = []; st.rerun()
 else:
     st.error("API TOKEN SAKNAS")
+
 
 
 
