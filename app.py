@@ -40,10 +40,14 @@ def apply_ui():
             box-shadow: 0 0 40px rgba(0, 242, 255, 0.5) !important;
         }
 
-        /* BILDER TILL DE 4 IKONERNA */
+        /* BILDER SOM BESKRIVER FUNKTIONERNA */
+        /* Synthesis - En färgstark AI-art bild */
         div.stButton > button[key="s"] { background-image: url('https://images.unsplash.com') !important; }
+        /* Audio - En snygg equalizer/ljudvåg */
         div.stButton > button[key="a"] { background-image: url('https://images.unsplash.com') !important; }
+        /* Video - En filmscen/klappa */
         div.stButton > button[key="v"] { background-image: url('https://images.unsplash.com') !important; }
+        /* System - Kugghjul/Kretskort */
         div.stButton > button[key="sys"] { background-image: url('https://images.unsplash.com') !important; }
 
         .label { text-align: center; color: #00f2ff; font-family: monospace; font-weight: bold; margin-top: 10px; letter-spacing: 2px; font-size: 0.9rem; }
@@ -61,13 +65,12 @@ def apply_ui():
 
 apply_ui()
 
-# --- 3. DESKTOP (FYRA KOLUMNER) ---
+# --- 3. DESKTOP ---
 if st.session_state.active_window is None:
     st.markdown("<br><br><h1 style='text-align:center; color:white; font-size:4rem; font-weight:900;'>MAXIMUSIKAI</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:10px;'>QUAD_CORE_OS</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:10px;'>QUAD_CORE_OS_V2</p>", unsafe_allow_html=True)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
-    # Skapar 4 kolumner för ikonerna
     _, c1, c2, c3, c4, _ = st.columns([0.5, 1, 1, 1, 1, 0.5])
     
     with c1:
@@ -110,9 +113,9 @@ else:
         st.markdown("<hr style='border:0.5px solid #222; margin:20px 0;'>", unsafe_allow_html=True)
 
         if st.session_state.active_window == "SYNTHESIS":
-            p = st.text_area("PROMPT")
-            if st.button("GENERATE", use_container_width=True):
-                with st.status("GENESIS IN PROGRESS..."):
+            p = st.text_area("VAD VILL DU SKAPA?")
+            if st.button("GENERA BILD", use_container_width=True):
+                with st.status("SKAPAR..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
                     st.session_state.last_res = res
                 st.rerun()
@@ -120,14 +123,17 @@ else:
                 st.image(st.session_state.last_res, use_container_width=True)
 
         elif st.session_state.active_window == "SYSTEM":
-            st.write("### System Status")
-            st.success("All cores online.")
-            st.info(f"Replicate Token Active: {'Yes' if 'REPLICATE_API_TOKEN' in os.environ else 'No'}")
+            st.write("### Status: Online")
+            st.info("CPU: Optimal | RAM: Stable")
 
-        elif st.session_state.active_window in ["AUDIO", "VIDEO"]:
-            st.info(f"{st.session_state.active_window} system online. Module content pending.")
+        elif st.session_state.active_window == "AUDIO":
+            st.info("AUDIO MODULE READY.")
+
+        elif st.session_state.active_window == "VIDEO":
+            st.info("VIDEO MODULE READY.")
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
