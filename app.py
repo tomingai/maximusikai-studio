@@ -27,28 +27,41 @@ def get_media_data(url):
         return BytesIO(response.content)
     except: return None
 
-# --- 3. DESIGN (CSS) ---
+# --- 3. DESIGN (NUCLEAR TRANSPARENT FIX) ---
 def apply_ui():
     accent = st.session_state.accent_color
     st.markdown(f"""
         <style>
-        /* BAKGRUND */
+        /* HUVUDBAKGRUND */
         .stAppViewContainer {{
             background-image: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.5)), 
                               url("{st.session_state.wallpaper}") !important;
-            background-size: cover !important; background-position: center !important;
+            background-size: cover !important; 
+            background-position: center !important;
+            background-attachment: fixed !important;
         }}
-        .main, .stAppHeader, .stAppViewBlockContainer {{ background: transparent !important; }}
 
-        /* KNAPPAR - NO BACKGROUND */
+        /* FORCE TRANSPARENCY PÅ ALLA STREAMLIT-ELEMENT */
+        .main, .stAppHeader, .stAppViewBlockContainer, 
+        div[data-testid="stVerticalBlock"], 
+        div[data-testid="stHorizontalBlock"],
+        div[data-testid="stElementContainer"],
+        .stCustomComponentV1 {{
+            background-color: transparent !important;
+            background: transparent !important;
+            border: none !important;
+        }}
+
+        /* KNAPPAR - HELT GENOMSKINLIGA RAMAR */
         div[data-testid="stButton"] > button {{
             width: 200px !important; height: 200px !important;
-            border-radius: 40px !important; border: 1px solid {accent}33 !important;
-            background-color: transparent !important; 
-            background: none !important;
+            border-radius: 40px !important; 
+            border: 1px solid {accent}33 !important;
+            background: transparent !important;
+            background-color: transparent !important;
             position: relative !important;
             overflow: hidden !important;
-            transition: 0.4s ease-in-out !important;
+            box-shadow: none !important;
         }}
 
         /* BILDER PÅ KNAPPAR */
@@ -69,30 +82,30 @@ def apply_ui():
         div[data-testid="stButton"] > button[key="sys"]::before {{ background-image: url('https://images.unsplash.com') !important; }}
 
         div[data-testid="stButton"] > button:hover {{
-            transform: scale(1.05) !important;
             border-color: {accent} !important;
-            box-shadow: 0 0 30px {accent}22 !important;
+            background-color: rgba(255,255,255,0.05) !important;
         }}
+        
         div[data-testid="stButton"] > button p {{ display: none !important; }}
 
-        /* WINDOW - NO BACKGROUND */
+        /* FÖNSTER - BARA BLUR OCH RAM */
         .window {{ 
             background: transparent !important; 
-            backdrop-filter: blur(20px); 
+            backdrop-filter: blur(30px); 
             border: 1px solid {accent}22; 
-            border-radius: 30px; padding: 40px; color: white; 
+            border-radius: 30px; 
+            padding: 40px; 
+            color: white; 
         }}
 
-        /* INPUTS - NO BACKGROUND */
+        /* INPUTS & TEXTAREA */
         textarea, input {{
-            background: transparent !important;
-            background-color: transparent !important;
+            background: rgba(255,255,255,0.02) !important;
             border: 1px solid {accent}22 !important;
             color: white !important;
-            font-size: 1rem !important;
         }}
 
-        .label {{ text-align: center; color: {accent}; font-family: monospace; margin-top: 15px; letter-spacing: 2px; font-size: 1rem; text-transform: uppercase; opacity: 0.9; }}
+        .label {{ text-align: center; color: {accent}; font-family: monospace; margin-top: 15px; letter-spacing: 2px; font-size: 1rem; text-transform: uppercase; }}
         .space-title {{ text-align: center; color: white; font-size: 1.5rem; letter-spacing: 2px; margin-top: 30px; }}
         </style>
     """, unsafe_allow_html=True)
@@ -137,7 +150,7 @@ else:
 
         if st.session_state.active_window == "SYNTH":
             p = st.text_area("PROMPT:")
-            if st.button("EXECUTE", use_container_width=True):
+            if st.button("GENERATE", use_container_width=True):
                 with st.status("PROCESSING..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
                     st.session_state.synth_res = res
