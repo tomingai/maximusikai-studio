@@ -3,11 +3,23 @@ import replicate
 import os
 import random
 
-# --- 1. PROMPT MOTOR ---
-def get_random_prompt(mode="IMAGE"):
-    img_prompts = ["Cyberpunk city, neon rain", "Deep space nebula, gold dust", "Ancient forest, bioluminescent plants", "Retro robot DJ, synthwave", "Floating island, waterfalls, 8k"]
-    audio_prompts = ["Dark techno, 128bpm, heavy bass", "Space ambient, ethereal pads", "Cyberpunk industrial beat", "Lofi hip hop, chill rainy night", "Epic cinematic orchestral hybrid"]
-    return random.choice(audio_prompts) if mode == "AUDIO" else random.choice(img_prompts)
+# --- 1. SYNC ENGINE (MATCHNINGS-LOGIK) ---
+def get_visual_style_for_audio(audio_prompt):
+    """Analyserar musik-prompten och skapar en matchande visuell stil"""
+    keywords = {
+        "techno": "Industrial warehouse, neon strobe lights, dark mechanical aesthetic, cinematic fog",
+        "ambient": "Deep space nebula, floating crystals, ethereal soft lighting, zen garden in orbit",
+        "lofi": "Cozy rainy night, anime bedroom window, warm lofi aesthetic, sunset city vibes",
+        "rock": "Gritty concert stage, distorted guitar silhouettes, fiery orange and red lighting",
+        "cinematic": "Epic mountain landscape, dramatic clouds, orchestral scale, golden hour lighting"
+    }
+    # Standard-stil om inget sökord hittas
+    style = "Abstract digital waves, flowing energy, neural network aesthetic"
+    for key in keywords:
+        if key in audio_prompt.lower():
+            style = keywords[key]
+            break
+    return f"{style}, 8k resolution, masterpiece."
 
 # --- 2. CONFIG & SESSION ---
 st.set_page_config(page_title="MAXIMUSIK AI OS", layout="wide", initial_sidebar_state="collapsed")
@@ -21,7 +33,7 @@ states = {
     "accent_color": "#00f2ff",
     "brightness": 0.5,
     "library": [],
-    "last_synth": ""
+    "last_audio_p": ""
 }
 for key, val in states.items():
     if key not in st.session_state: st.session_state[key] = val
@@ -45,16 +57,7 @@ def apply_ui():
         [data-testid="stHeader"], .main {{ background: transparent !important; }}
         h1, h2, h3, p, label {{ color: {accent} !important; text-shadow: 0 0 10px {accent}55 !important; font-family: monospace !important; }}
         .window-box {{ background: rgba(0, 5, 12, 0.9); backdrop-filter: blur(50px); border: 1px solid {accent}33; border-radius: 30px; padding: 30px; }}
-        
-        /* Arkiv-kort styling */
-        .archive-card {{
-            border: 1px solid {accent}22;
-            background: rgba(255,255,255,0.03);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }}
-        
+        .archive-card {{ border: 1px solid {accent}22; background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-bottom: 20px; }}
         .stButton > button {{ background: rgba(0,0,0,0.5) !important; border: 1px solid {accent}33 !important; color: {accent} !important; border-radius: 12px !important; }}
         </style>
     """, unsafe_allow_html=True)
@@ -63,7 +66,7 @@ apply_ui()
 
 # --- 4. DESKTOP ---
 if st.session_state.page == "DESKTOP":
-    st.markdown(f"<h1 style='text-align:center; letter-spacing:20px; padding-top:10vh; font-size:3.5rem;'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align:center; letter-spacing:25px; padding-top:10vh; font-size:3.5rem;'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
     cols = st.columns(5)
     apps = [("🪄 SYNTH", "SYNTH"), ("🎧 AUDIO", "AUDIO"), ("📚 ARKIV", "LIBRARY"), ("🖼 ENGINE", "ENGINE"), ("⚙️ SYSTEM", "SYSTEM")]
     for i, (label, target) in enumerate(apps):
@@ -80,70 +83,63 @@ else:
         h1.markdown(f"<h2>// {st.session_state.page}</h2>", unsafe_allow_html=True)
         if h2.button("✕", key="close_win"): st.session_state.page = "DESKTOP"; st.rerun()
 
-        # --- SYNTH ---
-        if st.session_state.page == "SYNTH":
-            col_a, col_b = st.columns([0.8, 0.2])
-            with col_b: 
-                if st.button("🎲 SLUMPA"): st.session_state.last_synth = get_random_prompt("IMAGE"); st.rerun()
-            p = col_a.text_area("BILD-PROMPT:", value=st.session_state.last_synth)
-            if st.button("SYNTHESIZE", use_container_width=True):
-                with st.spinner("Neural Sync..."):
-                    res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
-                    url = get_url(res)
-                    st.session_state.library.append({"type": "image", "url": url, "prompt": p})
+        # --- AUDIO MODUL (MED SYNC-LOGIK) ---
+        if st.session_state.page == "AUDIO":
+            ap = st.text_input("BESKRIV LJUDET (T.ex. 'Dark Techno' eller 'Space Ambient'):", value=st.session_state.last_audio_p)
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("GENERATE AUDIO ONLY", use_container_width=True):
+                    with st.spinner("Composing..."):
+                        res = replicate.run("meta/musicgen:b05b39c7", input={"prompt": ap, "duration": 8})
+                        st.session_state.library.append({"type": "audio", "url": res, "prompt": ap})
+                        st.rerun()
+            with c2:
+                if st.button("⚡ SYNC: AUDIO + WALLPAPER", use_container_width=True):
+                    with st.status("Syncing Reality..."):
+                        # 1. Generera Ljud
+                        audio_res = replicate.run("meta/musicgen:b05b39c7", input={"prompt": ap, "duration": 8})
+                        st.session_state.library.append({"type": "audio", "url": audio_res, "prompt": ap})
+                        
+                        # 2. Matcha Bild-prompt och Generera Bakgrund
+                        vis_p = get_visual_style_for_audio(ap)
+                        img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": vis_p, "aspect_ratio": "16:9"})
+                        url = get_url(img_res)
+                        st.session_state.wallpaper = url
+                        st.session_state.library.append({"type": "image", "url": url, "prompt": f"Synced with: {ap}"})
                     st.rerun()
-            if st.session_state.library and st.session_state.library[-1]['type'] == "image":
-                st.image(st.session_state.library[-1]['url'], width=500)
 
-        # --- AUDIO ---
-        elif st.session_state.page == "AUDIO":
-            if st.button("🎲 SLUMPA BEAT"): st.session_state.last_synth = get_random_prompt("AUDIO"); st.rerun()
-            ap = st.text_input("BESKRIV LJUD:", value=st.session_state.last_synth)
-            if st.button("GENERATE AUDIO", use_container_width=True):
-                with st.spinner("Composing..."):
-                    res = replicate.run("meta/musicgen:b05b39c7", input={"prompt": ap, "duration": 8})
-                    st.session_state.library.append({"type": "audio", "url": res, "prompt": ap})
-                    st.rerun()
             if st.session_state.library and st.session_state.library[-1]['type'] == "audio":
                 st.audio(st.session_state.library[-1]['url'])
 
-        # --- ARKIV (TEXT BREDVID MEDIA) ---
+        # --- ARKIV (BILD BREDVID TEXT) ---
         elif st.session_state.page == "LIBRARY":
             if not st.session_state.library: st.write("ARKIVET ÄR TOMT")
             else:
                 for idx, item in enumerate(reversed(st.session_state.library)):
-                    # Skapar en container per objekt för snyggare layout
                     st.markdown('<div class="archive-card">', unsafe_allow_html=True)
                     col_media, col_info = st.columns([0.6, 0.4])
-                    
                     with col_media:
                         if item['type'] == "image": st.image(item['url'], use_container_width=True)
                         else: st.audio(item['url'])
-                    
                     with col_info:
                         st.markdown(f"**PROMPT:**\n*{item['prompt']}*")
-                        st.write(f"TYPE: {item['type'].upper()}")
-                        
-                        # Kontrollknappar på rad
-                        btn_c1, btn_c2, btn_c3 = st.columns(3)
+                        btn_c1, btn_c2 = st.columns(2)
                         with btn_c1:
                             if st.button("🗑", key=f"del_{idx}"):
                                 st.session_state.library.pop(-(idx+1))
                                 st.rerun()
                         with btn_c2:
                             if item['type'] == "image":
-                                if st.button("🖼", key=f"bg_{idx}", help="Sätt som bakgrund"):
+                                if st.button("🖼", key=f"bg_{idx}"):
                                     st.session_state.wallpaper = item['url']; st.rerun()
-                        with btn_c3:
-                            st.markdown(f'<a href="{item["url"]}" download target="_blank" style="text-decoration:none;">💾</a>', unsafe_allow_html=True)
                     st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- ENGINE & SYSTEM ---
+        # --- ENGINE & SYNTH (Standard) ---
         elif st.session_state.page == "ENGINE":
             st.session_state.brightness = st.slider("LJUSSTYRKA", 0.0, 1.0, st.session_state.brightness)
-            if st.button("🎲 SLUMPA MILJÖ"): st.session_state.last_synth = get_random_prompt("IMAGE"); st.rerun()
-            ep = st.text_area("MILJÖ-PROMPT:", value=st.session_state.last_synth)
-            if st.button("UPDATE REALITY", use_container_width=True):
+            ep = st.text_area("MILJÖ-PROMPT:")
+            if st.button("UPDATE REALITY"):
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": ep, "aspect_ratio": "16:9"})
                 st.session_state.wallpaper = get_url(res)
                 st.session_state.library.append({"type": "image", "url": st.session_state.wallpaper, "prompt": ep})
@@ -154,6 +150,7 @@ else:
             if st.button("HARD RESET"): st.session_state.clear(); st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
