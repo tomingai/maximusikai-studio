@@ -3,10 +3,9 @@ import replicate
 import os
 import json
 import time
-import requests
 
 # =========================
-# 0. DATABAS & ANVÄNDARE
+# 0. DATABAS-LOGIK (Låst)
 # =========================
 DB_FILE = "users.json"
 
@@ -54,219 +53,137 @@ def add_to_gallery(artist, name, img_url, audio_url):
     db[artist]["gallery"].append(entry)
     save_db(db)
 
-def get_user_gallery(artist):
-    db = load_db()
-    return db.get(artist, {}).get("gallery", [])
-
-def get_global_feed():
-    db = load_db()
-    feed = []
-    for artist in db:
-        feed.extend(db[artist].get("gallery", []))
-    return feed
-
 # =========================
-# 1. SPRÅK & TEXTER
+# 1. DESIGN & STYLING (Låst)
 # =========================
-LANG = {
-    "Svenska": {
-        "title": "MAXIMUSIKAI SUPER STUDIO",
-        "status": "STATUS",
-        "units": "Units",
-        "magic_tab": "🪄 MAGI",
-        "director_tab": "🎬 REGI",
-        "music_tab": "🎧 MUSIK",
-        "archive_tab": "📚 ARKIV",
-        "feed_tab": "🌐 FEED",
-        "admin_tab": "⚙️ ADMIN",
-        "prompt_label": "Vad ska vi skapa?",
-        "generate_btn": "GENERERA",
-        "no_gallery": "Inga verk ännu.",
-        "create_first": "Skapa något i MAGI först.",
-        "beat_label": "Beskriv beatet:",
-        "create_sound": "SKAPA LJUD",
-        "video_instr": "Instruktion:",
-        "create_video": "SKAPA VIDEO",
-        "open_studio": "GODKÄNN & ÖPPNA STUDION",
-        "studio_title": "STUDIO",
-        "artist_id": "ARTIST ID:",
-        "lang_label": "Språk:",
-        "theme_label": "Tema:",
-        "admin_only": "Endast för admin.",
-        "admin_panel": "ADMIN PANEL",
-    }
-}
-
-def get_texts(lang):
-    return LANG.get(lang, LANG["Svenska"])
-
-# =========================
-# 2. DESIGN
-# =========================
-def apply_design():
-    theme = st.session_state.get("theme", "Neon")
-    bg = st.session_state.get("app_bg", None)
-
-    # Globala stilar
-    css = """
-    <style>
-    .stApp { color: white; }
-    .stMarkdown, label, p { color: white !important; }
-    </style>
-    """
-
-    if theme == "Neon":
-        css += "<style>h1, h2, h3 { text-shadow: 0 0 10px #0ff, 0 0 20px #0ff; }</style>"
-    elif theme == "Cyberpunk":
-        css += "<style>h1, h2, h3 { text-shadow: 0 0 15px #ff00ff; }</style>"
-
-    if bg:
-        css += f"""
+def apply_custom_design():
+    # Använder din specifika CSS som bas
+    st.markdown(
+        """
         <style>
-        .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), url("{bg}") !important;
+        .stApp {
+            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), 
+                        url("https://replicate.delivery/xezq/3eggaKGsENwbVK4vYn5CnxXAyaYuDpdEc5KBva5BHPfRfipsA/out-0.webp") !important;
             background-size: cover !important;
             background-position: center !important;
             background-attachment: fixed !important;
-        }}
+            color: white;
+        }
+        .stMarkdown, label, p, h1, h2, h3 {
+            color: white !important;
+        }
+        /* Gör flikarna snyggare mot den mörka bakgrunden */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 20px;
+            background-color: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 10px;
+        }
         </style>
-        """
-    else:
-        css += "<style>.stApp { background-color: #050505; }</style>"
-
-    st.markdown(css, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True
+    )
 
 # =========================
-# 3. AI-MOTOR
+# 2. AI-FUNKTIONER (Låst)
 # =========================
 def generate_image(prompt):
     try:
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
         return str(res[0]) if isinstance(res, list) else str(res)
     except Exception as e:
-        st.error(f"Fel: {e}")
+        st.error(f"AI-fel: {e}")
         return None
 
-def generate_music(prompt, duration=10):
+def generate_music(prompt):
     try:
         res = replicate.run(
             "facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47",
-            input={"prompt": prompt, "duration": duration}
+            input={"prompt": prompt, "duration": 8}
         )
         return str(res)
     except Exception as e:
-        st.error(f"Fel: {e}")
+        st.error(f"Musik-fel: {e}")
         return None
 
 # =========================
-# 4. STREAMLIT APP RUN
+# 3. APP-STRUKTUR
 # =========================
-st.set_page_config(page_title="MAXIMUSIKAI 2026", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="MAXIMUSIKAI STUDIO", layout="wide")
 init_user_db()
+apply_custom_design()
 
-# State init
+# Sessions-hantering
 if "artist" not in st.session_state: st.session_state.artist = "ANONYM"
 if "agreed" not in st.session_state: st.session_state.agreed = False
-if "theme" not in st.session_state: st.session_state.theme = "Neon"
-if "app_bg" not in st.session_state: st.session_state.app_bg = None
 
-L = get_texts("Svenska")
+# API-Token setup
+token = st.secrets.get("REPLICATE_API_TOKEN")
+if token: os.environ["REPLICATE_API_TOKEN"] = token
 
-# Sidebar
+# Sidomeny
 with st.sidebar:
-    st.title(L["studio_title"])
-    artist_input = st.text_input(L["artist_id"], st.session_state.artist).strip().upper()
-    if artist_input: st.session_state.artist = artist_input
-    
+    st.title("⚙️ STUDIO")
+    st.session_state.artist = st.text_input("ARTIST ID:", st.session_state.artist).upper()
     user = load_user(st.session_state.artist)
-    if user.get("bg") and not st.session_state.app_bg:
-        st.session_state.app_bg = user["bg"]
-    
-    st.metric(L["units"], f"⚡ {user['units']}")
-    st.session_state.theme = st.selectbox(L["theme_label"], ["Neon", "Dark", "Cyberpunk"])
+    st.metric("UNITS", f"⚡ {user['units']}")
     st.divider()
+    st.write("Skapad av TOMAS2026")
 
-apply_design()
-
+# Startskärm
 if not st.session_state.agreed:
-    st.markdown(f"<h1 style='text-align:center;'>{L['title']}</h1>", unsafe_allow_html=True)
-    if st.button(L["open_studio"], use_container_width=True):
+    st.title("⚡ MAXIMUSIKAI SUPER STUDIO")
+    if st.button("ÖPPNA STUDION", use_container_width=True):
         st.session_state.agreed = True
         st.rerun()
     st.stop()
 
-# API Token
-token = st.secrets.get("REPLICATE_API_TOKEN")
-if token: os.environ["REPLICATE_API_TOKEN"] = token
+# Flikar
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "⚙️ ADMIN"])
 
-tabs = st.tabs([L["magic_tab"], L["director_tab"], L["music_tab"], L["archive_tab"], L["feed_tab"], L["admin_tab"]])
-
-# --- MAGI ---
-with tabs[0]:
-    prompt = st.text_area(L["prompt_label"], placeholder="En futuristisk stad i neon...")
-    if st.button(L["generate_btn"], use_container_width=True):
-        user = load_user(st.session_state.artist)
+with tab1: # MAGI
+    prompt = st.text_area("Vad ska vi visualisera?", placeholder="En futuristisk synth-värld...")
+    if st.button("GENERERA BILD", use_container_width=True):
         if user['units'] > 0 or st.session_state.artist == "TOMAS2026":
-            with st.spinner("Skapar magi..."):
+            with st.spinner("Skapar bild..."):
                 img = generate_image(prompt)
                 if img:
                     if st.session_state.artist != "TOMAS2026":
                         update_user(st.session_state.artist, "units", user['units'] - 1)
                     add_to_gallery(st.session_state.artist, prompt, img, None)
-                    st.session_state.app_bg = img
-                    update_user(st.session_state.artist, "bg", img)
-                    st.rerun()
+                    st.image(img, caption=prompt)
+                    st.success("Bild sparad i Arkivet!")
         else:
             st.error("Slut på Units!")
 
-# --- REGI ---
-with tabs[1]:
-    st.subheader(L["director_tab"])
-    st.info("Funktion för att animera dina bilder kommer snart.")
+with tab2: # REGI
+    st.info("Här kommer vi kunna animera dina bilder till video snart.")
 
-# --- MUSIK ---
-with tabs[2]:
-    m_prompt = st.text_input(L["beat_label"])
-    if st.button(L["create_sound"]):
-        with st.spinner("Genererar ljud..."):
+with tab3: # MUSIK
+    m_prompt = st.text_input("Beskriv ljudet/beatet:")
+    if st.button("SKAPA LJUD"):
+        with st.spinner("Komponerar..."):
             audio = generate_music(m_prompt)
             if audio:
                 st.audio(audio)
-                add_to_gallery(st.session_state.artist, f"Beat: {m_prompt}", st.session_state.app_bg, audio)
+                add_to_gallery(st.session_state.artist, f"Beat: {m_prompt}", "", audio)
 
-# --- ARKIV ---
-with tabs[3]:
-    my_items = get_user_gallery(st.session_state.artist)
-    if not my_items: st.write(L["no_gallery"])
-    for item in reversed(my_items):
-        with st.expander(f"🎨 {item['name']}"):
-            st.image(item['url'])
-            if item.get("audio"): st.audio(item['audio'])
-            if st.button("Använd som bakgrund", key=f"bg_{item['id']}"):
-                st.session_state.app_bg = item['url']
-                update_user(st.session_state.artist, "bg", item['url'])
-                st.rerun()
+with tab4: # ARKIV
+    gallery = load_db().get(st.session_state.artist, {}).get("gallery", [])
+    if not gallery:
+        st.write("Ditt arkiv är tomt.")
+    for item in reversed(gallery):
+        with st.expander(f"📦 {item['name']}"):
+            if item['url']: st.image(item['url'])
+            if item['audio']: st.audio(item['audio'])
 
-# --- FEED ---
-with tabs[4]:
-    feed = get_global_feed()
-    for item in reversed(feed[-10:]):
-        st.markdown(f"**Artist:** {item['artist']}")
-        st.image(item['url'], width=500)
-        st.divider()
-
-# --- ADMIN ---
-with tabs[5]:
+with tab5: # ADMIN
     if st.session_state.artist == "TOMAS2026":
-        st.subheader(L["admin_panel"])
         db = load_db()
         target = st.selectbox("Välj användare", list(db.keys()))
         amount = st.number_input("Units", 0, 1000, 20)
-        if st.button("Uppdatera Units"):
+        if st.button("Ge Units"):
             update_user(target, "units", amount)
-            st.success("Uppdaterat!")
+            st.success("Klart!")
     else:
-        st.warning(L["admin_only"])
-["admin_only"])
-
-  
+        st.warning("Endast för Admin.")
