@@ -1,7 +1,10 @@
 streamlit
 replicate
+plotly
+pandas
+numpy
+pillow
 requests
-
 
 
 
