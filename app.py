@@ -6,128 +6,131 @@ import json
 import base64
 from datetime import datetime
 from io import BytesIO
+from PIL import Image
 
-# --- 1. BOOT LOADER & GLOBAL SETTINGS ---
+# --- 1. SYSTEM CONFIG & BOOT ---
 st.set_page_config(page_title="MAXIMUSIKAI PREMIER", layout="wide", initial_sidebar_state="expanded")
 
-# API Setup
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-DB_PATH = "maximus_vault.json"
+# --- 2. THEME ENGINE (Hanterar bakgrunder per flik) ---
+WORKSPACES = {
+    "⚡ SYNTHESIS": {
+        "bg": "https://images.unsplash.com", # Galax/Rymd
+        "accent": "#00f2ff",
+        "tag": "NEURAL_VISUAL_CORE"
+    },
+    "🎵 AUDIO_LAB": {
+        "bg": "https://images.unsplash.com", # Studio/Synth
+        "accent": "#ff00ea",
+        "tag": "SONIC_WAVEFORM_SYNTH"
+    },
+    "🎬 VIDEO_MOTION": {
+        "bg": "https://images.unsplash.com", # Mörk Skog
+        "accent": "#00ff41",
+        "tag": "TEMPORAL_FLUX_ENGINE"
+    },
+    "📦 VAULT": {
+        "bg": "https://images.unsplash.com", # Digitalt Nätverk
+        "accent": "#ffffff",
+        "tag": "LOCAL_ASSET_ARCHIVE"
+    }
+}
 
-# --- 2. DATABASE ARCHITECT (Functions) ---
-def load_database():
-    if os.path.exists(DB_PATH):
-        try:
-            with open(DB_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except: return []
-    return []
-
-def save_to_database(entry):
-    db = load_database()
-    entry["id"] = f"HEX_{datetime.now().strftime('%y%m%d%H%M%S')}"
-    entry["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    db.append(entry)
-    with open(DB_PATH, "w", encoding="utf-8") as f:
-        json.dump(db, f, indent=4)
-    st.session_state.vault = db
-
-# --- 3. SESSION STATE INITIALIZATION (Critical Fix) ---
-if "vault" not in st.session_state:
-    st.session_state.vault = load_database()
-if "terminal_logs" not in st.session_state:
-    st.session_state.terminal_logs = [f"[{datetime.now().strftime('%H:%M:%S')}] CORE_BOOT_SUCCESS"]
-if "last_res" not in st.session_state:
-    st.session_state.last_res = None
+# --- 3. SESSION STATE INITIALIZATION ---
+if "vault" not in st.session_state: st.session_state.vault = []
+if "last_res" not in st.session_state: st.session_state.last_res = None
+if "terminal_logs" not in st.session_state: st.session_state.terminal_logs = []
 
 def log_event(msg):
     st.session_state.terminal_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
-# --- 4. UI ENGINE (CSS) ---
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com');
-    .stApp { background-color: #030303; color: #999; font-family: 'Inter', sans-serif; }
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
-    .stTabs [data-baseweb="tab"] { 
-        background: #080808 !important; border: 1px solid #141414 !important;
-        font-family: 'JetBrains Mono'; font-size: 11px; padding: 10px 20px;
-    }
-    .terminal-box { 
-        background: #000; border: 1px solid #111; padding: 15px; 
-        font-family: 'JetBrains Mono'; font-size: 10px; color: #00f2ff;
-        height: 250px; overflow-y: auto;
-    }
-    label { font-family: 'JetBrains Mono' !important; color: #333 !important; text-transform: uppercase; font-size: 9px !important; }
-    </style>
-""", unsafe_allow_html=True)
-
-# --- 5. MAIN WORKSPACE ---
-tab_gen, tab_analyze, tab_vault, tab_logs = st.tabs(["⚡ SYNTHESIS", "🔍 ANALYZER", "📦 VAULT", "📟 LOGS"])
-
-# --- TAB: SYNTHESIS ---
-with tab_gen:
-    c1, c2 = st.columns([1, 1.8])
-    with c1:
-        st.markdown("<label>NEURAL_PROMPT</label>", unsafe_allow_html=True)
-        prompt = st.text_area("P", height=200, label_visibility="collapsed", placeholder="Define the visual...")
-        ratio = st.selectbox("FRAME", ["1:1", "16:9", "9:16"])
-        
-        if st.button("EXECUTE_SYNTHESIS", use_container_width=True):
-            if prompt:
-                with st.status("ENGAGING_FLUX_CORE..."):
-                    res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt, "aspect_ratio": ratio})
-                    final_url = res[0] if isinstance(res, list) else res
-                    st.session_state.last_res = final_url
-                    save_to_database({"type": "GEN", "url": final_url, "prompt": prompt})
-                    log_event("SYNTHESIS_SUCCESSFUL")
-                st.rerun()
-
-    with c2:
-        if st.session_state.last_res:
-            st.image(st.session_state.last_res, use_container_width=True)
-            st.download_button("💾 DOWNLOAD", requests.get(st.session_state.last_res).content, "export.jpg")
-        else:
-            st.info("AWAITING_SIGNAL")
-
-# --- TAB: ANALYZER ---
-with tab_analyze:
-    st.markdown("### `NEURAL_DECONSTRUCTION`")
-    up_file = st.file_uploader("UPLOAD_ASSET", type=["jpg", "png"])
-    if up_file:
-        st.image(up_file, width=300)
-        if st.button("ANALYZE_PIXELS"):
-            log_event("ANALYSIS_STARTED")
-            # Här läggs moondream-logiken in som i förra steget
-            st.warning("ENGINE_OFFLINE: Connect Moondream API")
-
-# --- TAB: VAULT ---
-with tab_vault:
-    st.markdown("### `ARCHIVE_EXPLORER`")
-    if not st.session_state.vault:
-        st.write("VAULT_EMPTY")
-    else:
-        v_cols = st.columns(4)
-        for i, item in enumerate(reversed(st.session_state.vault)):
-            with v_cols[i % 4]:
-                st.image(item["url"])
-                st.caption(item.get("timestamp", "N/A"))
-
-# --- TAB: LOGS ---
-with tab_logs:
-    logs = "\n".join(st.session_state.terminal_logs[::-1])
-    st.markdown(f'<div class="terminal-box">{logs.replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
-
-# --- SIDEBAR INFO ---
+# --- 4. DYNAMIC UI INJECTOR ---
 with st.sidebar:
     st.title("MAXIMUS_OS")
-    st.write(f"VAULT_COUNT: {len(st.session_state.vault)}")
-    if st.button("WIPE_SYSTEM_DATA"):
-        if os.path.exists(DB_PATH): os.remove(DB_PATH)
-        st.session_state.clear()
-        st.rerun()
+    active_ws = st.selectbox("WORKSPACE_SELECT", list(WORKSPACES.keys()))
+    config = WORKSPACES[active_ws]
+    
+    st.markdown(f"""
+        <style>
+        .stApp {{
+            background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.95)), 
+                        url("{config['bg']}") !important;
+            background-size: cover !important;
+            background-attachment: fixed !important;
+            transition: 1s ease-in-out;
+        }}
+        .stButton>button {{
+            border: 1px solid {config['accent']} !important;
+            color: {config['accent']} !important;
+            background: rgba(0,0,0,0.4) !important;
+            text-transform: uppercase; letter-spacing: 2px;
+        }}
+        .terminal-box {{
+            background: rgba(0,0,0,0.8); border: 1px solid {config['accent']};
+            padding: 10px; font-family: 'JetBrains Mono'; font-size: 10px;
+            color: {config['accent']}; height: 150px; overflow-y: auto;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.info(f"STATUS: {config['tag']}")
+
+# --- 5. WORKSPACE LOGIC ---
+
+if active_ws == "⚡ SYNTHESIS":
+    st.markdown("## `NEURAL_GENERATION`")
+    col_in, col_out = st.columns([1, 2])
+    with col_in:
+        prompt = st.text_area("VISUAL_PROMPT", placeholder="Deep forest in space, bioluminescent plants...", height=200)
+        ratio = st.selectbox("ASPECT", ["1:1", "16:9", "9:16"])
+        if st.button("EXECUTE_RENDER"):
+            with st.status("GENERATING..."):
+                res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt, "aspect_ratio": ratio})
+                st.session_state.last_res = res[0] if isinstance(res, list) else res
+                st.session_state.vault.append({"url": st.session_state.last_res, "prompt": prompt, "type": "IMAGE"})
+                log_event("IMAGE_GENERATED")
+            st.rerun()
+    with col_out:
+        if st.session_state.last_res:
+            st.image(st.session_state.last_res, use_container_width=True)
+
+elif active_ws == "🎵 AUDIO_LAB":
+    st.markdown("## `SONIC_SYNTHESIZER`")
+    if st.session_state.last_res:
+        st.image(st.session_state.last_res, width=300)
+        st.markdown("<label>IMAGE_TO_MUSIC_PARAMETERS</label>", unsafe_allow_html=True)
+        duration = st.slider("DURATION (SEC)", 5, 30, 10)
+        if st.button("GENERATE_SOUNDTRACK"):
+            with st.status("COMPOSING_AUDIO..."):
+                # Simulerat anrop (Här lägger vi MusicGen i nästa steg)
+                log_event("AUDIO_PROCESS_INITIATED")
+                st.success("Musikmotorn är redo för implementation.")
+    else:
+        st.warning("Ladda en bild i SYNTHESIS först för att skapa musik till den.")
+
+elif active_ws == "🎬 VIDEO_MOTION":
+    st.markdown("## `TEMPORAL_ANIMATION`")
+    st.info("Här kan du förvandla din rymdskog till en levande video.")
+    if st.button("START_VIDEO_RENDER"):
+        log_event("VIDEO_RENDER_QUEUED")
+
+elif active_ws == "📦 VAULT":
+    st.markdown("## `DATABASE_ARCHIVE`")
+    if st.session_state.vault:
+        cols = st.columns(4)
+        for i, item in enumerate(reversed(st.session_state.vault)):
+            with cols[i % 4]:
+                st.image(item["url"])
+                st.caption(item["prompt"][:30] + "...")
+
+# --- 6. LOGS (Alltid synliga i sidebaren) ---
+with st.sidebar:
+    st.markdown("### `SYSTEM_LOGS`")
+    logs = "\n".join(st.session_state.terminal_logs[::-1])
+    st.markdown(f'<div class="terminal-box">{logs.replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
+rerun()
 
 
 
