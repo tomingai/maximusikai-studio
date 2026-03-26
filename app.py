@@ -12,30 +12,32 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 if "active_window" not in st.session_state: st.session_state.active_window = None
 if "last_res" not in st.session_state: st.session_state.last_res = None
 
-# --- 2. ULTRA-STRICT SPACE CSS ---
+# --- 2. RYMD-INJEKTION (FORCE BACKGROUND) ---
 def apply_space_ui():
     st.markdown("""
         <style>
-        /* Tvinga bakgrund på precis allt */
-        [data-testid="stAppViewContainer"], .stApp {
+        /* Tvinga bakgrundsbilden på rot-nivå */
+        .stAppViewContainer {
             background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), 
-                              url("https://img.freepik.com") !important;
+                              url("https://images.unsplash.com") !important;
             background-size: cover !important;
             background-position: center !important;
             background-attachment: fixed !important;
         }
 
-        /* Ta bort Streamlits vita ytor */
-        [data-testid="stHeader"], [data-testid="stToolbar"] { background: transparent !important; }
+        /* Gör alla Streamlit-containrar transparenta så rymden syns igenom */
+        .main, .stAppHeader, .stAppViewBlockContainer {
+            background: transparent !important;
+        }
 
         /* FÖNSTER (GLASMORPHISM) */
         .window-pane {
-            background: rgba(0, 0, 5, 0.8) !important;
-            backdrop-filter: blur(40px);
+            background: rgba(0, 0, 0, 0.8) !important;
+            backdrop-filter: blur(20px);
             border: 1px solid rgba(0, 242, 255, 0.3);
             border-radius: 20px;
             padding: 30px;
-            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+            box-shadow: 0 0 50px rgba(0,0,0,1);
         }
 
         /* SKRIVBORDS-IKONER */
@@ -55,7 +57,7 @@ def apply_space_ui():
             transform: translateY(-5px);
         }
 
-        /* OSYNLIG KNAPP */
+        /* OSYNLIG KNAPP ÖVER IKON */
         .stButton>button {
             position: absolute; width: 100%; height: 100%; top: 0; left: 0;
             opacity: 0; z-index: 10; cursor: pointer;
@@ -65,15 +67,15 @@ def apply_space_ui():
 
 apply_space_ui()
 
-# --- 3. SKRIVBORDS-VY (STARTSIDA) ---
+# --- 3. SKRIVBORDS-VY ---
 if st.session_state.active_window is None:
     st.markdown("<br><br><h1 style='text-align:center; color:white; font-family:sans-serif; font-weight:900; font-size:4rem;'>MAXIMUSIKAI</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:10px;'>GALACTIC_CORE_OS</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:10px;'>SPACE_CORE_OS</p>", unsafe_allow_html=True)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     
     # Ikoner
-    _, i1, i2, i3, _ = st.columns([1, 1, 1, 1, 1])
+    _, i1, i2, i3, _ = st.columns([1, 1.2, 1.2, 1.2, 1])
     
     with i1:
         st.markdown('<div class="desktop-icon"><h3>🌌</h3><p style="color:white; font-size:10px;">SYNTH</p></div>', unsafe_allow_html=True)
@@ -93,7 +95,7 @@ if st.session_state.active_window is None:
             st.session_state.active_window = "VIDEO"
             st.rerun()
 
-# --- 4. FÖNSTER-VY (ÖPPNA APPAR) ---
+# --- 4. FÖNSTER-VY ---
 else:
     st.markdown("<br><br>", unsafe_allow_html=True)
     _, win_col, _ = st.columns([0.1, 1, 0.1])
@@ -101,7 +103,6 @@ else:
     with win_col:
         st.markdown('<div class="window-pane">', unsafe_allow_html=True)
         
-        # Header med stäng-knapp (X) för att återgå till rymden
         h1, h2 = st.columns([0.9, 0.1])
         h1.markdown(f"<h3 style='color:white;'>🗔 {st.session_state.active_window}</h3>", unsafe_allow_html=True)
         
@@ -123,11 +124,8 @@ else:
             with col_out:
                 if st.session_state.last_res:
                     st.image(st.session_state.last_res, use_container_width=True)
-
-        elif st.session_state.active_window == "AUDIO":
-            st.info("SONIC_ENGINE_READY")
-
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
