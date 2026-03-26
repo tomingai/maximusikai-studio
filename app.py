@@ -11,7 +11,7 @@ st.set_page_config(page_title="MAXIMUSIK AI GALAXY", layout="wide", initial_side
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# Session State Init
+# Session State
 if "active_window" not in st.session_state: st.session_state.active_window = None
 if "synth_res" not in st.session_state: st.session_state.synth_res = None
 if "world_name" not in st.session_state: st.session_state.world_name = "DEEP_SPACE_VOID"
@@ -31,12 +31,12 @@ def get_media_data(url):
 
 def generate_random_prompt():
     subjects = ["nebula", "black hole", "supernova", "alien planet", "cybernetic moon"]
-    colors = ["neon purple", "electric cyan", "deep crimson", "emerald green", "golden solar flares"]
-    return f"Cinematic 8k shot of a {random.choice(subjects)} with {random.choice(colors)}, swirling cosmic dust, high contrast."
+    colors = ["neon purple", "electric cyan", "deep crimson", "emerald green"]
+    return f"Cinematic 8k shot of a {random.choice(subjects)} with {random.choice(colors)}, swirling cosmic dust."
 
 def generate_world_name():
-    prefix = ["NEO", "ZION", "VOID", "AURA", "CYBER", "STAR", "GIGA", "CORE", "OMEGA"]
-    suffix = ["PRIME", "ALPHA", "STATION", "MATRIX", "SECTOR", "GALAXY", "ZONE"]
+    prefix = ["NEO", "VOID", "AURA", "CYBER", "STAR", "CORE", "OMEGA"]
+    suffix = ["PRIME", "ALPHA", "MATRIX", "SECTOR", "GALAXY", "ZONE"]
     return f"{random.choice(prefix)}_{random.choice(suffix)}_{random.randint(100,999)}"
 
 # --- 3. DESIGN (CSS) ---
@@ -47,49 +47,34 @@ def apply_ui():
         .stAppViewContainer {{
             background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), 
                               url("{st.session_state.wallpaper}") !important;
-            background-size: cover !important; background-position: center !important; transition: 1.5s ease-in-out !important;
+            background-size: cover !important; background-position: center !important;
         }}
         .main, .stAppHeader, .stAppViewBlockContainer {{ background: transparent !important; }}
 
-        /* MATRIX REGN ANIMATION (AKTIV VID PROCESSING) */
-        @keyframes matrix {{
-            0% {{ background-position: 0% 0%; }}
-            100% {{ background-position: 0% 1000%; }}
-        }}
-        .matrix-overlay {{
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(rgba(0, 0, 0, 0) 0%, {accent}22 50%, rgba(0, 0, 0, 0) 100%);
-            background-size: 100% 20px;
-            animation: matrix 20s linear infinite;
-            pointer-events: none; z-index: 1;
-        }}
-
+        /* MIKROSKOPISK TEXT (10X MINDRE) */
+        .space-title {{ text-align: center; color: white; font-size: 0.5rem; letter-spacing: 2px; margin-top: 20px; opacity: 0.5; }}
+        .world-status {{ text-align: center; color: {accent}; font-family: monospace; letter-spacing: 4px; font-size: 0.3rem; text-transform: uppercase; opacity: 0.3; }}
+        .label {{ text-align: center; color: {accent}; font-family: monospace; margin-top: 10px; letter-spacing: 2px; font-size: 0.3rem; text-transform: uppercase; opacity: 0.5; }}
+        
         /* KNAPPAR SKRIVBORD */
         div[data-testid="stButton"] > button {{
             width: 200px !important; height: 200px !important;
-            border-radius: 50px !important; border: 2px solid {accent}33 !important;
-            background: rgba(255, 255, 255, 0.05) !important;
+            border-radius: 50px !important; border: 1px solid {accent}22 !important;
+            background: rgba(255, 255, 255, 0.02) !important;
             backdrop-filter: blur(10px) !important;
-            transition: 0.4s ease !important;
-            display: flex !important; align-items: center !important; justify-content: center !important;
         }}
         div[data-testid="stButton"] > button p {{
-            font-size: 8rem !important; margin: 0 !important; line-height: 1 !important;
+            font-size: 8rem !important; margin: 0 !important;
         }}
 
-        /* MINIMALISTISKA KNAPPAR */
+        /* MINIMALISTISKA KNAPPAR I FÖNSTER */
         div[data-testid="stButton"] button {{
-            font-size: 0.6rem !important; letter-spacing: 1px !important; text-transform: uppercase !important;
-            height: auto !important; width: auto !important; padding: 5px 10px !important;
+            font-size: 0.4rem !important; letter-spacing: 1px !important; padding: 2px 5px !important;
         }}
 
-        /* TEXTSTORLEK */
-        .space-title {{ text-align: center; color: white; font-size: 3rem; font-weight: 900; letter-spacing: -1px; margin-top: 50px; text-shadow: 0 0 20px {accent}44; }}
-        .world-status {{ text-align: center; color: {accent}; font-family: monospace; font-weight: bold; margin-top: 5px; letter-spacing: 8px; font-size: 0.7rem; text-transform: uppercase; opacity: 0.5; }}
-        .label {{ text-align: center; color: {accent}; font-family: monospace; font-weight: bold; margin-top: 15px; letter-spacing: 3px; font-size: 0.65rem; text-transform: uppercase; opacity: 0.8; }}
-        .window {{ background: rgba(0, 5, 10, 0.98) !important; backdrop-filter: blur(40px); border: 1px solid {accent}22; border-radius: 30px; padding: 40px; color: white; }}
-        
-        textarea, input {{ font-size: 0.75rem !important; font-family: monospace !important; background: rgba(255,255,255,0.02) !important; color: {accent} !important; }}
+        .window {{ background: rgba(0, 5, 10, 0.98) !important; backdrop-filter: blur(40px); border: 1px solid {accent}11; border-radius: 20px; padding: 20px; color: white; }}
+        h2 {{ font-size: 0.6rem !important; opacity: 0.7; }}
+        textarea, input {{ font-size: 0.5rem !important; font-family: monospace !important; background: transparent !important; color: {accent} !important; border: 1px solid {accent}11 !important; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -100,52 +85,44 @@ if st.session_state.active_window is None:
     st.markdown("<h1 class='space-title'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
     st.markdown(f"<p class='world-status'>{st.session_state.world_name}</p>", unsafe_allow_html=True)
     
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     _, c1, c2, c3, c4, c5, _ = st.columns([0.1, 1, 1, 1, 1, 1, 0.1])
     
     with c1:
-        if st.button("🌌", key="s"): st.session_state.active_window = "SYNTHESIS"; st.rerun()
-        st.markdown('<p class="label">Synth</p>', unsafe_allow_html=True)
+        if st.button("🌌", key="s"): st.session_state.active_window = "SYNTH"; st.rerun()
+        st.markdown('<p class="label">SYNTH</p>', unsafe_allow_html=True)
     with c2:
         if st.button("👽", key="a"): st.session_state.active_window = "AUDIO"; st.rerun()
-        st.markdown('<p class="label">Audio</p>', unsafe_allow_html=True)
+        st.markdown('<p class="label">AUDIO</p>', unsafe_allow_html=True)
     with c3:
         if st.button("🛸", key="v"): st.session_state.active_window = "VIDEO"; st.rerun()
-        st.markdown('<p class="label">Video</p>', unsafe_allow_html=True)
+        st.markdown('<p class="label">VIDEO</p>', unsafe_allow_html=True)
     with c4:
-        if st.button("🖼️", key="wp"): st.session_state.active_window = "BG_ENGINE"; st.rerun()
-        st.markdown('<p class="label">BG Engine</p>', unsafe_allow_html=True)
+        if st.button("🖼️", key="wp"): st.session_state.active_window = "ENGINE"; st.rerun()
+        st.markdown('<p class="label">ENGINE</p>', unsafe_allow_html=True)
     with c5:
         if st.button("☄️", key="sys"): st.session_state.active_window = "SYSTEM"; st.rerun()
-        st.markdown('<p class="label">System</p>', unsafe_allow_html=True)
+        st.markdown('<p class="label">SYSTEM</p>', unsafe_allow_html=True)
 
 # --- 5. WINDOW MANAGER ---
 else:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    _, win_col, _ = st.columns([0.1, 1, 0.1])
-    
+    st.markdown("<br>", unsafe_allow_html=True)
+    _, win_col, _ = st.columns([0.2, 1, 0.2])
     with win_col:
         st.markdown('<div class="window">', unsafe_allow_html=True)
-        h1, h2 = st.columns([0.9, 0.1])
-        h1.markdown(f"<h2 style='color:white; font-size:1.3rem; font-family:monospace; opacity:0.8;'>// {st.session_state.active_window}</h2>", unsafe_allow_html=True)
+        h1, h2 = st.columns([0.95, 0.05])
+        h1.markdown(f"<h2>// {st.session_state.active_window}</h2>", unsafe_allow_html=True)
         if h2.button("✕", key="close"):
             st.session_state.active_window = None
             st.rerun()
-        
-        st.markdown(f"<hr style='border:1px solid {st.session_state.accent_color}22; margin:20px 0;'>", unsafe_allow_html=True)
 
-        if st.session_state.active_window == "BG_ENGINE":
-            col_l, col_r = st.columns([0.8, 0.2])
-            with col_r:
-                if st.button("🧠 RANDOM", use_container_width=True):
-                    st.session_state.temp_prompt = generate_random_prompt()
-                    st.rerun()
-            
-            bg_p = st.text_area("COMMAND_LINE:", value=st.session_state.get('temp_prompt', ''), height=70)
-            theme_color = st.color_picker("TEMA_HEX:", st.session_state.accent_color)
-            
-            if st.button("SYNC_ENVIRONMENT", use_container_width=True):
-                st.markdown('<div class="matrix-overlay"></div>', unsafe_allow_html=True)
+        if st.session_state.active_window == "ENGINE":
+            if st.button("BRAIN_RANDOM", use_container_width=True):
+                st.session_state.temp_prompt = generate_random_prompt()
+                st.rerun()
+            bg_p = st.text_area("CMD:", value=st.session_state.get('temp_prompt', ''))
+            theme_color = st.color_picker("HEX:", st.session_state.accent_color)
+            if st.button("EXEC_SYNC", use_container_width=True):
                 with st.status("..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": bg_p, "aspect_ratio": "16:9"})
                     st.session_state.wallpaper = res
@@ -153,36 +130,18 @@ else:
                     st.session_state.world_name = generate_world_name()
                     st.session_state.bg_gallery.append(res)
                 st.rerun()
-            
-            st.write("---")
-            clean_gallery = [url for url in st.session_state.bg_gallery if isinstance(url, str)]
-            cols = st.columns(4)
-            for idx, img_url in enumerate(reversed(clean_gallery[-4:])):
-                with cols[idx]:
-                    st.image(img_url, use_container_width=True)
-                    if st.button(f"LOAD_{idx}", key=f"set_bg_{idx}", use_container_width=True):
-                        st.session_state.wallpaper = img_url
-                        st.rerun()
 
-        elif st.session_state.active_window == "SYNTHESIS":
-            p = st.text_area("GEN_COMMAND:", height=70)
-            if st.button("EXECUTE", use_container_width=True):
-                st.markdown('<div class="matrix-overlay"></div>', unsafe_allow_html=True)
+        elif st.session_state.active_window == "SYNTH":
+            p = st.text_area("GEN:")
+            if st.button("RUN", use_container_width=True):
                 with st.status("..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
                     st.session_state.synth_res = res
                 st.rerun()
             if st.session_state.synth_res:
-                st.image(st.session_state.synth_res, use_container_width=True)
+                st.image(st.session_state.synth_res)
                 data = get_media_data(st.session_state.synth_res)
-                if data: st.download_button("SAVE_FILE", data, "art.png", "image/png", use_container_width=True)
-
-        elif st.session_state.active_window == "SYSTEM":
-            st.code(f"KERNEL: V6.0\nWORLD: {st.session_state.world_name}\nSTATUS: NOMINAL")
-            if st.button("RESET_CACHE"):
-                st.session_state.bg_gallery = ["https://images.unsplash.com"]
-                st.session_state.wallpaper = st.session_state.bg_gallery[0]
-                st.rerun()
+                if data: st.download_button("SAVE", data, "art.png", "image/png")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
