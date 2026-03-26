@@ -2,30 +2,28 @@ import streamlit as st
 import replicate
 import os
 
-# --- 1. CONFIG & SESSION ---
+# --- 1. CONFIG & INITIALIZATION ---
 st.set_page_config(page_title="MAXIMUSIK AI", layout="wide", initial_sidebar_state="collapsed")
 
+# API-nyckel hantering
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# State Management
-states = {
-    "active_window": None,
-    "wallpaper": "https://images.unsplash.com",
-    "accent_color": "#00f2ff",
-    "synth_res": None,
-    "audio_res": None,
-    "video_res": None
-}
-for key, val in states.items():
-    if key not in st.session_state:
-        st.session_state[key] = val
+# Session State för att hålla reda på fönster och media
+if "active_window" not in st.session_state: st.session_state.active_window = None
+if "wallpaper" not in st.session_state: 
+    st.session_state.wallpaper = "https://images.unsplash.com"
+if "accent_color" not in st.session_state: st.session_state.accent_color = "#00f2ff"
+if "synth_res" not in st.session_state: st.session_state.synth_res = None
+if "audio_res" not in st.session_state: st.session_state.audio_res = None
+if "video_res" not in st.session_state: st.session_state.video_res = None
 
-# --- 2. DESIGN (SPACE OS ENGINE) ---
+# --- 2. THE SPACE OS ENGINE (CSS) ---
 def apply_ui():
     accent = st.session_state.accent_color
     st.markdown(f"""
         <style>
+        /* Bakgrund för hela OS:et */
         .stAppViewContainer {{
             background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), 
                               url("{st.session_state.wallpaper}") !important;
@@ -36,49 +34,57 @@ def apply_ui():
         
         .main, .stAppHeader, .stAppViewBlockContainer {{ background: transparent !important; }}
 
+        /* Titel */
         .os-title {{
-            position: fixed; top: 30px; left: 40px;
-            color: white; font-size: 1.5rem; font-weight: 900;
-            letter-spacing: 8px; text-shadow: 0 0 15px {accent};
-            font-family: 'Courier New', monospace; z-index: 10;
+            position: fixed; top: 40px; left: 50px;
+            color: white; font-size: 1.8rem; font-weight: 900;
+            letter-spacing: 10px; text-shadow: 0 0 20px {accent};
+            font-family: monospace; z-index: 100;
         }}
 
-        /* IKONER */
+        /* GIGANTISKA GLASS-IKONER */
         div[data-testid="stButton"] > button {{
             width: 180px !important; height: 180px !important;
-            border-radius: 35px !important; 
+            border-radius: 40px !important; 
             border: 1px solid {accent}44 !important;
-            background: rgba(0, 0, 0, 0.4) !important;
+            background-color: rgba(0, 0, 0, 0.5) !important;
+            background-size: cover !important;
+            background-position: center !important;
+            color: transparent !important;
             backdrop-filter: blur(10px) !important;
-            transition: 0.4s ease-in-out !important;
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4) !important;
         }}
-        
+
         div[data-testid="stButton"] > button:hover {{
-            transform: translateY(-10px) scale(1.05) !important;
+            transform: scale(1.1) translateY(-10px) !important;
             border-color: {accent} !important;
-            box-shadow: 0 0 40px {accent}55 !important;
+            box-shadow: 0 0 50px {accent}66 !important;
         }}
 
-        /* IKON-BILDER */
-        div[data-testid="stButton"] > button[key="s"] {{ background-image: url('https://images.unsplash.com') !important; background-size: cover; }}
-        div[data-testid="stButton"] > button[key="a"] {{ background-image: url('https://images.unsplash.com') !important; background-size: cover; }}
-        div[data-testid="stButton"] > button[key="v"] {{ background-image: url('https://images.unsplash.com') !important; background-size: cover; }}
-        div[data-testid="stButton"] > button[key="wp"] {{ background-image: url('https://images.unsplash.com') !important; background-size: cover; }}
-        div[data-testid="stButton"] > button[key="sys"] {{ background-image: url('https://images.unsplash.com') !important; background-size: cover; }}
+        /* IKON-BILDER (Träffar rätt kolumn) */
+        div[data-testid="stHorizontalBlock"] > div:nth-child(1) button {{ background-image: url('https://images.unsplash.com') !important; }}
+        div[data-testid="stHorizontalBlock"] > div:nth-child(2) button {{ background-image: url('https://images.unsplash.com') !important; }}
+        div[data-testid="stHorizontalBlock"] > div:nth-child(3) button {{ background-image: url('https://images.unsplash.com') !important; }}
+        div[data-testid="stHorizontalBlock"] > div:nth-child(4) button {{ background-image: url('https://images.unsplash.com') !important; }}
+        div[data-testid="stHorizontalBlock"] > div:nth-child(5) button {{ background-image: url('https://images.unsplash.com') !important; }}
 
-        div[data-testid="stButton"] > button p {{ display: none !important; }}
+        .label {{ 
+            text-align: center; color: {accent}; font-family: monospace; 
+            font-size: 0.9rem; margin-top: 15px; letter-spacing: 3px; 
+            text-transform: uppercase; font-weight: bold;
+        }}
 
+        /* Fönster-design */
         .window-content {{
-            background: rgba(5, 10, 15, 0.9) !important;
-            backdrop-filter: blur(30px);
+            background: rgba(0, 5, 12, 0.92) !important;
+            backdrop-filter: blur(40px);
             border: 1px solid {accent}33;
-            border-radius: 30px;
-            padding: 30px;
+            border-radius: 40px;
+            padding: 40px;
             color: white;
-            box-shadow: 0 40px 100px rgba(0,0,0,0.9);
+            box-shadow: 0 50px 150px rgba(0,0,0,0.9);
         }}
-        
-        .label {{ text-align: center; color: {accent}; font-family: monospace; font-size: 0.8rem; margin-top: 10px; letter-spacing: 2px; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -86,14 +92,11 @@ apply_ui()
 
 # --- 3. DESKTOP VIEW ---
 if st.session_state.active_window is None:
-    st.markdown("<div class='os-title'>MAXIMUSIK AI v2.0</div>", unsafe_allow_html=True)
+    st.markdown("<div class='os-title'>MAXIMUSIK AI</div>", unsafe_allow_html=True)
     st.markdown("<div style='height: 25vh;'></div>", unsafe_allow_html=True)
     
     cols = st.columns(5)
-    apps = [
-        ("SYNTH", "s"), ("AUDIO", "a"), ("VIDEO", "v"), 
-        ("ENGINE", "wp"), ("SYSTEM", "sys")
-    ]
+    apps = [("SYNTH", "s"), ("AUDIO", "a"), ("VIDEO", "v"), ("ENGINE", "wp"), ("SYSTEM", "sys")]
     
     for i, (name, key) in enumerate(apps):
         with cols[i]:
@@ -105,7 +108,7 @@ if st.session_state.active_window is None:
 # --- 4. WINDOW INTERFACE ---
 else:
     st.markdown("<br><br>", unsafe_allow_html=True)
-    _, win_col, _ = st.columns([0.1, 1, 0.1])
+    _, win_col, _ = st.columns([0.1, 0.8, 0.1])
     
     with win_col:
         st.markdown('<div class="window-content">', unsafe_allow_html=True)
@@ -115,62 +118,65 @@ else:
             st.session_state.active_window = None
             st.rerun()
         
-        st.markdown(f"<hr style='border:0.5px solid {st.session_state.accent_color}33; margin:20px 0;'>", unsafe_allow_html=True)
+        st.markdown(f"<hr style='border:1px solid {st.session_state.accent_color}22; margin:20px 0;'>", unsafe_allow_html=True)
 
-        # -- MODUL: SYNTH (IMAGE) --
+        # -- SYNTH (Bilder) --
         if st.session_state.active_window == "SYNTH":
-            p = st.text_area("VISUAL_PROMPT:", "Cyberpunk city in space, neon 8k")
-            if st.button("GENERATE IMAGE", use_container_width=True):
-                with st.spinner("SYNTHESIZING..."):
+            p = st.text_area("PROMPT:", "Cyberpunk explorer standing on a moon, cinematic lighting, 8k")
+            if st.button("EXECUTE SYNTHESIS", use_container_width=True):
+                with st.status("GENERATING..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
-                    st.session_state.synth_res = res[0]
+                    st.session_state.synth_res = res
+                st.rerun()
             if st.session_state.synth_res:
-                st.image(st.session_state.synth_res, caption="Generated Output")
+                st.image(st.session_state.synth_res)
 
-        # -- MODUL: AUDIO (MUSIC) --
+        # -- AUDIO (Musik) --
         elif st.session_state.active_window == "AUDIO":
-            ap = st.text_input("SONIC_PROMPT:", "Dark ambient techno, 128bpm")
-            dur = st.slider("DURATION (SEC)", 5, 20, 8)
-            if st.button("COMPOSE MUSIC", use_container_width=True):
-                with st.spinner("COMPOSING..."):
-                    res = replicate.run("facebookresearch/musicgen:7a76a6d6", 
+            ap = st.text_input("SONIC COMMAND:", "Space ambient with deep bass pulses")
+            dur = st.slider("SECONDS", 5, 20, 10)
+            if st.button("RENDER AUDIO", use_container_width=True):
+                with st.status("COMPOSING..."):
+                    res = replicate.run("facebookresearch/musicgen:7b539958", 
                                        input={"prompt": ap, "duration": dur})
                     st.session_state.audio_res = res
+                st.rerun()
             if st.session_state.audio_res:
                 st.audio(st.session_state.audio_res)
 
-        # -- MODUL: VIDEO (ANIMATION) --
+        # -- VIDEO (Animering) --
         elif st.session_state.active_window == "VIDEO":
-            st.info("Ladda upp en bild för att animera den till video.")
-            img_url = st.text_input("IMAGE_URL:", st.session_state.synth_res if st.session_state.synth_res else "")
-            if st.button("ANIMATE", use_container_width=True):
-                if img_url:
-                    with st.spinner("RENDERING VIDEO..."):
+            st.info("Klistra in en bild-URL (eller använd en från SYNTH) för att animera.")
+            v_url = st.text_input("SOURCE IMAGE URL:", st.session_state.synth_res if st.session_state.synth_res else "")
+            if st.button("START ANIMATION", use_container_width=True):
+                if v_url:
+                    with st.status("RENDERING..."):
                         res = replicate.run("stability-ai/stable-video-diffusion:3f04571e", 
-                                           input={"input_image": img_url})
-                        st.session_state.video_res = res[0]
-                else: st.warning("Need image source first.")
+                                           input={"input_image": v_url})
+                        st.session_state.video_res = res
+                    st.rerun()
             if st.session_state.video_res:
                 st.video(st.session_state.video_res)
 
-        # -- MODUL: ENGINE (WALLPAPER) --
+        # -- ENGINE (Wallpaper) --
         elif st.session_state.active_window == "ENGINE":
-            bg_p = st.text_area("NEW_ENVIRONMENT:", "Nebula explosion, deep purple and teal")
-            if st.button("REWRITE REALITY", use_container_width=True):
-                with st.spinner("UPDATING..."):
+            wp_p = st.text_area("NEW ENVIRONMENT COMMAND:", "Abstract hyperspace tunnel, neon blue and violet")
+            if st.button("SYNC WALLPAPER", use_container_width=True):
+                with st.status("UPDATING REALITY..."):
                     res = replicate.run("black-forest-labs/flux-schnell", 
-                                       input={"prompt": bg_p, "aspect_ratio": "16:9"})
-                    st.session_state.wallpaper = res[0]
+                                       input={"prompt": wp_p, "aspect_ratio": "16:9"})
+                    st.session_state.wallpaper = res
                 st.rerun()
 
-        # -- MODUL: SYSTEM --
+        # -- SYSTEM --
         elif st.session_state.active_window == "SYSTEM":
-            st.session_state.accent_color = st.color_picker("ACCENT_COLOR", st.session_state.accent_color)
-            if st.button("RESET SYSTEM"):
+            st.session_state.accent_color = st.color_picker("UI ACCENT COLOR", st.session_state.accent_color)
+            if st.button("HARD RESET"):
                 for key in st.session_state.keys(): del st.session_state[key]
                 st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
