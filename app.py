@@ -3,7 +3,7 @@ import replicate
 import os
 
 # --- 1. CONFIG ---
-st.set_page_config(page_title="MAXIMUS_OS", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="MAXIMUSIK_AI", layout="wide", initial_sidebar_state="collapsed")
 
 # API Setup
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -71,7 +71,8 @@ apply_ui()
 
 # --- 3. DESKTOP INTERFACE ---
 if st.session_state.active_window is None:
-    st.markdown("<br><br><br><h1 style='text-align:center; color:white; font-size:5rem; font-weight:900; letter-spacing:-2px; margin-bottom:0;'>MAXIMUS<span style='color:#00f2ff;'>IKAI</span></h1>", unsafe_allow_html=True)
+    # UPPDATERAD LOGGA HÄR
+    st.markdown("<br><br><br><h1 style='text-align:center; color:white; font-size:5rem; font-weight:900; letter-spacing:-2px; margin-bottom:0;'>MAXIMUSIK <span style='color:#00f2ff;'>AI</span></h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:12px; margin-top:0; opacity:0.8;'>QUAD_CORE_OS_V2.0.4</p>", unsafe_allow_html=True)
     
     st.markdown("<br><br><br>", unsafe_allow_html=True)
@@ -118,23 +119,21 @@ else:
 
         # -- MODUL: SYNTHESIS --
         if st.session_state.active_window == "SYNTHESIS":
-            prompt = st.text_area("VAD SKA VISUALISERAS?", placeholder="En neonbelyst cyberpunk-stad i regnet...")
-            if st.button("EXEKVERA GENERERING", use_container_width=True):
+            prompt = st.text_area("VAD SKA VISUALISERAS?", placeholder="Beskriv bilden...")
+            if st.button("EXEKVERA", use_container_width=True):
                 with st.status("PROCESSAR MATRIS..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
                     st.session_state.synth_res = res
                 st.rerun()
             if st.session_state.synth_res:
-                st.image(st.session_state.synth_res, caption="GENERERAD DATA", use_container_width=True)
+                st.image(st.session_state.synth_res, use_container_width=True)
 
         # -- MODUL: AUDIO --
         elif st.session_state.active_window == "AUDIO":
-            st.write("SKAPA LJUDVÅGOR VIA AI")
-            a_prompt = st.text_input("BESKRIV LJUD/MUSIK:", placeholder="Cyberpunk techno, 120bpm, dark synth")
+            a_prompt = st.text_input("BESKRIV LJUD/MUSIK:")
             if st.button("KOMPONERA", use_container_width=True):
-                with st.status("SYNTETISERAR LJUD..."):
-                    # Använder MusicGen
-                    res = replicate.run("facebookresearch/musicgen:7a76a8258a23faac443f1165275e01668e64dc93e430d4375b42d7658742b71d", 
+                with st.status("SYNTETISERAR..."):
+                    res = replicate.run("facebookresearch/musicgen:7b57424c30623a3111867c006579c3b88d2f1f0a204364ef0c6e93833f48a901", 
                                         input={"prompt": a_prompt, "duration": 8})
                     st.session_state.audio_res = res
                 st.rerun()
@@ -143,13 +142,10 @@ else:
 
         # -- MODUL: VIDEO --
         elif st.session_state.active_window == "VIDEO":
-            st.write("GENERERA RÖRELSEDATA")
             v_prompt = st.text_input("BESKRIV FILMEN:")
             if st.button("RENDERA VIDEO", use_container_width=True):
                 with st.status("RENDERAR..."):
-                    # Använder Luma Dream Machine eller liknande
-                    res = replicate.run("lucataco/luma-dream-machine", 
-                                        input={"prompt": v_prompt})
+                    res = replicate.run("lucataco/luma-dream-machine", input={"prompt": v_prompt})
                     st.session_state.video_res = res
                 st.rerun()
             if st.session_state.video_res:
@@ -157,28 +153,14 @@ else:
 
         # -- MODUL: SYSTEM --
         elif st.session_state.active_window == "SYSTEM":
-            st.code("""
-            STATUS: ACTIVE
-            UPLINK: SECURED
-            KERNEL: V2.0.4-AURORA
-            MEMORY_LOAD: NOMINAL
-            """)
-            if st.button("CLEAR ALL CACHE", use_container_width=True):
+            st.code("STATUS: ONLINE\nOS_NAME: MAXIMUSIK AI\nUPLINK: ENCRYPTED")
+            if st.button("HARD RESET CACHE", use_container_width=True):
                 st.session_state.synth_res = None
                 st.session_state.audio_res = None
                 st.session_state.video_res = None
                 st.success("CACHE RENSAD")
 
         st.markdown('</div>', unsafe_allow_html=True)
-
-
-
-
-
-
-
-
-
 
 
 
