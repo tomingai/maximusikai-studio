@@ -1,6 +1,6 @@
-
-streamlit
 replicate
+streamlit-lottie
+requests
 
 
 
