@@ -2,59 +2,65 @@ import streamlit as st
 import replicate
 import os
 import time
-import requests
 from datetime import datetime
 
 # --- 1. SETUP & SESSION STATE ---
 st.set_page_config(page_title="MAXIMUSIKAI STUDIO PRO 2026", page_icon="⚡", layout="wide")
 
-# Initialisering av alla variabler
 for key, default in {
     "gallery": [], 
     "user_db": {"ANONYM": 10, "TOMAS2026": 999}, 
-    "app_bg": "https://images.unsplash.com",
+    "app_bg": "https://images.unsplash.com", # Rymden start
     "agreed": False, 
     "lang": "Svenska",
-    "logs": [f"[{datetime.now().strftime('%H:%M:%S')}] System Initialized."]
+    "logs": [f"[{datetime.now().strftime('%H:%M:%S')}] System Online."]
 }.items():
     if key not in st.session_state: st.session_state[key] = default
 
 def add_log(msg):
     st.session_state.logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
-    if len(st.session_state.logs) > 10: st.session_state.logs.pop(0)
+    if len(st.session_state.logs) > 8: st.session_state.logs.pop(0)
 
-# --- 2. DESIGN-MOTOR (MISSION CONTROL THEME) ---
+# --- 2. DESIGN-MOTOR (SYNCHRONIZED BACKGROUND) ---
 def apply_design():
     bg_url = st.session_state.app_bg
     st.markdown(f"""
         <style>
+        /* Huvudbakgrund */
         .stApp {{
             background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url("{bg_url}") !important;
             background-size: cover !important; background-attachment: fixed !important;
+            background-position: center !important;
+        }}
+        /* Sidomeny bakgrund (Samma som huvudfönstret) */
+        [data-testid="stSidebar"] {{
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("{bg_url}") !important;
+            background-size: cover !important; background-attachment: fixed !important;
+            background-position: left center !important;
+            border-right: 1px solid rgba(255,255,255,0.1);
         }}
         .logo-text {{
-            font-size: 3rem !important; font-weight: 900 !important; color: #fff !important; text-align: center;
+            font-size: 2.8rem !important; font-weight: 900 !important; color: #fff !important; text-align: center;
             text-transform: uppercase; letter-spacing: 4px;
-            text-shadow: 0 0 15px #00d2ff, 2px 2px 5px #000 !important;
+            text-shadow: 0 0 20px #00d2ff, 2px 2px 5px #000 !important;
+            margin-bottom: 20px;
         }}
+        .stTabs [data-baseweb="tab-list"] {{ background-color: rgba(0,0,0,0.6) !important; border-radius: 15px; padding: 5px; }}
         .card {{
-            background: rgba(0,0,0,0.5) !important; backdrop-filter: blur(15px);
-            border-radius: 15px; padding: 15px; border: 1px solid #00d2ff;
+            background: rgba(0,0,0,0.5) !important; backdrop-filter: blur(10px);
+            border-radius: 15px; padding: 15px; border: 1px solid rgba(0,210,255,0.3);
         }}
         .log-box {{
-            background: #000; color: #00ff00; font-family: 'Courier New', monospace;
-            padding: 10px; border-radius: 5px; font-size: 0.75rem; border: 1px solid #333;
+            background: rgba(0,0,0,0.8); color: #00ffcc; font-family: 'Courier New', monospace;
+            padding: 10px; border-radius: 8px; font-size: 0.7rem; border: 1px solid #00d2ff;
         }}
-        p, label, h1, h2, h3, .stTabs [data-baseweb="tab"] {{ 
-            color: white !important; text-shadow: 1px 1px 3px #000 !important; 
-        }}
+        h1, h2, h3, p, label, span {{ color: white !important; text-shadow: 1px 1px 3px #000 !important; }}
         </style>
     """, unsafe_allow_html=True)
 
 def get_url(res):
     try:
         if isinstance(res, list): return str(res[0])
-        if hasattr(res, "url"): return str(res.url)
         return str(res)
     except: return None
 
@@ -63,131 +69,104 @@ with st.sidebar:
     st.markdown("### 🛰️ MISSION CONTROL")
     st.divider()
 
-    # PROFIL
-    with st.expander("👤 ARTIST CALLSIGN", expanded=True):
-        st.session_state.lang = st.radio("LANG", ["Svenska", "English"], horizontal=True)
-        artist_id = st.text_input("ID:", "ANONYM").strip().upper()
+    with st.expander("👤 ARTIST ID", expanded=True):
+        artist_id = st.text_input("CALLSIGN:", "ANONYM").strip().upper()
         if artist_id not in st.session_state.user_db: st.session_state.user_db[artist_id] = 10
         is_admin = (artist_id == "TOMAS2026")
-        
-        st.markdown(f"""
-            <div style="background: rgba(0,210,255,0.1); padding: 10px; border-radius: 10px; border: 1px solid #00d2ff; text-align: center;">
-                <p style="margin:0; font-size: 1.2rem; color: #00d2ff; font-weight: bold;">⚡ {st.session_state.user_db[artist_id]} UNITS</p>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<h2 style='text-align:center; color:#00d2ff;'>⚡ {st.session_state.user_db[artist_id]}</h2>", unsafe_allow_html=True)
 
-    # ATMOSFÄR
-    with st.expander("🌍 ENVIRONMENT CONTROL", expanded=False):
+    with st.expander("🌍 MILJÖ (ATMOSPHERE)", expanded=True):
         c1, c2 = st.columns(2)
-        themes = {
-            "CYBER": "Bright neon cyberpunk city, cyan and purple, 4k",
-            "DRÖM": "Golden hour dreamscape, bright clouds, 4k",
-            "LYX": "White luxury marble studio, gold accents, daylight, 4k",
-            "FÄRG": "Abstract vibrant color explosion, white background, 4k"
-        }
-        if c1.button("CYBER"):
-            res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": themes["CYBER"]})
-            st.session_state.app_bg = get_url(res); add_log("Environment: CYBER set."); st.rerun()
-        if c2.button("DRÖM"):
-            res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": themes["DRÖM"]})
-            st.session_state.app_bg = get_url(res); add_log("Environment: DREAM set."); st.rerun()
-        if c1.button("LYX"):
-            res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": themes["LYX"]})
-            st.session_state.app_bg = get_url(res); add_log("Environment: LUXURY set."); st.rerun()
-        if c2.button("FÄRG"):
-            res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": themes["FÄRG"]})
-            st.session_state.app_bg = get_url(res); add_log("Environment: COLOR set."); st.rerun()
+        # Direktgenerering för specifika önskemål
+        if c1.button("RYMDEN 🌌"):
+            res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Cinematic deep space, nebula, stars, bright colors, 4k"})
+            st.session_state.app_bg = get_url(res); add_log("Env: Deep Space set."); st.rerun()
+        if c2.button("SKOG 🌲"):
+            res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Sunlit magic forest, lush greenery, misty morning, 4k"})
+            st.session_state.app_bg = get_url(res); add_log("Env: Forest set."); st.rerun()
+        if c1.button("HAV 🌊"):
+            res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Tropical turquoise ocean, bright sunlight, underwater light rays, 4k"})
+            st.session_state.app_bg = get_url(res); add_log("Env: Ocean set."); st.rerun()
+        if c2.button("STUDIO 🎚️"):
+            res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": "Professional music studio control desk, neon buttons, bright faders, 4k"})
+            st.session_state.app_bg = get_url(res); add_log("Env: Studio Console set."); st.rerun()
 
-    # AUDIO & STATUS
-    with st.expander("📊 SYSTEM STATUS", expanded=True):
-        st.slider("MASTER OUTPUT", 0, 100, 80)
-        st.write(f"CORE: {'💎 ADMIN' if is_admin else '📡 ACTIVE'}")
-        st.write("NET: 🔵 OPTIMAL")
+    with st.expander("📊 SYSTEM", expanded=True):
+        st.session_state.lang = st.radio("SPRAK", ["Svenska", "English"], horizontal=True)
+        st.slider("OUTPUT GAIN", 0, 100, 80)
     
-    # LIVE LOG
     st.markdown("### 📝 LIVE LOG")
     log_html = "".join([f"<div>{l}</div>" for l in reversed(st.session_state.logs)])
     st.markdown(f'<div class="log-box">{log_html}</div>', unsafe_allow_html=True)
 
-# --- 4. HUVUDAPP ---
+# --- 4. MAIN INTERFACE ---
 apply_design()
-L = {"Svenska": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "⚙️ ADMIN"], 
-     "English": ["🪄 MAGIC", "🎬 DIRECTOR", "🎧 MUSIC", "📚 ARCHIVE", "⚙️ ADMIN"]}[st.session_state.lang]
-
-st.markdown(f'<div class="logo-text">⚡ MAXIMUSIKAI STUDIO ⚡</div>', unsafe_allow_html=True)
+st.markdown('<div class="logo-text">⚡ MAXIMUSIKAI STUDIO ⚡</div>', unsafe_allow_html=True)
 
 if not st.session_state.agreed:
-    if st.button("INITIALIZE STUDIO", use_container_width=True): 
-        st.session_state.agreed = True; add_log("User Access Granted."); st.rerun()
+    if st.button("OPEN STUDIO GATE", use_container_width=True): 
+        st.session_state.agreed = True; add_log("Gateway Opened."); st.rerun()
     st.stop()
 
 token = st.secrets.get("REPLICATE_API_TOKEN")
 if token:
     os.environ["REPLICATE_API_TOKEN"] = token
-    tabs = st.tabs(L if is_admin else L[:-1])
+    tabs = st.tabs(["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "⚙️ ADMIN"] if is_admin else ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV"])
 
-    # MAGI
-    with tabs[0]:
-        c1, c2 = st.columns([2,1])
-        prompt = c1.text_area("VISION", placeholder="Beskriv vad AI:n ska skapa...")
+    with tabs[0]: # MAGI
+        c1, c2 = st.columns([2, 1])
+        prompt = c1.text_area("VAD SKALL SKAPAS?", placeholder="Beskriv din vision här...")
         aspect = c2.selectbox("RATIO", ["1:1", "16:9", "9:16"])
-        if st.button("🔥 EXECUTE GENERATION", use_container_width=True):
+        if st.button("🔥 STARTA GENERERING", use_container_width=True):
             if is_admin or st.session_state.user_db[artist_id] > 0:
-                with st.status("Processing AI Layers...") as s:
+                with st.status("AI Core Processing...") as s:
                     img = get_url(replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt, "aspect_ratio": aspect}))
-                    try: 
-                        aud = str(replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", input={"prompt": prompt, "duration": 8}))
+                    try:
+                        aud = str(replicate.run("facebookresearch/musicgen:7b76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", input={"prompt": prompt, "duration": 8}))
                     except: aud = None
                     if not is_admin: st.session_state.user_db[artist_id] -= 1
                     st.session_state.gallery.append({"id": time.time(), "artist": artist_id, "name": prompt, "url": img, "audio": aud})
-                    add_log(f"Generated: {prompt[:20]}...")
-                    s.update(label="COMPLETED", state="complete")
-                    st.rerun()
+                    add_log(f"New Creation: {prompt[:15]}..."); s.update(label="Ready!", state="complete"); st.rerun()
 
-    # REGI
-    with tabs[1]:
-        st.subheader("🎬 VIDEO SYNTHESIS")
+    with tabs[1]: # REGI
+        st.subheader("🎬 LUMA VIDEO ENGINE")
         my_imgs = [p for p in st.session_state.gallery if p["artist"] == artist_id]
         if my_imgs:
-            sel = st.selectbox("SELECT SOURCE", [p["name"][:50] for p in my_imgs])
+            sel = st.selectbox("VÄLJ KÄLLA", [p["name"][:50] for p in my_imgs])
             target = next(p for p in my_imgs if p["name"][:50] == sel)
-            st.image(target["url"], width=300)
-            if st.button("🎬 RENDER VIDEO (5 UNITS)"):
+            st.image(target["url"], width=350)
+            if st.button("🎬 SKAPA VIDEO (5 UNITS)"):
                 if is_admin or st.session_state.user_db[artist_id] >= 5:
-                    with st.spinner("Luma Engine Active..."):
+                    with st.spinner("Rendrerar video..."):
                         vid = get_url(replicate.run("luma-ai/luma-dream-machine", input={"prompt": "Cinematic movement", "image_url": target["url"]}))
-                        st.video(vid); add_log("Video Rendered.")
+                        st.video(vid); add_log("Video sync complete.")
                         if not is_admin: st.session_state.user_db[artist_id] -= 5
-                else: st.error("Low Units.")
+                else: st.error("Ladda units!")
 
-    # MUSIK
-    with tabs[2]:
-        st.subheader("🎧 AUDIO ENGINE")
-        m_in = st.text_input("BEAT DESCRIPTION")
-        if st.button("COMPOSE"):
-            with st.spinner("Synthesizing..."):
-                res = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", input={"prompt": m_in, "duration": 10})
-                st.audio(str(res)); add_log(f"Audio Created: {m_in[:15]}")
+    with tabs[2]: # MUSIK
+        st.subheader("🎧 BEAT STATION")
+        m_in = st.text_input("STIL/GENRE")
+        if st.button("KOMPONERA"):
+            with st.spinner("Jobbar..."):
+                res = replicate.run("facebookresearch/musicgen:7b76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47", input={"prompt": m_in, "duration": 10})
+                st.audio(str(res)); add_log(f"Beat: {m_in[:15]}")
 
-    # ARKIV
-    with tabs[3]:
-        st.subheader("📚 STUDIO ARCHIVE")
+    with tabs[3]: # ARKIV
+        st.subheader("📚 STUDIO ARKIV")
         my_stuff = [p for p in st.session_state.gallery if p["artist"] == artist_id]
         cols = st.columns(3)
         for idx, p in enumerate(reversed(my_stuff)):
             with cols[idx % 3]:
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.image(p["url"])
-                if st.button("SET AS BG", key=f"bg_{p['id']}"):
-                    st.session_state.app_bg = p["url"]; add_log("Background updated."); st.rerun()
+                if st.button("ANVÄND SOM BG", key=f"bg_{p['id']}"):
+                    st.session_state.app_bg = p["url"]; add_log("UI Background updated."); st.rerun()
                 if p["audio"]: st.audio(p["audio"])
                 st.markdown('</div>', unsafe_allow_html=True)
 
-    # ADMIN
-    if is_admin:
+    if is_admin and len(tabs) > 4:
         with tabs[4]:
-            st.write("USER DATABASE", st.session_state.user_db)
-            if st.button("WIPE ALL DATA"):
-                st.session_state.gallery = []; add_log("WIPE COMMAND EXECUTED."); st.rerun()
+            st.write(st.session_state.user_db)
+            if st.button("HARD RESET"): st.session_state.gallery = []; st.rerun()
 else:
-    st.error("MISSING REPLICATE_API_TOKEN IN SECRETS.")
+    st.error("Lägg in REPLICATE_API_TOKEN i Secrets!")
