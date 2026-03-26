@@ -3,12 +3,11 @@ import replicate
 import os
 import random
 
-# --- 1. PROMPT MOTOR (SLUMP FÖR ALLA KNAPPAR) ---
+# --- 1. PROMPT MOTOR ---
 def get_random_prompt(mode="IMAGE"):
     img_prompts = ["Cyberpunk city, neon rain", "Deep space nebula, gold dust", "Ancient forest, bioluminescent plants", "Retro robot DJ, synthwave", "Floating island, waterfalls, 8k"]
     audio_prompts = ["Dark techno, 128bpm, heavy bass", "Space ambient, ethereal pads", "Cyberpunk industrial beat", "Lofi hip hop, chill rainy night", "Epic cinematic orchestral hybrid"]
-    if mode == "AUDIO": return random.choice(audio_prompts)
-    return random.choice(img_prompts)
+    return random.choice(audio_prompts) if mode == "AUDIO" else random.choice(img_prompts)
 
 # --- 2. CONFIG & SESSION ---
 st.set_page_config(page_title="MAXIMUSIK AI OS", layout="wide", initial_sidebar_state="collapsed")
@@ -28,7 +27,6 @@ for key, val in states.items():
     if key not in st.session_state: st.session_state[key] = val
 
 def get_url(res):
-    """Fixar AttributeError genom att alltid extrahera sträng-URL"""
     if isinstance(res, list) and len(res) > 0: return str(res[0])
     return str(res)
 
@@ -45,9 +43,19 @@ def apply_ui():
             background-size: cover !important; background-attachment: fixed !important;
         }}
         [data-testid="stHeader"], .main {{ background: transparent !important; }}
-        h1, h2, h3, p, label {{ color: {accent} !important; text-shadow: 0 0 15px {accent}77 !important; font-family: monospace !important; }}
-        .window-box {{ background: rgba(0, 5, 12, 0.9); backdrop-filter: blur(50px); border: 2px solid {accent}33; border-radius: 40px; padding: 40px; }}
-        .stButton > button {{ background: rgba(0,0,0,0.6) !important; border: 1px solid {accent}44 !important; color: {accent} !important; border-radius: 20px !important; height: 70px !important; }}
+        h1, h2, h3, p, label {{ color: {accent} !important; text-shadow: 0 0 10px {accent}55 !important; font-family: monospace !important; }}
+        .window-box {{ background: rgba(0, 5, 12, 0.9); backdrop-filter: blur(50px); border: 1px solid {accent}33; border-radius: 30px; padding: 30px; }}
+        
+        /* Arkiv-kort styling */
+        .archive-card {{
+            border: 1px solid {accent}22;
+            background: rgba(255,255,255,0.03);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }}
+        
+        .stButton > button {{ background: rgba(0,0,0,0.5) !important; border: 1px solid {accent}33 !important; color: {accent} !important; border-radius: 12px !important; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -55,7 +63,7 @@ apply_ui()
 
 # --- 4. DESKTOP ---
 if st.session_state.page == "DESKTOP":
-    st.markdown(f"<h1 style='text-align:center; letter-spacing:20px; padding-top:10vh; font-size:4rem;'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align:center; letter-spacing:20px; padding-top:10vh; font-size:3.5rem;'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
     cols = st.columns(5)
     apps = [("🪄 SYNTH", "SYNTH"), ("🎧 AUDIO", "AUDIO"), ("📚 ARKIV", "LIBRARY"), ("🖼 ENGINE", "ENGINE"), ("⚙️ SYSTEM", "SYSTEM")]
     for i, (label, target) in enumerate(apps):
@@ -70,7 +78,7 @@ else:
         st.markdown('<div class="window-box">', unsafe_allow_html=True)
         h1, h2 = st.columns([0.9, 0.1])
         h1.markdown(f"<h2>// {st.session_state.page}</h2>", unsafe_allow_html=True)
-        if h2.button("✕"): st.session_state.page = "DESKTOP"; st.rerun()
+        if h2.button("✕", key="close_win"): st.session_state.page = "DESKTOP"; st.rerun()
 
         # --- SYNTH ---
         if st.session_state.page == "SYNTH":
@@ -83,7 +91,9 @@ else:
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
                     url = get_url(res)
                     st.session_state.library.append({"type": "image", "url": url, "prompt": p})
-                    st.image(url)
+                    st.rerun()
+            if st.session_state.library and st.session_state.library[-1]['type'] == "image":
+                st.image(st.session_state.library[-1]['url'], width=500)
 
         # --- AUDIO ---
         elif st.session_state.page == "AUDIO":
@@ -91,32 +101,49 @@ else:
             ap = st.text_input("BESKRIV LJUD:", value=st.session_state.last_synth)
             if st.button("GENERATE AUDIO", use_container_width=True):
                 with st.spinner("Composing..."):
-                    res = replicate.run("meta/musicgen:b05b39c7", input={"prompt": ap, "duration": 10})
+                    res = replicate.run("meta/musicgen:b05b39c7", input={"prompt": ap, "duration": 8})
                     st.session_state.library.append({"type": "audio", "url": res, "prompt": ap})
-                    st.audio(res)
+                    st.rerun()
+            if st.session_state.library and st.session_state.library[-1]['type'] == "audio":
+                st.audio(st.session_state.library[-1]['url'])
 
-        # --- ARKIV (MED RADERA-FUNKTION) ---
+        # --- ARKIV (TEXT BREDVID MEDIA) ---
         elif st.session_state.page == "LIBRARY":
             if not st.session_state.library: st.write("ARKIVET ÄR TOMT")
             else:
-                for idx, item in enumerate(st.session_state.library):
-                    col1, col2 = st.columns([0.8, 0.2])
-                    with col1:
-                        if item['type'] == "image": st.image(item['url'], width=300)
+                for idx, item in enumerate(reversed(st.session_state.library)):
+                    # Skapar en container per objekt för snyggare layout
+                    st.markdown('<div class="archive-card">', unsafe_allow_html=True)
+                    col_media, col_info = st.columns([0.6, 0.4])
+                    
+                    with col_media:
+                        if item['type'] == "image": st.image(item['url'], use_container_width=True)
                         else: st.audio(item['url'])
-                    with col2:
-                        if st.button("🗑 RADERA", key=f"del_{idx}"):
-                            st.session_state.library.pop(idx)
-                            st.rerun()
-                        if item['type'] == "image":
-                            if st.button("🖼 BG", key=f"bg_{idx}"):
-                                st.session_state.wallpaper = item['url']; st.rerun()
+                    
+                    with col_info:
+                        st.markdown(f"**PROMPT:**\n*{item['prompt']}*")
+                        st.write(f"TYPE: {item['type'].upper()}")
+                        
+                        # Kontrollknappar på rad
+                        btn_c1, btn_c2, btn_c3 = st.columns(3)
+                        with btn_c1:
+                            if st.button("🗑", key=f"del_{idx}"):
+                                st.session_state.library.pop(-(idx+1))
+                                st.rerun()
+                        with btn_c2:
+                            if item['type'] == "image":
+                                if st.button("🖼", key=f"bg_{idx}", help="Sätt som bakgrund"):
+                                    st.session_state.wallpaper = item['url']; st.rerun()
+                        with btn_c3:
+                            st.markdown(f'<a href="{item["url"]}" download target="_blank" style="text-decoration:none;">💾</a>', unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- ENGINE ---
+        # --- ENGINE & SYSTEM ---
         elif st.session_state.page == "ENGINE":
+            st.session_state.brightness = st.slider("LJUSSTYRKA", 0.0, 1.0, st.session_state.brightness)
             if st.button("🎲 SLUMPA MILJÖ"): st.session_state.last_synth = get_random_prompt("IMAGE"); st.rerun()
             ep = st.text_area("MILJÖ-PROMPT:", value=st.session_state.last_synth)
-            if st.button("UPDATE REALITY"):
+            if st.button("UPDATE REALITY", use_container_width=True):
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": ep, "aspect_ratio": "16:9"})
                 st.session_state.wallpaper = get_url(res)
                 st.session_state.library.append({"type": "image", "url": st.session_state.wallpaper, "prompt": ep})
@@ -127,6 +154,7 @@ else:
             if st.button("HARD RESET"): st.session_state.clear(); st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
