@@ -3,11 +3,12 @@ import replicate
 import os
 
 # --- 1. CONFIG ---
-st.set_page_config(page_title="MAXIMUSIK AI", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="MAXIMUSIK AI PRO", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
+# Session State Init
 if "active_window" not in st.session_state: st.session_state.active_window = None
 if "synth_res" not in st.session_state: st.session_state.synth_res = None
 if "audio_res" not in st.session_state: st.session_state.audio_res = None
@@ -17,55 +18,77 @@ if "video_res" not in st.session_state: st.session_state.video_res = None
 def apply_ui():
     st.markdown("""
         <style>
-        /* Mörk futuristisk bakgrund */
+        /* Mörk bas med svagt blått sken */
         .stAppViewContainer {
-            background-color: #050505 !important;
-            background-image: radial-gradient(circle at 50% 50%, #001a1a 0%, #050505 100%) !important;
+            background-color: #020205 !important;
+            background-image: radial-gradient(circle at 50% 50%, #001a2d 0%, #020205 100%) !important;
         }
         .main, .stAppHeader, .stAppViewBlockContainer { background: transparent !important; }
 
-        /* EMOJI-IKONER (Knapparna) */
+        /* BILD-IKONER (PRO DESIGN) */
         div.stButton > button {
             display: block !important;
             margin: 0 auto !important;
-            width: 150px !important;
-            height: 150px !important;
-            border-radius: 40px !important;
-            border: 2px solid rgba(0, 242, 255, 0.1) !important;
-            background: rgba(255, 255, 255, 0.03) !important;
-            font-size: 4rem !important; /* Storleken på emojin */
-            transition: 0.4s all cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+            width: 170px !important;
+            height: 170px !important;
+            border-radius: 20px !important;
+            border: 1px solid rgba(0, 242, 255, 0.2) !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            color: transparent !important; /* Döljer eventuell text */
+            transition: 0.4s all cubic-bezier(0.165, 0.84, 0.44, 1) !important;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.8) !important;
+            filter: grayscale(40%) brightness(0.8) !important; /* "Pro" look som standard */
         }
         
         div.stButton > button:hover {
-            transform: scale(1.15) translateY(-15px) !important;
+            transform: scale(1.08) translateY(-10px) !important;
             border-color: #00f2ff !important;
-            background: rgba(0, 242, 255, 0.05) !important;
-            box-shadow: 0 0 50px rgba(0, 242, 255, 0.3) !important;
+            box-shadow: 0 0 50px rgba(0, 242, 255, 0.4) !important;
+            filter: grayscale(0%) brightness(1.1) !important; /* Vaknar till liv vid hover */
         }
 
-        /* TITEL OCH LABELS */
-        .main-title {
+        /* SPECIFIKA BILDER FÖR VARJE MODUL */
+        /* Synthesis - AI Neuron Nätverk */
+        div.stButton > button[key="s"] {
+            background-image: url('https://images.unsplash.com') !important;
+        }
+        /* Audio - Digital Ljudvåg */
+        div.stButton > button[key="a"] {
+            background-image: url('https://images.unsplash.com') !important;
+        }
+        /* Video - Cinematisk Kamera */
+        div.stButton > button[key="v"] {
+            background-image: url('https://images.unsplash.com') !important;
+        }
+        /* System - Hi-Tech Chipset */
+        div.stButton > button[key="sys"] {
+            background-image: url('https://images.unsplash.com') !important;
+        }
+
+        /* TEXT DESIGN */
+        .pro-title {
             text-align: center; color: white; font-size: 5rem; font-weight: 900; 
             letter-spacing: -2px; margin-bottom: 0;
-            text-shadow: 0 0 20px rgba(0, 242, 255, 0.5);
+            background: linear-gradient(to bottom, #ffffff 40%, #00f2ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         .label { 
-            text-align: center; color: #00f2ff; font-family: monospace; 
-            font-weight: bold; margin-top: 15px; letter-spacing: 4px; 
-            font-size: 0.8rem; text-transform: uppercase;
+            text-align: center; color: #00f2ff; font-family: 'Courier New', monospace; 
+            font-weight: bold; margin-top: 15px; letter-spacing: 5px; 
+            font-size: 0.75rem; text-transform: uppercase; text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
         }
 
-        /* FÖNSTER */
+        /* WINDOW STYLING */
         .window {
-            background: rgba(10, 10, 15, 0.95) !important;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(0, 242, 255, 0.3);
+            background: rgba(5, 7, 10, 0.98) !important;
+            backdrop-filter: blur(40px);
+            border: 1px solid rgba(0, 242, 255, 0.2);
             border-radius: 30px;
             padding: 40px;
-            color: white;
-            box-shadow: 0 20px 80px rgba(0,0,0,1);
+            box-shadow: 0 50px 150px rgba(0,0,0,1);
         }
         </style>
     """, unsafe_allow_html=True)
@@ -74,33 +97,33 @@ apply_ui()
 
 # --- 3. DESKTOP ---
 if st.session_state.active_window is None:
-    st.markdown("<br><br><h1 class='main-title'>MAXIMUSIK <span style='color:#00f2ff;'>AI</span></h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:10px; opacity:0.5;'>SYSTEM_READY_V2</p>", unsafe_allow_html=True)
+    st.markdown("<br><br><h1 class='pro-title'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:10px; opacity:0.4;'>OPERATING_SYSTEM_LOADED</p>", unsafe_allow_html=True)
     
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     _, c1, c2, c3, c4, _ = st.columns([0.5, 1, 1, 1, 1, 0.5])
     
-    # Här skickar vi in emojin direkt som text i knappen
+    # Knapparna har ett mellanslag " " för att dölja Streamlits standard-text
     with c1:
-        if st.button("🎨", key="s"): 
+        if st.button(" ", key="s"): 
             st.session_state.active_window = "SYNTHESIS"
             st.rerun()
-        st.markdown('<p class="label">Synth</p>', unsafe_allow_html=True)
+        st.markdown('<p class="label">Synthesis</p>', unsafe_allow_html=True)
 
     with c2:
-        if st.button("🎹", key="a"): 
+        if st.button(" ", key="a"): 
             st.session_state.active_window = "AUDIO"
             st.rerun()
         st.markdown('<p class="label">Audio</p>', unsafe_allow_html=True)
 
     with c3:
-        if st.button("🎬", key="v"): 
+        if st.button(" ", key="v"): 
             st.session_state.active_window = "VIDEO"
             st.rerun()
         st.markdown('<p class="label">Video</p>', unsafe_allow_html=True)
 
     with c4:
-        if st.button("⚡", key="sys"): 
+        if st.button(" ", key="sys"): 
             st.session_state.active_window = "SYSTEM"
             st.rerun()
         st.markdown('<p class="label">System</p>', unsafe_allow_html=True)
@@ -118,40 +141,40 @@ else:
             st.session_state.active_window = None
             st.rerun()
         
-        st.markdown("<hr style='border:0.5px solid #222; margin:25px 0;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='border:0.5px solid rgba(0,242,255,0.1); margin:25px 0;'>", unsafe_allow_html=True)
 
         if st.session_state.active_window == "SYNTHESIS":
-            p = st.text_area("VAD VILL DU SKAPA?")
-            if st.button("GENERA BILD", use_container_width=True):
-                with st.status("SKAPAR..."):
+            p = st.text_area("VISUAL COMMAND:")
+            if st.button("EXECUTE", use_container_width=True):
+                with st.status("PROCESSING..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
                     st.session_state.synth_res = res
                 st.rerun()
             if st.session_state.synth_res: st.image(st.session_state.synth_res)
 
         elif st.session_state.active_window == "AUDIO":
-            p = st.text_input("BESKRIV LJUD/MUSIK:")
-            if st.button("KOMPONERA", use_container_width=True):
-                with st.status("SYNTETISERAR..."):
+            p = st.text_input("SONIC PARAMETERS:")
+            if st.button("GENERATE", use_container_width=True):
+                with st.status("TUNING..."):
                     res = replicate.run("facebookresearch/musicgen:7b57424c30623a3111867c006579c3b88d2f1f0a204364ef0c6e93833f48a901", input={"prompt": p})
                     st.session_state.audio_res = res
                 st.rerun()
             if st.session_state.audio_res: st.audio(st.session_state.audio_res)
 
         elif st.session_state.active_window == "VIDEO":
-            p = st.text_input("BESKRIV SCEN:")
-            if st.button("RENDERA", use_container_width=True):
-                with st.status("ARBETAR..."):
+            p = st.text_input("MOTION COMMAND:")
+            if st.button("RENDER", use_container_width=True):
+                with st.status("RENDERING..."):
                     res = replicate.run("lucataco/luma-dream-machine", input={"prompt": p})
                     st.session_state.video_res = res
                 st.rerun()
             if st.session_state.video_res: st.video(st.session_state.video_res)
 
         elif st.session_state.active_window == "SYSTEM":
-            st.code("STATUS: ONLINE\nOS: MAXIMUSIK AI\nCACHED_FILES: ACTIVE")
-            if st.button("RENSA CACHE", use_container_width=True):
+            st.code("KERNEL: 2.0.4\nSTATUS: NOMINAL\nENCRYPTION: AES-256")
+            if st.button("PURGE ALL DATA", use_container_width=True):
                 st.session_state.synth_res = st.session_state.audio_res = st.session_state.video_res = None
-                st.success("CACHE RENSAD")
+                st.success("CLEARED")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
