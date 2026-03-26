@@ -3,131 +3,140 @@ import replicate
 import os
 import time
 
-# --- 1. CONFIG & UI ENGINE ---
-st.set_page_config(page_title="MAXIMUSIKAI STUDIO", page_icon="⚡", layout="wide", initial_sidebar_state="collapsed")
+# --- 1. PRO CONFIG ---
+st.set_page_config(page_title="MAXIMUSIKAI PREMIER", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. THE JUKEBOX-INSPIRED SHADER (CSS) ---
-def apply_jukebox_design():
+# --- 2. THE PREMIER ENGINE (STEROID-CSS) ---
+def apply_premier_ui():
     st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com');
         
-        /* Bakgrund: Djup kolsvart med subtil textur */
+        /* DARK FOUNDATION */
         .stApp {
-            background-color: #0b0b0e !important;
-            background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.02) 1px, transparent 0);
-            background-size: 40px 40px;
+            background-color: #030303 !important;
+            color: #999 !important;
+            font-family: 'Inter', sans-serif;
         }
 
-        /* Sidebar: Smal och industriell */
-        [data-testid="stSidebar"] {
-            background-color: #000000 !important;
-            border-right: 1px solid #1a1a1a;
-            width: 80px !important;
+        /* HIDE STREAMLIT JUNK */
+        header, footer, [data-testid="stHeader"], [data-testid="stToolbar"] { visibility: hidden; height: 0; }
+        [data-testid="stAppViewBlockContainer"] { padding: 0 !important; }
+
+        /* PREMIER WORKSPACE LAYOUT */
+        .main-container { display: flex; height: 100vh; }
+        
+        .sidebar-nav {
+            width: 70px; background: #000; border-right: 1px solid #111;
+            display: flex; flex-direction: column; align-items: center; padding: 20px 0;
         }
 
-        /* Paneler: Inga hörn, bara mjukt ljus */
+        /* MODULAR PANELS (THE INSTRUMENT LOOK) */
         div[data-testid="stVerticalBlock"] > div {
-            background: #111114 !important;
-            border: 1px solid #1c1c21 !important;
-            border-radius: 12px;
-            padding: 24px;
-            transition: all 0.3s ease;
+            background: #080808 !important;
+            border: 1px solid #141414 !important;
+            border-radius: 2px; padding: 30px; margin-bottom: 20px;
         }
-        div[data-testid="stVerticalBlock"] > div:hover {
-            border-color: #33333b !important;
-            box-shadow: 0 12px 24px rgba(0,0,0,0.5);
-        }
-
-        /* Typography */
-        h1, h2, h3, p, label {
-            color: #ececed !important;
-            font-family: 'Inter', sans-serif !important;
-            letter-spacing: -0.01em;
-        }
-
-        /* Input: "The Console Look" */
+        
+        /* PRO INPUTS */
         textarea, input {
-            background-color: #08080a !important;
+            background-color: #000 !important;
             color: #00f2ff !important;
-            border: 1px solid #1c1c21 !important;
-            border-radius: 8px !important;
-            font-family: 'JetBrains Mono', monospace !important;
-            font-size: 14px !important;
+            border: 1px solid #181818 !important;
+            border-radius: 0px !important;
+            font-family: 'JetBrains Mono' !important;
+            font-size: 13px !important;
+            padding: 15px !important;
         }
+        textarea:focus { border-color: #00f2ff !important; box-shadow: 0 0 10px rgba(0,242,255,0.1); }
 
-        /* Knappar: Jukebox-blå (Electric) */
+        /* BUTTONS (INDUSTRIAL MINIMALISM) */
         .stButton>button {
-            background: #0052ff !important;
-            color: white !important;
-            border-radius: 8px !important;
-            font-weight: 600 !important;
-            height: 48px !important;
+            background: #fff !important;
+            color: #000 !important;
+            border-radius: 0px !important;
+            font-weight: 800 !important;
+            font-family: 'Inter' !important;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 10px !important;
+            height: 45px !important;
             border: none !important;
-            box-shadow: 0 4px 12px rgba(0, 82, 255, 0.2);
+            transition: 0.2s ease;
         }
         .stButton>button:hover {
-            background: #1a66ff !important;
-            box-shadow: 0 8px 20px rgba(0, 82, 255, 0.4);
-            transform: translateY(-1px);
+            background: #00f2ff !important;
+            box-shadow: 0 0 20px rgba(0,242,255,0.4);
         }
 
-        /* Status-indikatorer */
-        .status-dot {
-            height: 8px; width: 8px; background-color: #00ff88;
-            border-radius: 50%; display: inline-block; margin-right: 8px;
-            box-shadow: 0 0 10px #00ff88;
+        /* TYPOGRAPHY */
+        .studio-title {
+            font-family: 'Inter'; font-weight: 800; font-size: 1.2rem;
+            color: #fff; letter-spacing: -1px; margin-bottom: 2px;
         }
+        .studio-sub {
+            font-family: 'JetBrains Mono'; font-size: 9px; color: #444;
+            letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px;
+        }
+        
+        /* VU METER ANIMATION */
+        .vu-container { display: flex; gap: 3px; height: 20px; margin-top: 10px; }
+        .vu-bar { width: 3px; background: #222; }
+        .vu-bar.active { background: #00f2ff; animation: pulse 0.5s infinite alternate; }
+        @keyframes pulse { from { opacity: 0.2; } to { opacity: 1; } }
         </style>
     """, unsafe_allow_html=True)
 
-# --- 3. STUDIO LAYOUT ---
-apply_jukebox_design()
+# --- 3. STUDIO INTERFACE ---
+apply_premier_ui()
 
-# Header Area
-col_logo, col_stat = st.columns([4, 1])
-with col_logo:
-    st.markdown("<h1 style='margin:0;'>MAXIMUSIKAI <span style='color:#0052ff;'>STUDIO</span></h1>", unsafe_allow_html=True)
-with col_stat:
-    st.markdown("<div style='text-align:right; padding-top:10px;'><span class='status-dot'></span>SYSTEM ONLINE</div>", unsafe_allow_html=True)
-
-st.write("---")
+# Custom HUD
+with st.container():
+    c1, c2 = st.columns([4, 1])
+    with c1:
+        st.markdown("<div class='studio-title'>MAXIMUSIKAI // PREMIER STUDIO</div>", unsafe_allow_html=True)
+        st.markdown("<div class='studio-sub'>NEURAL CORE ENGINE v4.2</div>", unsafe_allow_html=True)
+    with c2:
+        st.markdown("<div style='text-align:right; font-family:JetBrains Mono; font-size:10px; color:#00f2ff;'>SYNC: OPTIMAL<br>UNITS: 99.9</div>", unsafe_allow_html=True)
 
 # Main Workspace
-col_input, col_preview = st.columns([1, 1.5])
+col_ctrl, col_view = st.columns([1, 1.8], gap="large")
 
-with col_input:
-    st.markdown("### 🎛️ CONTROL")
-    prompt = st.text_area("NEURAL PROMPT", placeholder="Describe your vision...", height=150)
+with col_ctrl:
+    st.markdown("<label>SOURCE_PROMPT</label>", unsafe_allow_html=True)
+    prompt = st.text_area("", placeholder="Enter neural parameters...", height=250, label_visibility="collapsed")
     
-    c1, c2 = st.columns(2)
-    with c1:
-        ratio = st.selectbox("FORMAT", ["1:1", "16:9", "9:16"])
-    with c2:
-        quality = st.select_slider("QUALITY", options=["Draft", "Pro", "Ultra"])
-        
-    if st.button("EXECUTE SYNTHESIS", use_container_width=True):
+    st.markdown("<label>ASPECT_RATIO</label>", unsafe_allow_html=True)
+    ratio = st.selectbox("", ["1:1", "16:9", "9:16"], label_visibility="collapsed")
+    
+    st.markdown("<label>SYNTH_QUALITY</label>", unsafe_allow_html=True)
+    quality = st.select_slider("", options=["DRAFT", "PRO", "ULTRA"], label_visibility="collapsed")
+    
+    if st.button("EXECUTE SYNTHESIS"):
         if prompt:
-            with st.status("Initializing Cores..."):
+            with st.status("ENGINE_SYNC..."):
                 os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
-                # Prompt Engineering för Pro-resultat
-                enhanced = f"{prompt}, professional studio quality, high-fidelity, masterpiece"
-                res = replicate.run("black-forest-labs/flux-schnell", 
-                                   input={"prompt": enhanced, "aspect_ratio": ratio})
-                st.session_state.last_res = res
+                # Förstärkt prompt för Pro-look
+                p = f"{prompt}, high-end cinematic, architectural photography, hyper-detailed"
+                res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p, "aspect_ratio": ratio})
+                st.session_state.pro_res = res
                 st.rerun()
 
-with col_preview:
-    st.markdown("### 📺 OUTPUT")
-    if "last_res" in st.session_state:
-        st.image(st.session_state.last_res, use_container_width=True, caption="RENDER_COMPLETE")
+with col_view:
+    st.markdown("<label>LIVE_PREVIEW</label>", unsafe_allow_html=True)
+    if "pro_res" in st.session_state:
+        st.image(st.session_state.pro_res, use_container_width=True)
+        # VU-meter simulation
+        st.markdown('<div class="vu-container">' + ''.join(['<div class="vu-bar active"></div>']*20) + '</div>', unsafe_allow_html=True)
     else:
-        st.info("Awaiting input parameters...")
+        st.markdown("""
+            <div style="height:550px; background:#000; border:1px solid #111; display:flex; align-items:center; justify-content:center; color:#222; font-family:'JetBrains Mono'; font-size:11px; letter-spacing:3px;">
+                AWAITING_SIGNAL_SOURCE
+            </div>
+        """, unsafe_allow_html=True)
 
-# --- 4. FEED / VAULT ---
-st.write("---")
-st.markdown("### 📚 RECENT ASSETS")
-# Här skulle vi ha ett snyggt grid med tidigare skapelser
-st.caption("v4.8 Build 2026.04 | Powered by Neural Engine")
+# Secondary Row (Library)
+st.markdown("<br><label>ASSET_VAULT</label>", unsafe_allow_html=True)
+st.markdown("<div style='color:#222; font-size:10px; letter-spacing:1px;'>NO_LOCAL_ASSETS_FOUND</div>", unsafe_allow_html=True)
 
 
