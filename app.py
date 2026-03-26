@@ -3,451 +3,150 @@ import os
 import json
 import time
 
-# --- 0. DATABAS FÖR ANVÄNDARE (UNITS + BAKGRUND) ---
-
+# --- 0. DATABAS-LOGIK ---
 DB_FILE = "users.json"
-
 
 def load_user_db():
     if not os.path.exists(DB_FILE):
         with open(DB_FILE, "w", encoding="utf-8") as f:
             json.dump({}, f)
-
     with open(DB_FILE, "r", encoding="utf-8") as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return {}
-
+        try: return json.load(f)
+        except: return {}
 
 def save_user_db(db):
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(db, f, indent=4, ensure_ascii=False)
 
-
-# --- 1. SETUP & SESSION STATE ---
-
-st.set_page_config(
-    page_title="MAXIMUSIKAI STUDIO PRO 2026",
-    page_icon="⚡",
-    layout="wide",
-)
-
-if "gallery" not in st.session_state:
-    st.session_state.gallery = []
-
-if "user_db" not in st.session_state:
-    st.session_state.user_db = load_user_db()
-
-if "app_bg" not in st.session_state:
-    st.session_state.app_bg = None
-
-if "agreed" not in st.session_state:
-    st.session_state.agreed = False
-
-if "lang" not in st.session_state:
-    st.session_state.lang = "Svenska"
-
-if "current_user" not in st.session_state:
-    st.session_state.current_user = None
-
-if "units" not in st.session_state:
-    st.session_state.units = 0
-
-
-# --- 2. DESIGN ---
-
-def apply_design():
-    if st.session_state.app_bg:
-        bg_url = str(st.session_state.app_bg)
-        st.markdown(
-            f"""
-            <style>
-            .stApp {{
-                background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('{bg_url}') !important;
-                background-size: cover !important;
-                background-position: center !important;
-                background-attachment: fixed !important;
-            }}
-            .logo-text {{
-                font-size: 3rem !important;
-                font-weight: 900 !important;
-                color: #fff !important;
-                text-align: center;
-                text-transform: uppercase;
-                letter-spacing: 5px;
-                text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #00d2ff, 0 0 40px #00d2ff !important;
-                margin-bottom: 20px;
-            }}
-            div[data-baseweb="base-input"], div[data-baseweb="textarea"], .stTextArea textarea, .stTextInput input {{
-                background-color: rgba(255,255,255,0.1) !important;
-                color: white !important;
-                backdrop-filter: blur(15px) !important;
-                border: 1px solid rgba(255,255,255,0.2) !important;
-                border-radius: 12px !important;
-            }}
-            label, p, span, h1, h2, h3, .stTabs [data-baseweb="tab"] {{
-                color: white !important;
-                text-shadow: 2px 2px 8px rgba(0,0,0,1) !important;
-                font-weight: 800 !important;
-            }}
-            .stTabs [data-baseweb="tab-list"] {{
-                background-color: rgba(0,0,0,0.4) !important;
-                border-radius: 10px !important;
-            }}
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            "<style>.stApp { background-color: #050505 !important; }</style>",
-            unsafe_allow_html=True,
-        )
-
-
-# --- 3. HJÄLPFUNKTION FÖR URL ---
-
-def get_url(res):
-    if isinstance(res, list) and res:
-        return str(res[0])
-    if hasattr(res, "url"):
-        return str(res.url)
-    return str(res)
-
-
-# --- 4. SPRÅK / TEXTER ---
-
-texts = {
-    "Svenska": {
-        "title": "MAXIMUSIKAI STUDIO",
-        "tab_names": ["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "🌐 FEED", "⚙️ ADMIN"],
-        "atm_space": "RYMDEN 🌌",
-        "atm_forest": "SKOGEN 🌲",
-        "atm_city": "STADEN 🌆",
-        "atm_bake": "BAKNING 🥐",
-        "status": "STATUS",
-        "units": "UNITS",
-        "set_bg": "🖼 SÄTT SOM BAKGRUND",
-        "download": "💾 LADDA NER",
-        "studio": "STUDIO",
-        "lang_label": "Språk:",
-        "artist_id": "ARTIST ID:",
-        "atmosphere": "ATMOSFÄR",
-        "reset_design": "❌ NOLLSTÄLL DESIGN",
-        "agree_open": "GODKÄNN & ÖPPNA STUDION",
-        "prompt_label": "VAD SKALL VI SKAPA?",
-        "start_gen": "STARTA GENERERING",
-        "no_units": "Du har slut på Units!",
-        "empty_prompt": "Skriv en prompt först.",
-        "ai_working": "AI arbetar...",
-        "luma_sub": "🎬 LUMA DREAM MACHINE",
-        "need_magic_first": "Skapa en bild i MAGI först!",
-        "select_image_label": "Välj bild:",
-        "instruction": "Instruktion:",
-        "create_video": "SKAPA VIDEO (5 UNITS)",
-        "too_few_units": "För få Units!",
-        "music_desc": "Beskriv beatet:",
-        "create_sound": "SKAPA LJUD",
-        "need_music_desc": "Skriv en beskrivning först.",
-        "composing": "Komponerar...",
-        "archive_empty": "Inga sparade verk.",
-        "work_saved": "Verket är skapat och sparat i ARKIV & FEED.",
-        "no_image": "Ingen bild kunde skapas.",
-        "bg_fail": "Kunde inte generera bakgrund:",
-        "img_fail": "Bildgenerering misslyckades:",
-        "music_fail": "Musikgenerering misslyckades:",
-        "luma_fail": "Luma är upptagen eller kräver betalkonto.",
-        "admin_panel": "ADMIN PANEL",
-        "user_db": "User DB:",
-        "gallery_cleared": "Gallery rensat.",
-        "api_missing": "API TOKEN SAKNAS",
-    }
-}
-
-
-# --- 5. FUNKTIONER FÖR ANVÄNDARE / UNITS ---
-
-def get_or_create_user(user_id: str):
-    db = st.session_state.user_db
-    if user_id not in db:
-        db[user_id] = {
-            "units": 20,
-            "bg_url": None,
-            "gallery": [],
-        }
+def update_user(user_id, data):
+    db = load_user_db()
+    if user_id in db:
+        db[user_id].update(data)
         save_user_db(db)
-    return db[user_id]
 
+# --- 1. SETUP ---
+st.set_page_config(page_title="MAXIMUSIKAI 2026", page_icon="⚡", layout="wide")
 
-def update_user(user_id: str, data: dict):
-    db = st.session_state.user_db
-    db[user_id].update(data)
-    save_user_db(db)
+# Init Session State
+if "units" not in st.session_state: st.session_state.units = 20
+if "current_user" not in st.session_state: st.session_state.current_user = None
+if "gallery" not in st.session_state: st.session_state.gallery = []
 
-
-# --- 6. SIDOPANEL ---
-
-def sidebar_ui():
-    t = texts[st.session_state.lang]
-
-    with st.sidebar:
-        st.markdown(f"### {t['studio']}")
-        lang = st.selectbox(t["lang_label"], list(texts.keys()), index=list(texts.keys()).index(st.session_state.lang))
-        st.session_state.lang = lang
-        t = texts[st.session_state.lang]
-
-        artist_id = st.text_input(t["artist_id"], value=st.session_state.current_user or "")
-        if st.button("🔑 Logga in / skapa"):
-            if artist_id.strip():
-                user = get_or_create_user(artist_id.strip())
-                st.session_state.current_user = artist_id.strip()
-                st.session_state.units = user["units"]
-                st.session_state.app_bg = user.get("bg_url")
-                st.session_state.gallery = user.get("gallery", [])
-                st.success(f"Inloggad som {artist_id}")
-            else:
-                st.warning("Fyll i ett ARTIST ID.")
-
-        st.markdown(f"**{t['status']}:**")
-        st.write(f"{t['units']}: {st.session_state.units}")
-
-        st.markdown(f"**{t['atmosphere']}**")
-        atm = st.radio(
-            " ",
-            [t["atm_space"], t["atm_forest"], t["atm_city"], t["atm_bake"]],
-            label_visibility="collapsed",
-        )
-
-        bg_map = {
-            t["atm_space"]: "https://images.pexels.com/photos/2150/sky-space-dark-galaxy.jpg",
-            t["atm_forest"]: "https://images.pexels.com/photos/4827/nature-forest-trees-fog.jpg",
-            t["atm_city"]: "https://images.pexels.com/photos/373912/pexels-photo-373912.jpeg",
-            t["atm_bake"]: "https://images.pexels.com/photos/230325/pexels-photo-230325.jpeg",
+# --- 2. THE ULTIMATE CYBER DESIGN ---
+def apply_neon_theme():
+    st.markdown("""
+        <style>
+        @import url('https://fonts.googleapis.com');
+        
+        .stApp {
+            background: radial-gradient(circle at 50% 50%, #0d0d1a 0%, #050505 100%) !important;
+            color: #e0e0e0 !important;
         }
-        if st.button(t["set_bg"]):
-            if st.session_state.current_user:
-                st.session_state.app_bg = bg_map.get(atm)
-                update_user(st.session_state.current_user, {"bg_url": st.session_state.app_bg})
-                st.success("Bakgrund uppdaterad.")
-            else:
-                st.warning("Logga in med ARTIST ID först.")
 
-        if st.button(t["reset_design"]):
-            st.session_state.app_bg = None
-            if st.session_state.current_user:
-                update_user(st.session_state.current_user, {"bg_url": None})
-            st.info("Design nollställd.")
+        /* Glassmorphism Containers */
+        div[data-testid="stVerticalBlock"] > div {
+            background: rgba(255, 255, 255, 0.03) !important;
+            backdrop-filter: blur(12px) !important;
+            border-radius: 15px !important;
+            border: 1px solid rgba(0, 210, 255, 0.2) !important;
+            padding: 20px !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8) !important;
+        }
 
+        /* Neon Title */
+        .logo-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem !important;
+            background: linear-gradient(90deg, #00d2ff, #9d50bb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            filter: drop-shadow(0 0 15px rgba(0, 210, 255, 0.5));
+            letter-spacing: 8px;
+        }
 
-# --- 7. TABS ---
+        /* Animated Buttons */
+        .stButton > button {
+            width: 100%;
+            background: linear-gradient(45deg, #00d2ff, #3a7bd5) !important;
+            border: none !important;
+            color: white !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 20px #00d2ff !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-def tab_magi():
-    t = texts[st.session_state.lang]
-    st.subheader("🪄 MAGI – Bildgenerering (mock)")
+apply_neon_theme()
 
-    prompt = st.text_area(t["prompt_label"])
-    col1, col2 = st.columns([1, 2])
+# --- 3. UI - HEADER ---
+st.markdown('<h1 class="logo-text">MAXIMUSIKAI</h1>', unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; opacity:0.6;'>POWERED BY NEURAL ENGINE 2026</p>", unsafe_allow_html=True)
 
+# --- 4. SIDEBAR ---
+with st.sidebar:
+    st.title("⚡ STUDIO CORE")
+    artist_id = st.text_input("ARTIST ID", placeholder="Ditt namn...")
+    if st.button("LOGIN"):
+        db = load_user_db()
+        if artist_id not in db:
+            db[artist_id] = {"units": 20, "gallery": []}
+            save_user_db(db)
+        user = db[artist_id]
+        st.session_state.current_user = artist_id
+        st.session_state.units = user["units"]
+        st.session_state.gallery = user["gallery"]
+        st.success(f"Välkommen, {artist_id}!")
+
+    st.divider()
+    st.metric("ENERGY UNITS", f"{st.session_state.units} ⚡")
+
+# --- 5. TABS LOGIC ---
+tab_magi, tab_regi, tab_arkiv = st.tabs(["🪄 MAGI (IMAGE)", "🎬 REGI (VIDEO)", "📚 ARKIV"])
+
+with tab_magi:
+    col1, col2 = st.columns([2, 1])
     with col1:
-        if st.button(t["start_gen"]):
-            if not st.session_state.current_user:
-                st.warning("Logga in först.")
-                return
-            if not prompt.strip():
-                st.warning(t["empty_prompt"])
-                return
-            if st.session_state.units <= 0:
-                st.error(t["no_units"])
-                return
-
-            with st.spinner(t["ai_working"]):
-                time.sleep(2)
-                img_url = "https://images.pexels.com/photos/1767434/pexels-photo-1767434.jpeg"
-                st.session_state.units -= 1
-
-                work = {
-                    "type": "image",
-                    "prompt": prompt,
-                    "url": img_url,
-                    "timestamp": time.time(),
-                }
-                st.session_state.gallery.append(work)
-                if st.session_state.current_user:
-                    update_user(
-                        st.session_state.current_user,
-                        {
-                            "units": st.session_state.units,
-                            "gallery": st.session_state.gallery,
-                        },
-                    )
-                st.success(t["work_saved"])
-
+        prompt = st.text_area("PROMPT ENGINE", placeholder="Beskriv din vision...")
     with col2:
-        if st.session_state.gallery:
-            last_images = [w for w in st.session_state.gallery if w["type"] == "image"]
-            if last_images:
-                st.markdown("**Senaste bild:**")
-                st.image(last_images[-1]["url"], use_container_width=True)
-        else:
-            st.info("Inga bilder ännu.")
-
-
-def tab_regi():
-    t = texts[st.session_state.lang]
-    st.subheader("🎬 REGI – Video (mock)")
-
-    if not st.session_state.gallery:
-        st.info(t["need_magic_first"])
-        return
-
-    images = [w for w in st.session_state.gallery if w["type"] == "image"]
-    if not images:
-        st.info(t["need_magic_first"])
-        return
-
-    options = [f"Bild {i+1}: {w['prompt'][:40]}" for i, w in enumerate(images)]
-    idx = st.selectbox(t["select_image_label"], range(len(images)), format_func=lambda i: options[i])
-    instruction = st.text_area(t["instruction"])
-
-    if st.button(t["create_video"]):
-        if not st.session_state.current_user:
-            st.warning("Logga in först.")
-            return
-        if st.session_state.units < 5:
-            st.error(t["too_few_units"])
-            return
-        if not instruction.strip():
-            st.warning("Skriv en instruktion först.")
-            return
-
-        with st.spinner(t["ai_working"]):
-            time.sleep(3)
-            st.session_state.units -= 5
-            video_url = "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4"
-            work = {
-                "type": "video",
-                "prompt": instruction,
-                "from_image": images[idx]["url"],
-                "url": video_url,
-                "timestamp": time.time(),
-            }
-            st.session_state.gallery.append(work)
-            if st.session_state.current_user:
-                update_user(
-                    st.session_state.current_user,
-                    {
+        style = st.selectbox("STIL", ["Photorealistic", "Cyberpunk", "Anime", "Oil Painting"])
+        if st.button("GENERATE IMAGE (2 ⚡)"):
+            if st.session_state.units >= 2:
+                with st.spinner("Vibrerar molekyler..."):
+                    time.sleep(2) # Simulering
+                    img_url = f"https://picsum.photos{time.time()}/800/600"
+                    st.session_state.units -= 2
+                    new_item = {"url": img_url, "prompt": prompt}
+                    st.session_state.gallery.append(new_item)
+                    update_user(st.session_state.current_user, {
                         "units": st.session_state.units,
-                        "gallery": st.session_state.gallery,
-                    },
-                )
-            st.success(t["work_saved"])
+                        "gallery": st.session_state.gallery
+                    })
+                    st.image(img_url, use_container_width=True)
+            else:
+                st.error("Slut på energi!")
 
-    if st.session_state.gallery:
-        vids = [w for w in st.session_state.gallery if w["type"] == "video"]
-        if vids:
-            st.markdown("**Senaste video:**")
-            st.video(vids[-1]["url"])
-
-
-def tab_musik():
-    t = texts[st.session_state.lang]
-    st.subheader("🎧 MUSIK – Ljud (mock)")
-
-    desc = st.text_area(t["music_desc"])
-
-    if st.button(t["create_sound"]):
-        if not st.session_state.current_user:
-            st.warning("Logga in först.")
-            return
-        if not desc.strip():
-            st.warning(t["need_music_desc"])
-            return
-        if st.session_state.units <= 0:
-            st.error(t["no_units"])
-            return
-
-        with st.spinner(t["composing"]):
-            time.sleep(2)
-            st.session_state.units -= 1
-            audio_url = "https://www2.cs.uic.edu/~i101/SoundFiles/StarWars60.wav"
-            work = {
-                "type": "audio",
-                "prompt": desc,
-                "url": audio_url,
-                "timestamp": time.time(),
-            }
-            st.session_state.gallery.append(work)
-            if st.session_state.current_user:
-                update_user(
-                    st.session_state.current_user,
-                    {
-                        "units": st.session_state.units,
-                        "gallery": st.session_state.gallery,
-                    },
-                )
-            st.success(t["work_saved"])
-
-    if st.session_state.gallery:
-        audios = [w for w in st.session_state.gallery if w["type"] == "audio"]
-        if audios:
-            st.markdown("**Senaste ljud:**")
-            st.audio(audios[-1]["url"])
-
-
-def tab_arkiv():
-    t = texts[st.session_state.lang]
-    st.subheader("📚 ARKIV")
-
+with tab_regi:
+    st.info("Luma Dream Machine API integreras här...")
     if not st.session_state.gallery:
-        st.info(t["archive_empty"])
-        return
+        st.warning("Skapa en bild i MAGI först för att rendera video.")
+    else:
+        selected_img = st.selectbox("Välj bild som bas:", [i["prompt"][:30] for i in st.session_state.gallery])
+        st.button("RENDER MOTION (5 ⚡)")
 
-    for i, w in enumerate(sorted(st.session_state.gallery, key=lambda x: x["timestamp"], reverse=True)):
-        st.markdown(f"### #{i+1} – {w['type'].upper()}")
-        st.write(f"Prompt: {w['prompt']}")
-        if w["type"] == "image":
-            st.image(w["url"], use_container_width=True)
-        elif w["type"] == "video":
-            st.video(w["url"])
-        elif w["type"] == "audio":
-            st.audio(w["url"])
-        st.markdown("---")
-
-
-def tab_feed():
-    t = texts[st.session_state.lang]
-    st.subheader("🌐 FEED")
-
-    if not st.session_state.gallery:
-        st.info(t["archive_empty"])
-        return
-
-    st.write("En enkel feed över dina senaste verk:")
-    for w in sorted(st.session_state.gallery, key=lambda x: x["timestamp"], reverse=True)[:10]:
-        st.markdown(f"**{w['type'].upper()}** – {w['prompt'][:80]}")
-        if w["type"] == "image":
-            st.image(w["url"], use_container_width=True)
-        elif w["type"] == "video":
-            st.video(w["url"])
-        elif w["type"] == "audio":
-            st.audio(w["url"])
-        st.markdown("---")
-
-
-def tab_admin():
-    t = texts[st.session_state.lang]
-    st.subheader(f"⚙️ {t['admin_panel']}")
-
-    st.markdown("### " + t["user_db"])
-    st.json(st.session_state.user_db)
-
-    if st.button("🧹 Rensa gallery (endast session)"):
-        st.session_state.gallery = []
-        st.success(t["gallery_cleared"])
-
-    if st.session_state.current_user:
-        if st.button("➕ Ge mig 50 units (dev)"):
-            st.session_state.units += 50
-            update_user(st.session_state.current_user, {"units": st.session_state.units})
-            st.success(f"
+with tab_arkiv:
+    if st.session_state.gallery:
+        cols = st.columns(3)
+        for idx, item in enumerate(reversed(st.session_state.gallery)):
+            with cols[idx % 3]:
+                st.image(item["url"])
+                st.caption(item["prompt"])
+    else:
+        st.write("Ditt arkiv är tomt.")
