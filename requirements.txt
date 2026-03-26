@@ -1,7 +1,7 @@
-replicate
+requirements.txt
 streamlit-lottie
+replicate
 requests
-
 
 
 
