@@ -3,21 +3,56 @@ import replicate
 import os
 import random
 
-# --- 1. HJÄLPFUNKTIONER ---
+# --- 1. SPRÅK-DATA ---
+TEXTS = {
+    "Svenska": {
+        "title": "MAXIMUSIK AI",
+        "synth": "🪄 SYNTH",
+        "audio": "🎧 AUDIO",
+        "library": "📚 ARKIV",
+        "engine": "🖼 ENGINE",
+        "system": "⚙️ SYSTEM",
+        "prompt_label": "VAD SKALL VI SKAPA?",
+        "execute": "STARTA NEURAL SYNTH",
+        "random": "🎲 SLUMPA",
+        "bg_set": "SÄTT SOM BAKGRUND",
+        "empty_lib": "Arkivet är tomt.",
+        "lang_label": "VÄLJ SPRÅK:",
+        "accent_label": "UI ACCENT FÄRG:",
+        "reset": "HARD RESET (RENSA ALLT)"
+    },
+    "English": {
+        "title": "MAXIMUSIK AI",
+        "synth": "🪄 SYNTH",
+        "audio": "🎧 AUDIO",
+        "library": "📚 LIBRARY",
+        "engine": "🖼 ENGINE",
+        "system": "⚙️ SYSTEM",
+        "prompt_label": "WHAT SHALL WE CREATE?",
+        "execute": "EXECUTE NEURAL SYNTH",
+        "random": "🎲 RANDOM",
+        "bg_set": "SET AS BACKGROUND",
+        "empty_lib": "The library is empty.",
+        "lang_label": "SELECT LANGUAGE:",
+        "accent_label": "UI ACCENT COLOR:",
+        "reset": "HARD RESET (CLEAR ALL)"
+    }
+}
+
+# --- 2. HJÄLPFUNKTIONER ---
 def get_url(res):
-    """Säkerställer att vi får en sträng-URL från Replicates output"""
     if isinstance(res, list) and len(res) > 0:
         return str(res[0])
     return str(res)
 
 def enhance_prompt(user_input):
-    styles = ["8k cinematic", "hyper-detailed", "neon lighting", "volumetric fog", "masterpiece", "synthwave aesthetic"]
+    styles = ["8k cinematic", "hyper-detailed", "neon lighting", "volumetric fog", "masterpiece", "synthwave"]
     if not user_input:
-        subjects = ["Cyberpunk city", "Deep space nebula", "Interstellar portal", "Android DJ", "Alien crystal world"]
+        subjects = ["Cyberpunk city", "Deep space nebula", "Interstellar portal", "Android DJ"]
         user_input = random.choice(subjects)
     return f"{user_input}, {', '.join(random.sample(styles, 3))}"
 
-# --- 2. CONFIG & SESSION ---
+# --- 3. CONFIG & SESSION ---
 st.set_page_config(page_title="MAXIMUSIK AI OS", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -25,6 +60,7 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 
 states = {
     "page": "DESKTOP",
+    "lang": "Svenska",
     "wallpaper": "https://images.unsplash.com",
     "library": [],
     "res_img": None,
@@ -36,7 +72,9 @@ for key, val in states.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-# --- 3. CSS ENGINE ---
+T = TEXTS[st.session_state.lang]
+
+# --- 4. CSS ENGINE ---
 def apply_ui():
     accent = st.session_state.accent_color
     st.markdown(f"""
@@ -48,104 +86,81 @@ def apply_ui():
         }}
         [data-testid="stHeader"], .main {{ background: transparent !important; }}
         .window-box {{
-            background: rgba(0, 5, 12, 0.95);
-            backdrop-filter: blur(40px);
-            border: 1px solid {accent}44;
-            border-radius: 40px; padding: 40px; color: white;
-            box-shadow: 0 50px 100px rgba(0,0,0,0.8);
+            background: rgba(0, 5, 12, 0.95); backdrop-filter: blur(40px);
+            border: 1px solid {accent}44; border-radius: 40px; padding: 40px; color: white;
         }}
         .stButton > button {{
-            background: rgba(255, 255, 255, 0.05) !important;
-            border: 1px solid {accent}33 !important;
-            color: white !important; border-radius: 20px !important; height: 100px !important;
-            font-size: 1.1rem !important; transition: 0.4s !important;
+            background: rgba(255, 255, 255, 0.05) !important; border: 1px solid {accent}33 !important;
+            color: white !important; border-radius: 20px !important; height: 100px !important; transition: 0.4s !important;
         }}
-        .stButton > button:hover {{ border-color: {accent} !important; box-shadow: 0 0 30px {accent}44 !important; transform: scale(1.05); }}
+        .stButton > button:hover {{ border-color: {accent} !important; box-shadow: 0 0 30px {accent}44 !important; }}
         </style>
     """, unsafe_allow_html=True)
 
 apply_ui()
 
-# --- 4. DESKTOP ---
+# --- 5. DESKTOP ---
 if st.session_state.page == "DESKTOP":
-    st.markdown("<h1 style='text-align:center; color:white; letter-spacing:15px; padding-top:10vh; text-shadow: 0 0 20px #00f2ff;'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align:center; color:white; letter-spacing:15px; padding-top:10vh; text-shadow: 0 0 20px {st.session_state.accent_color};'>{T['title']}</h1>", unsafe_allow_html=True)
     cols = st.columns(5)
-    apps = [("🪄 SYNTH", "SYNTH"), ("🎧 AUDIO", "AUDIO"), ("📚 ARKIV", "LIBRARY"), ("🖼 ENGINE", "ENGINE"), ("⚙️ SYSTEM", "SYSTEM")]
+    apps = [(T['synth'], "SYNTH"), (T['audio'], "AUDIO"), (T['library'], "LIBRARY"), (T['engine'], "ENGINE"), (T['system'], "SYSTEM")]
     for i, (label, target) in enumerate(apps):
         with cols[i]:
             if st.button(label, use_container_width=True):
                 st.session_state.page = target; st.rerun()
 
-# --- 5. WINDOWS ---
+# --- 6. WINDOWS ---
 else:
     _, win_col, _ = st.columns([0.05, 0.9, 0.05])
     with win_col:
         st.markdown('<div class="window-box">', unsafe_allow_html=True)
         h1, h2 = st.columns([0.9, 0.1])
         h1.title(f"// {st.session_state.page}")
-        if h2.button("✕", key="close_btn"): st.session_state.page = "DESKTOP"; st.rerun()
+        if h2.button("✕"): st.session_state.page = "DESKTOP"; st.rerun()
 
-        # --- SYNTH (Bilder) ---
         if st.session_state.page == "SYNTH":
-            col1, col2 = st.columns([0.7, 0.3])
+            col1, col2 = st.columns([0.8, 0.2])
             with col2:
-                if st.button("🎲 SLUMPA"): 
-                    st.session_state.input_text = enhance_prompt(""); st.rerun()
-            u_input = col1.text_area("VAD SKALL VI SKAPA?", value=st.session_state.input_text)
-            
-            if st.button("EXECUTE NEURAL SYNTH", use_container_width=True):
+                if st.button(T['random']): st.session_state.input_text = enhance_prompt(""); st.rerun()
+            u_input = col1.text_area(T['prompt_label'], value=st.session_state.input_text)
+            if st.button(T['execute'], use_container_width=True):
                 enhanced = enhance_prompt(u_input)
-                with st.spinner("Neural Sync..."):
+                with st.spinner("Syncing..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": enhanced})
-                    url = get_url(res) # HÄR FIXAR VI FELET
+                    url = get_url(res)
                     st.session_state.res_img = url
                     st.session_state.library.append({"type": "image", "url": url, "prompt": enhanced})
                     st.rerun()
-            if st.session_state.res_img: 
-                st.image(st.session_state.res_img)
+            if st.session_state.res_img: st.image(st.session_state.res_img)
 
-        # --- AUDIO (Musik) ---
         elif st.session_state.page == "AUDIO":
-            ap = st.text_input("BESKRIV BEATET:", value=st.session_state.input_text)
-            if st.button("COMPOSE MUSIC", use_container_width=True):
-                final_p = ap if ap else "Epic dark synthwave beat"
-                with st.spinner("Komponerar..."):
-                    res = replicate.run("meta/musicgen:b05b39c7", input={"prompt": final_p, "duration": 10})
+            ap = st.text_input(T['prompt_label'], value=st.session_state.input_text)
+            if st.button(T['execute'], use_container_width=True):
+                with st.spinner("Composing..."):
+                    res = replicate.run("meta/musicgen:b05b39c7", input={"prompt": ap or "Space ambient", "duration": 10})
                     st.session_state.res_audio = res
-                    st.session_state.library.append({"type": "audio", "url": res, "prompt": final_p})
+                    st.session_state.library.append({"type": "audio", "url": res, "prompt": ap})
                     st.rerun()
             if st.session_state.res_audio: st.audio(st.session_state.res_audio)
 
-        # --- LIBRARY (Arkiv) ---
         elif st.session_state.page == "LIBRARY":
-            if not st.session_state.library: st.info("Arkivet är tomt.")
+            if not st.session_state.library: st.info(T['empty_lib'])
             else:
                 for idx, item in enumerate(reversed(st.session_state.library)):
-                    with st.expander(f"{item['type'].upper()}: {item['prompt'][:50]}..."):
+                    with st.expander(f"{item['type'].upper()}: {item['prompt'][:30]}..."):
                         if item['type'] == "image":
                             st.image(item['url'], use_container_width=True)
-                            if st.button("SÄTT SOM BAKGRUND", key=f"bg_{idx}"):
+                            if st.button(T['bg_set'], key=f"bg_{idx}"):
                                 st.session_state.wallpaper = item['url']; st.rerun()
                         else: st.audio(item['url'])
 
-        # --- ENGINE (Miljö/Bakgrund) ---
-        elif st.session_state.page == "ENGINE":
-            ep = st.text_input("MILJÖ-PROMPT:", value=st.session_state.input_text)
-            if st.button("UPDATE REALITY"):
-                enhanced = enhance_prompt(ep)
-                with st.spinner("Rewriting Reality..."):
-                    res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": enhanced, "aspect_ratio": "16:9"})
-                    url = get_url(res) # FIX HÄR OCKSÅ
-                    st.session_state.wallpaper = url
-                    st.session_state.library.append({"type": "image", "url": url, "prompt": enhanced})
-                    st.rerun()
-
-        # --- SYSTEM (Inställningar) ---
         elif st.session_state.page == "SYSTEM":
-            st.session_state.accent_color = st.color_picker("UI ACCENT FÄRG:", st.session_state.accent_color)
-            if st.button("HARD RESET"): st.session_state.clear(); st.rerun()
+            st.session_state.lang = st.radio(T['lang_label'], ["Svenska", "English"], index=0 if st.session_state.lang == "Svenska" else 1)
+            st.session_state.accent_color = st.color_picker(T['accent_label'], st.session_state.accent_color)
+            if st.button(T['reset']): st.session_state.clear(); st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
