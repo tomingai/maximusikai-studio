@@ -25,7 +25,6 @@ def apply_space_ui():
         }
         .main, .stAppHeader, .stAppViewBlockContainer { background: transparent !important; }
         
-        /* RENA, STORA DESKTOP-IKONER */
         .desktop-icon {
             background-size: cover; background-position: center;
             border: 2px solid rgba(0, 242, 255, 0.4); border-radius: 30px;
@@ -43,7 +42,6 @@ def apply_space_ui():
         }
         .stButton>button { position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; z-index: 10; cursor: pointer; }
         
-        /* WINDOW GLASSMORPHISM */
         .window-pane {
             background: rgba(0, 0, 0, 0.9) !important; backdrop-filter: blur(40px);
             border: 1px solid rgba(0, 242, 255, 0.3); border-radius: 40px;
@@ -54,7 +52,7 @@ def apply_space_ui():
 
 apply_space_ui()
 
-# --- 3. SKRIVBORDS-VY (START) ---
+# --- 3. SKRIVBORDS-VY ---
 if st.session_state.active_window is None:
     st.markdown("<br><br><h1 style='text-align:center; color:white; font-size:6rem; font-weight:900;'>MAXIMUSIKAI</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:15px; margin-bottom:80px;'>ULTRA_CORE_V6</p>", unsafe_allow_html=True)
@@ -76,7 +74,7 @@ if st.session_state.active_window is None:
             st.session_state.active_window = "VIDEO"
             st.rerun()
 
-# --- 4. FÖNSTER-VY (INNEHÅLL) ---
+# --- 4. FÖNSTER-VY ---
 else:
     st.markdown("<br><br>", unsafe_allow_html=True)
     _, win_col, _ = st.columns([0.05, 1, 0.05])
@@ -91,10 +89,10 @@ else:
         st.markdown("<hr style='border:0.5px solid rgba(0,242,255,0.2); margin:25px 0;'>", unsafe_allow_html=True)
 
         if st.session_state.active_window == "SYNTHESIS":
-            st.subheader("🎨 Bild-generator (FLUX)")
+            st.subheader("🎨 Bild-generator")
             c1, c2 = st.columns(2)
             with c1:
-                p = st.text_area("VAD VILL DU GENERERA?", placeholder="En rymd-skog i neon...")
+                p = st.text_area("VAD VILL DU GENERERA?", placeholder="En rymd-skog...")
                 if st.button("STARTA GENERERING", use_container_width=True):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
                     st.session_state.last_res = res
@@ -103,23 +101,19 @@ else:
                 if st.session_state.last_res: st.image(st.session_state.last_res, use_container_width=True)
 
         elif st.session_state.active_window == "AUDIO":
-            st.subheader("🎵 Musik-kompositör (MusicGen)")
-            ap = st.text_area("VILKEN TYP AV MUSIK?", placeholder="Lo-fi beats in space...")
+            st.subheader("🎵 Musik-kompositör")
+            ap = st.text_area("VILKEN TYP AV MUSIK?")
             if st.button("KOMPONERA", use_container_width=True):
-                with st.status("Skapar ljudvågor..."):
-                    res = replicate.run("meta/musicgen:671ac645cf51591bc3754da5ff3f4523d44373308dfc9496883cd2050119e8de", input={"prompt": ap})
-                    st.session_state.last_audio = res
+                res = replicate.run("meta/musicgen:671ac645cf51591bc3754da5ff3f4523d44373308dfc9496883cd2050119e8de", input={"prompt": ap})
+                st.session_state.last_audio = res
                 st.rerun()
             if st.session_state.last_audio: st.audio(st.session_state.last_audio)
 
         elif st.session_state.active_window == "VIDEO":
             st.subheader("🎬 Video-modul")
-            st.write("Här kan du titta på rymd-klipp eller generera nya.")
             st.video("https://www.w3schools.com")
-            st.info("Koppling till Stable Video Diffusion kommer snart.")
 
         st.markdown('</div>', unsafe_allow_html=True)
-True)
 
 
 
