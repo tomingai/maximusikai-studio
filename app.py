@@ -3,116 +3,131 @@ import replicate
 import os
 import time
 
-# --- 1. CORE ENGINE ---
-st.set_page_config(page_title="MAXIMUSIKAI 2026", page_icon="⚡", layout="wide")
+# --- 1. CONFIG & UI ENGINE ---
+st.set_page_config(page_title="MAXIMUSIKAI STUDIO", page_icon="⚡", layout="wide", initial_sidebar_state="collapsed")
 
-if "gallery" not in st.session_state: st.session_state.gallery = []
-
-# --- 2. THE BLACK STUDIO DESIGN (PRO) ---
-def apply_premium_design():
+# --- 2. THE JUKEBOX-INSPIRED SHADER (CSS) ---
+def apply_jukebox_design():
     st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com');
         
-        /* BAKGRUND: Deep Ink med filmiskt brus */
+        /* Bakgrund: Djup kolsvart med subtil textur */
         .stApp {
-            background-color: #050505 !important;
-            background-image: radial-gradient(circle at 50% -20%, #1a1a2e, #050505) !important;
-        }
-        
-        /* FILM-NOISE (Gör att det inte ser billigt/platt ut) */
-        .stApp::after {
-            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            opacity: 0.04; pointer-events: none; z-index: 999;
-            background-image: url("https://upload.wikimedia.org");
+            background-color: #0b0b0e !important;
+            background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.02) 1px, transparent 0);
+            background-size: 40px 40px;
         }
 
-        /* PREMIUM PANELER: Glassmorphism med inre glöd */
+        /* Sidebar: Smal och industriell */
+        [data-testid="stSidebar"] {
+            background-color: #000000 !important;
+            border-right: 1px solid #1a1a1a;
+            width: 80px !important;
+        }
+
+        /* Paneler: Inga hörn, bara mjukt ljus */
         div[data-testid="stVerticalBlock"] > div {
-            background: rgba(20, 20, 25, 0.7) !important;
-            backdrop-filter: blur(40px) !important;
-            border: 1px solid rgba(255, 255, 255, 0.08) !important;
-            border-radius: 24px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.05);
+            background: #111114 !important;
+            border: 1px solid #1c1c21 !important;
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+        div[data-testid="stVerticalBlock"] > div:hover {
+            border-color: #33333b !important;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.5);
         }
 
-        /* TEXT: Minimalistisk & Tydlig */
+        /* Typography */
         h1, h2, h3, p, label {
-            color: #ffffff !important;
-            font-family: 'Space Grotesk', sans-serif !important;
-            letter-spacing: -0.02em;
-        }
-
-        /* INPUTS: Stealth Look */
-        textarea, input {
-            background-color: rgba(0, 0, 0, 0.4) !important;
-            color: #e0e0e0 !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            border-radius: 12px !important;
+            color: #ececed !important;
             font-family: 'Inter', sans-serif !important;
-            padding: 15px !important;
+            letter-spacing: -0.01em;
         }
-        textarea:focus { border-color: #00f2ff !important; }
 
-        /* KNAPPAR: Liquid Silver / Neon */
+        /* Input: "The Console Look" */
+        textarea, input {
+            background-color: #08080a !important;
+            color: #00f2ff !important;
+            border: 1px solid #1c1c21 !important;
+            border-radius: 8px !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 14px !important;
+        }
+
+        /* Knappar: Jukebox-blå (Electric) */
         .stButton>button {
-            background: #ffffff !important;
-            color: #000000 !important;
-            border-radius: 12px !important;
-            font-family: 'Space Grotesk', sans-serif !important;
-            font-weight: 700 !important;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            height: 55px !important;
+            background: #0052ff !important;
+            color: white !important;
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            height: 48px !important;
             border: none !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0, 82, 255, 0.2);
         }
         .stButton>button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(255,255,255,0.15);
+            background: #1a66ff !important;
+            box-shadow: 0 8px 20px rgba(0, 82, 255, 0.4);
+            transform: translateY(-1px);
         }
 
-        .logo-text {
-            font-family: 'Space Grotesk'; font-size: 3rem; font-weight: 900;
-            text-align: center; color: #fff; letter-spacing: -2px; margin-bottom: 30px;
-        }}
+        /* Status-indikatorer */
+        .status-dot {
+            height: 8px; width: 8px; background-color: #00ff88;
+            border-radius: 50%; display: inline-block; margin-right: 8px;
+            box-shadow: 0 0 10px #00ff88;
+        }
         </style>
     """, unsafe_allow_html=True)
 
-# --- 3. STUDIO UI ---
-apply_premium_design()
-st.markdown('<div class="logo-text">MAXIMUSIKAI.</div>', unsafe_allow_html=True)
+# --- 3. STUDIO LAYOUT ---
+apply_jukebox_design()
 
-# --- 4. COMMAND INTERFACE ---
-col_main, col_side = st.columns([2, 1])
+# Header Area
+col_logo, col_stat = st.columns([4, 1])
+with col_logo:
+    st.markdown("<h1 style='margin:0;'>MAXIMUSIKAI <span style='color:#0052ff;'>STUDIO</span></h1>", unsafe_allow_html=True)
+with col_stat:
+    st.markdown("<div style='text-align:right; padding-top:10px;'><span class='status-dot'></span>SYSTEM ONLINE</div>", unsafe_allow_html=True)
 
-with col_main:
-    prompt = st.text_area("DESCRIBE YOUR VISION", placeholder="Start typing...", height=150)
+st.write("---")
+
+# Main Workspace
+col_input, col_preview = st.columns([1, 1.5])
+
+with col_input:
+    st.markdown("### 🎛️ CONTROL")
+    prompt = st.text_area("NEURAL PROMPT", placeholder="Describe your vision...", height=150)
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        ratio = st.selectbox("FORMAT", ["1:1", "16:9", "9:16"])
+    with c2:
+        quality = st.select_slider("QUALITY", options=["Draft", "Pro", "Ultra"])
+        
     if st.button("EXECUTE SYNTHESIS", use_container_width=True):
         if prompt:
-            with st.status("Neural link active...") as status:
+            with st.status("Initializing Cores..."):
                 os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
+                # Prompt Engineering för Pro-resultat
+                enhanced = f"{prompt}, professional studio quality, high-fidelity, masterpiece"
                 res = replicate.run("black-forest-labs/flux-schnell", 
-                                   input={"prompt": f"Professional cinematic, {prompt}, masterpiece, 8k", "aspect_ratio": "9:16"})
-                st.session_state.gallery.append(res)
+                                   input={"prompt": enhanced, "aspect_ratio": ratio})
+                st.session_state.last_res = res
                 st.rerun()
 
-with col_side:
-    st.markdown("### SYSTEM STATUS")
-    st.write("CORE: OPTIMAL")
-    st.write("SYNC: 100%")
-    st.divider()
-    st.markdown("### FORMAT")
-    st.selectbox("ASPECT RATIO", ["9:16 PORTRAIT", "1:1 SQUARE", "16:9 WIDE"])
+with col_preview:
+    st.markdown("### 📺 OUTPUT")
+    if "last_res" in st.session_state:
+        st.image(st.session_state.last_res, use_container_width=True, caption="RENDER_COMPLETE")
+    else:
+        st.info("Awaiting input parameters...")
 
-# --- 5. VAULT (GALLERY) ---
-if st.session_state.gallery:
-    st.markdown("---")
-    st.markdown("### STUDIO VAULT")
-    cols = st.columns(3)
-    for idx, img in enumerate(reversed(st.session_state.gallery)):
-        with cols[idx % 3]:
-            st.image(img, use_container_width=True)
+# --- 4. FEED / VAULT ---
+st.write("---")
+st.markdown("### 📚 RECENT ASSETS")
+# Här skulle vi ha ett snyggt grid med tidigare skapelser
+st.caption("v4.8 Build 2026.04 | Powered by Neural Engine")
 
 
