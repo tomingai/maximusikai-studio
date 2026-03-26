@@ -54,30 +54,46 @@ def add_to_gallery(artist, name, img_url, audio_url):
     save_db(db)
 
 # =========================
-# 1. DESIGN & STYLING (Låst)
+# 1. DESIGN & STYLING (Låst med sidebar-fix)
 # =========================
 def apply_custom_design():
-    # Använder din specifika CSS som bas
     st.markdown(
         """
         <style>
+        /* Huvudappen */
         .stApp {
             background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), 
-                        url("https://replicate.delivery/xezq/3eggaKGsENwbVK4vYn5CnxXAyaYuDpdEc5KBva5BHPfRfipsA/out-0.webp") !important;
+                        url("https://replicate.delivery") !important;
             background-size: cover !important;
             background-position: center !important;
             background-attachment: fixed !important;
             color: white;
         }
-        .stMarkdown, label, p, h1, h2, h3 {
+
+        /* Sidomenyn (Vänster flik) */
+        [data-testid="stSidebar"] {
+            background: rgba(0, 0, 0, 0.3) !important; /* Gör den genomskinlig */
+            backdrop-filter: blur(10px); /* Valfritt: ger en snygg glaseffekt */
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Textfärger för allt */
+        .stMarkdown, label, p, h1, h2, h3, [data-testid="stMetricValue"] {
             color: white !important;
         }
-        /* Gör flikarna snyggare mot den mörka bakgrunden */
+
+        /* Tabs styling */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 20px;
-            background-color: rgba(0,0,0,0.2);
-            padding: 10px;
+            background-color: rgba(0,0,0,0.4);
             border-radius: 10px;
+            padding: 5px;
+        }
+        
+        /* Input fält */
+        .stTextInput input, .stTextArea textarea {
+            background-color: rgba(255,255,255,0.1) !important;
+            color: white !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
         }
         </style>
         """,
@@ -90,7 +106,7 @@ def apply_custom_design():
 def generate_image(prompt):
     try:
         res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
-        return str(res[0]) if isinstance(res, list) else str(res)
+        return str(res) if isinstance(res, list) else str(res)
     except Exception as e:
         st.error(f"AI-fel: {e}")
         return None
@@ -113,26 +129,26 @@ st.set_page_config(page_title="MAXIMUSIKAI STUDIO", layout="wide")
 init_user_db()
 apply_custom_design()
 
-# Sessions-hantering
 if "artist" not in st.session_state: st.session_state.artist = "ANONYM"
 if "agreed" not in st.session_state: st.session_state.agreed = False
 
-# API-Token setup
 token = st.secrets.get("REPLICATE_API_TOKEN")
 if token: os.environ["REPLICATE_API_TOKEN"] = token
 
-# Sidomeny
+# Sidomeny (Nu stylad)
 with st.sidebar:
-    st.title("⚙️ STUDIO")
-    st.session_state.artist = st.text_input("ARTIST ID:", st.session_state.artist).upper()
+    st.title("⚡ STUDIO")
+    artist_input = st.text_input("ARTIST ID:", st.session_state.artist).upper()
+    if artist_input: st.session_state.artist = artist_input
+    
     user = load_user(st.session_state.artist)
-    st.metric("UNITS", f"⚡ {user['units']}")
+    st.metric("DINA UNITS", f"⚡ {user['units']}")
     st.divider()
-    st.write("Skapad av TOMAS2026")
+    st.caption("MAXIMUSIKAI v2.0")
 
 # Startskärm
 if not st.session_state.agreed:
-    st.title("⚡ MAXIMUSIKAI SUPER STUDIO")
+    st.markdown("<h1 style='text-align:center;'>MAXIMUSIKAI SUPER STUDIO</h1>", unsafe_allow_html=True)
     if st.button("ÖPPNA STUDION", use_container_width=True):
         st.session_state.agreed = True
         st.rerun()
@@ -142,25 +158,25 @@ if not st.session_state.agreed:
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🪄 MAGI", "🎬 REGI", "🎧 MUSIK", "📚 ARKIV", "⚙️ ADMIN"])
 
 with tab1: # MAGI
-    prompt = st.text_area("Vad ska vi visualisera?", placeholder="En futuristisk synth-värld...")
-    if st.button("GENERERA BILD", use_container_width=True):
+    prompt = st.text_area("Beskriv din vision...", placeholder="En cyborg i en regnig neonstad...")
+    if st.button("GENERERA", use_container_width=True):
         if user['units'] > 0 or st.session_state.artist == "TOMAS2026":
-            with st.spinner("Skapar bild..."):
+            with st.spinner("Skapar..."):
                 img = generate_image(prompt)
                 if img:
                     if st.session_state.artist != "TOMAS2026":
                         update_user(st.session_state.artist, "units", user['units'] - 1)
                     add_to_gallery(st.session_state.artist, prompt, img, None)
-                    st.image(img, caption=prompt)
-                    st.success("Bild sparad i Arkivet!")
+                    st.image(img)
+                    st.success("Sparad i Arkivet!")
         else:
             st.error("Slut på Units!")
 
 with tab2: # REGI
-    st.info("Här kommer vi kunna animera dina bilder till video snart.")
+    st.info("Här kommer video-generering att aktiveras snart.")
 
 with tab3: # MUSIK
-    m_prompt = st.text_input("Beskriv ljudet/beatet:")
+    m_prompt = st.text_input("Vad för sorts musik?")
     if st.button("SKAPA LJUD"):
         with st.spinner("Komponerar..."):
             audio = generate_music(m_prompt)
@@ -171,7 +187,7 @@ with tab3: # MUSIK
 with tab4: # ARKIV
     gallery = load_db().get(st.session_state.artist, {}).get("gallery", [])
     if not gallery:
-        st.write("Ditt arkiv är tomt.")
+        st.write("Tomt i arkivet.")
     for item in reversed(gallery):
         with st.expander(f"📦 {item['name']}"):
             if item['url']: st.image(item['url'])
@@ -179,11 +195,12 @@ with tab4: # ARKIV
 
 with tab5: # ADMIN
     if st.session_state.artist == "TOMAS2026":
+        st.subheader("Admin Panel")
         db = load_db()
         target = st.selectbox("Välj användare", list(db.keys()))
         amount = st.number_input("Units", 0, 1000, 20)
         if st.button("Ge Units"):
             update_user(target, "units", amount)
-            st.success("Klart!")
+            st.success("Uppdaterat!")
     else:
-        st.warning("Endast för Admin.")
+        st.warning("Endast för TOMAS2026.")
