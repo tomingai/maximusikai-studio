@@ -51,7 +51,7 @@ def apply_ui():
         }}
         .main, .stAppHeader, .stAppViewBlockContainer {{ background: transparent !important; }}
 
-        /* KNAPPAR */
+        /* KNAPPAR SKRIVBORD */
         div[data-testid="stButton"] > button {{
             width: 200px !important; height: 200px !important;
             border-radius: 50px !important; border: 1px solid {accent}33 !important;
@@ -62,35 +62,42 @@ def apply_ui():
         }}
         
         div[data-testid="stButton"] > button p {{
-            font-size: 8rem !important; 
-            margin: 0 !important;
-            line-height: 1 !important;
+            font-size: 8rem !important; margin: 0 !important; line-height: 1 !important;
         }}
 
-        div[data-testid="stButton"] > button:hover {{
-            transform: scale(1.05) !important;
-            border-color: {accent} !important;
-            background: rgba(255, 255, 255, 0.1) !important;
+        /* ALLA MINDRE KNAPPAR (INUTI FÖNSTER) */
+        div[data-testid="stButton"] button {{
+            font-size: 0.65rem !important;
+            letter-spacing: 2px !important;
+            text-transform: uppercase !important;
         }}
 
-        /* MINSKAD TEXTSTORLEK */
+        /* MINSKAD TEXTSTORLEK GENERELT */
         .space-title {{ 
-            text-align: center; color: white; font-size: 3.5rem; font-weight: 900; 
+            text-align: center; color: white; font-size: 3rem; font-weight: 900; 
             letter-spacing: -1px; margin-top: 50px; text-shadow: 0 0 20px {accent}44; 
         }}
         .world-status {{ 
             text-align: center; color: {accent}; font-family: monospace; 
             font-weight: bold; margin-top: 5px; letter-spacing: 8px; 
-            font-size: 0.8rem; text-transform: uppercase; opacity: 0.6; 
+            font-size: 0.7rem; text-transform: uppercase; opacity: 0.5; 
         }}
         .label {{ 
             text-align: center; color: {accent}; font-family: monospace; 
             font-weight: bold; margin-top: 15px; letter-spacing: 3px; 
-            font-size: 0.7rem; text-transform: uppercase; opacity: 0.8;
+            font-size: 0.65rem; text-transform: uppercase; opacity: 0.8;
         }}
         .window {{ 
             background: rgba(0, 5, 10, 0.98) !important; backdrop-filter: blur(40px); 
             border: 1px solid {accent}22; border-radius: 30px; padding: 40px; color: white; 
+        }}
+        
+        /* Input fält & Textarea */
+        textarea, input {{
+            font-size: 0.8rem !important;
+            font-family: monospace !important;
+            background: rgba(255,255,255,0.02) !important;
+            color: {accent} !important;
         }}
         </style>
     """, unsafe_allow_html=True)
@@ -100,7 +107,7 @@ apply_ui()
 # --- 4. DESKTOP ---
 if st.session_state.active_window is None:
     st.markdown("<h1 class='space-title'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p class='world-status'>{st.session_state.world_name}</p>", unsafe_allow_html=True)
+    st.markdown(f<p class='world-status'>{st.session_state.world_name}</p>", unsafe_allow_html=True)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     _, c1, c2, c3, c4, c5, _ = st.columns([0.1, 1, 1, 1, 1, 1, 0.1])
@@ -129,26 +136,25 @@ else:
     with win_col:
         st.markdown('<div class="window">', unsafe_allow_html=True)
         h1, h2 = st.columns([0.9, 0.1])
-        h1.markdown(f"<h2 style='color:white; font-size:1.8rem; font-family:monospace; opacity:0.9;'>// {st.session_state.active_window}</h2>", unsafe_allow_html=True)
+        h1.markdown(f"<h2 style='color:white; font-size:1.4rem; font-family:monospace; opacity:0.8;'>// {st.session_state.active_window}</h2>", unsafe_allow_html=True)
         if h2.button("✕", key="close"):
             st.session_state.active_window = None
             st.rerun()
         
-        st.markdown(f"<hr style='border:1px solid {st.session_state.accent_color}22; margin:25px 0;'>", unsafe_allow_html=True)
+        st.markdown(f"<hr style='border:1px solid {st.session_state.accent_color}22; margin:20px 0;'>", unsafe_allow_html=True)
 
         if st.session_state.active_window == "BG_ENGINE":
-            st.write("### 🌍 BACKGROUND_SYNTH")
-            col_l, col_r = st.columns([0.7, 0.3])
+            col_l, col_r = st.columns([0.75, 0.25])
             with col_r:
-                if st.button("🧠 RANDOM_PROMPT", use_container_width=True):
+                if st.button("🧠 RANDOM", use_container_width=True):
                     st.session_state.temp_prompt = generate_random_prompt()
                     st.rerun()
             
-            bg_p = st.text_area("PROMPT:", value=st.session_state.get('temp_prompt', ''), height=100)
-            theme_color = st.color_picker("ACCENT_COLOR:", st.session_state.accent_color)
+            bg_p = st.text_area("COMMAND_LINE:", value=st.session_state.get('temp_prompt', ''), height=80)
+            theme_color = st.color_picker("TEMA_HEX:", st.session_state.accent_color)
             
-            if st.button("EXECUTE_SYNC", use_container_width=True):
-                with st.status("SYNTHESIZING..."):
+            if st.button("SYNC_ENVIRONMENT", use_container_width=True):
+                with st.status("..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": bg_p, "aspect_ratio": "16:9"})
                     st.session_state.wallpaper = res
                     st.session_state.accent_color = theme_color
@@ -156,38 +162,36 @@ else:
                     st.session_state.bg_gallery.append(res)
                 st.rerun()
             
-            st.write("### 🎞️ GALLERY")
+            st.write("---")
             clean_gallery = [url for url in st.session_state.bg_gallery if isinstance(url, str)]
             cols = st.columns(4)
             for idx, img_url in enumerate(reversed(clean_gallery[-4:])):
                 with cols[idx]:
                     st.image(img_url, use_container_width=True)
-                    if st.button(f"LOAD", key=f"set_bg_{idx}"):
+                    if st.button(f"LOAD_{idx}", key=f"set_bg_{idx}", use_container_width=True):
                         st.session_state.wallpaper = img_url
                         st.rerun()
 
         elif st.session_state.active_window == "SYNTHESIS":
-            p = st.text_area("MATRIX_COMMAND:", height=100)
-            if st.button("RUN", use_container_width=True):
-                with st.status("WORKING..."):
+            p = st.text_area("GEN_COMMAND:", height=80)
+            if st.button("EXECUTE", use_container_width=True):
+                with st.status("..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
                     st.session_state.synth_res = res
                 st.rerun()
             if st.session_state.synth_res:
                 st.image(st.session_state.synth_res, use_container_width=True)
                 data = get_media_data(st.session_state.synth_res)
-                if data: st.download_button("📥 SAVE", data, "art.png", "image/png", use_container_width=True)
+                if data: st.download_button("SAVE_FILE", data, "art.png", "image/png", use_container_width=True)
 
         elif st.session_state.active_window == "SYSTEM":
-            st.write(f"SYSTEM_STATUS: **NOMINAL**")
-            if st.button("HARD_RESET"):
+            st.code(f"KERNEL: V5.0\nWORLD: {st.session_state.world_name}\nSTATUS: NOMINAL")
+            if st.button("RESET_CACHE"):
                 st.session_state.bg_gallery = ["https://images.unsplash.com"]
                 st.session_state.wallpaper = st.session_state.bg_gallery[0]
-                st.session_state.synth_res = None
                 st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
-
 
 
 
