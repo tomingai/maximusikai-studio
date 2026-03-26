@@ -6,12 +6,12 @@ import requests
 from io import BytesIO
 
 # --- 1. SYSTEM-KONFIGURATION ---
-st.set_page_config(page_title="MAXIMUSIK AI OS v6.5 PRO", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="MAXIMUSIK AI OS v6.6 FINAL", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# LÅSTA SYSTEM-STATES (Håller allt på plats)
+# LÅSTA SYSTEM-STATES
 states = {
     "page": "DESKTOP",
     "wallpaper": "https://images.unsplash.com",
@@ -36,8 +36,8 @@ def get_url(res):
     except: return str(res)
 
 def get_random_prompt(mode="IMAGE"):
-    img_prompts = ["Cyberpunk city neon rain", "Deep space nebula", "Ancient forest", "Retro robot DJ", "Futuristic spaceship"]
-    audio_prompts = ["Dark techno 128bpm", "Space ambient pads", "Cyberpunk industrial", "Lofi hip hop", "Laser fire SFX"]
+    img_prompts = ["Cyberpunk city neon rain", "Deep space nebula", "Ancient forest bioluminescent", "Retro robot DJ"]
+    audio_prompts = ["Dark techno 128bpm heavy bass", "Space ambient ethereal pads", "Cyberpunk industrial beat", "Lofi hip hop chill"]
     return random.choice(audio_prompts if mode == "AUDIO" else img_prompts)
 
 # --- 3. UI ENGINE ---
@@ -81,11 +81,30 @@ else:
         h1.markdown(f"<h2>// {st.session_state.page}</h2>", unsafe_allow_html=True)
         if h2.button("✕", key="exit_os"): st.session_state.page = "DESKTOP"; st.rerun()
 
-        # --- MODUL: SYNTH ---
-        if st.session_state.page == "SYNTH":
+        # --- AUDIO (FIXAD MODELL-PATH) ---
+        if st.session_state.page == "AUDIO":
+            st.write("### SONIC GENERATOR")
+            if st.button("🎲 SLUMPA BEAT"):
+                st.session_state.last_synth_p = get_random_prompt("AUDIO"); st.rerun()
+            ap = st.text_input("PROMPT:", value=st.session_state.last_synth_p)
+            if st.button("GENERATE AUDIO", use_container_width=True):
+                with st.spinner("Neural Composing..."):
+                    try:
+                        # FIX: Använder den mest stabila officiella pathen
+                        res = replicate.run("meta/musicgen", input={"prompt": ap, "duration": 8})
+                        st.session_state.last_audio_res = res
+                        st.session_state.library.append({"type": "audio", "url": res, "prompt": ap})
+                    except Exception as e:
+                        st.error(f"Replicate Error: {e}")
+                st.rerun()
+            if st.session_state.last_audio_res:
+                st.audio(st.session_state.last_audio_res)
+
+        # --- SYNTH ---
+        elif st.session_state.page == "SYNTH":
             if st.button("🎲 SLUMPA"):
                 st.session_state.last_synth_p = get_random_prompt("IMAGE"); st.rerun()
-            p = st.text_area("BILD-PROMPT:", value=st.session_state.last_synth_p)
+            p = st.text_area("PROMPT:", value=st.session_state.last_synth_p)
             if st.button("SYNTHESIZE", use_container_width=True):
                 with st.spinner("Syncing Vision..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
@@ -96,21 +115,7 @@ else:
             if st.session_state.last_image_res:
                 st.image(st.session_state.last_image_res, width=400)
 
-        # --- MODUL: AUDIO ---
-        elif st.session_state.page == "AUDIO":
-            if st.button("🎲 SLUMPA BEAT"):
-                st.session_state.last_synth_p = get_random_prompt("AUDIO"); st.rerun()
-            ap = st.text_input("LJUD-PROMPT:", value=st.session_state.last_synth_p)
-            if st.button("GENERATE AUDIO", use_container_width=True):
-                with st.spinner("Composing..."):
-                    res = replicate.run("facebookresearch/musicgen-small", input={"prompt": ap, "duration": 8})
-                    st.session_state.last_audio_res = res
-                    st.session_state.library.append({"type": "audio", "url": res, "prompt": ap})
-                st.rerun()
-            if st.session_state.last_audio_res:
-                st.audio(st.session_state.last_audio_res)
-
-        # --- MODUL: ARKIV (KOMPAKT + DOWNLOAD) ---
+        # --- ARKIV (KOMPAKT + DOWNLOAD) ---
         elif st.session_state.page == "LIBRARY":
             st.session_state.lib_filter = st.radio("FILTER:", ["ALLA", "BILDER", "LJUD"], horizontal=True)
             f_lib = st.session_state.library
@@ -125,8 +130,6 @@ else:
                         if item['type'] == "image": st.image(item['url'], use_container_width=True)
                         else: st.audio(item['url'])
                         st.caption(f"{item['prompt'][:20]}...")
-                        
-                        # KONTROLLER: Radera, Sätt BG, Ladda ner
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             if st.button("🗑", key=f"del_{idx}"):
@@ -135,7 +138,6 @@ else:
                             if item['type'] == "image" and st.button("🖼", key=f"bg_{idx}"):
                                 st.session_state.wallpaper = item['url']; st.rerun()
                         with c3:
-                            # DOWNLOAD FUNKTION
                             try:
                                 response = requests.get(item['url'])
                                 ext = "png" if item['type'] == "image" else "wav"
@@ -160,6 +162,7 @@ else:
                 st.session_state.clear(); st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
