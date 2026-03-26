@@ -110,32 +110,6 @@ LANG = {
         "theme_label": "Tema:",
         "admin_only": "Endast för admin.",
         "admin_panel": "ADMIN PANEL",
-    },
-    "English": {
-        "title": "MAXIMUSIKAI SUPER STUDIO",
-        "status": "STATUS",
-        "units": "Units",
-        "magic_tab": "🪄 MAGIC",
-        "director_tab": "🎬 DIRECTOR",
-        "music_tab": "🎧 MUSIC",
-        "archive_tab": "📚 ARCHIVE",
-        "feed_tab": "🌐 FEED",
-        "admin_tab": "⚙️ ADMIN",
-        "prompt_label": "What shall we create?",
-        "generate_btn": "GENERATE",
-        "no_gallery": "No works yet.",
-        "create_first": "Create something in MAGIC first.",
-        "beat_label": "Describe the beat:",
-        "create_sound": "CREATE SOUND",
-        "video_instr": "Instruction:",
-        "create_video": "CREATE VIDEO",
-        "open_studio": "ACCEPT & OPEN STUDIO",
-        "studio_title": "STUDIO",
-        "artist_id": "ARTIST ID:",
-        "lang_label": "Language:",
-        "theme_label": "Theme:",
-        "admin_only": "Admin only.",
-        "admin_panel": "ADMIN PANEL",
     }
 }
 
@@ -213,4 +187,291 @@ def apply_design():
 def theme_selector(label):
     st.session_state.theme = st.selectbox(
         label,
-        ["Neon", "Dark", "
+        ["Neon", "Dark", "Cyberpunk"],
+        index=["Neon", "Dark", "Cyberpunk"].index(st.session_state.get("theme", "Neon"))
+    )
+
+# =========================
+# 3. AI-MOTOR
+# =========================
+
+def generate_image(prompt):
+    if not prompt.strip():
+        return None
+    try:
+        res = replicate.run(
+            "black-forest-labs/flux-schnell",
+            input={"prompt": prompt}
+        )
+        if isinstance(res, list) and len(res) > 0:
+            return str(res[0])
+        return str(res)
+    except Exception as e:
+        st.error(f"Bildgenerering misslyckades: {e}")
+        return None
+
+def generate_music(prompt, duration=10):
+    if not prompt.strip():
+        return None
+    try:
+        res = replicate.run(
+            "facebookresearch/musicgen:7a76a8258b299f66db13045610ec090409a25032899478f7e2c9f5835b800e47",
+            input={"prompt": prompt, "duration": duration}
+        )
+        return str(res)
+    except Exception as e:
+        st.error(f"Musikgenerering misslyckades: {e}")
+        return None
+
+def generate_video(prompt, image_url):
+    if not prompt.strip() or not image_url:
+        return None
+    try:
+        res = replicate.run(
+            "luma-ai/luma-dream-machine",
+            input={"prompt": prompt, "image_url": image_url}
+        )
+        if isinstance(res, list) and len(res) > 0:
+            return str(res[0])
+        return str(res)
+    except Exception as e:
+        st.error(f"Videogenerering misslyckades: {e}")
+        return None
+
+# =========================
+# 4. STREAMLIT APP
+# =========================
+
+st.set_page_config(
+    page_title="MAXIMUSIKAI SUPER STUDIO 2026",
+    page_icon="⚡",
+    layout="wide"
+)
+
+init_user_db()
+
+if "artist" not in st.session_state:
+    st.session_state.artist = "ANONYM"
+if "lang" not in st.session_state:
+    st.session_state.lang = "Svenska"
+if "agreed" not in st.session_state:
+    st.session_state.agreed = False
+if "theme" not in st.session_state:
+    st.session_state.theme = "Neon"
+if "app_bg" not in st.session_state:
+    st.session_state.app_bg = None
+
+L = get_texts(st.session_state.lang)
+
+with st.sidebar:
+    st.title(L["studio_title"])
+    st.session_state.lang = st.radio(L["lang_label"], ["Svenska"], horizontal=True)
+    L = get_texts(st.session_state.lang)
+
+    artist = st.text_input(L["artist_id"], st.session_state.artist).strip().upper()
+    if artist == "":
+        artist = "ANONYM"
+    st.session_state.artist = artist
+
+    user = load_user(artist)
+    units = user.get("units", 0)
+
+    if user.get("bg") and st.session_state.app_bg is None:
+        st.session_state.app_bg = user["bg"]
+
+    st.info(f"{L['status']}: ⚡ {units} {L['units']}")
+
+    st.divider()
+    theme_selector(L["theme_label"])
+
+apply_design()
+
+st.markdown(
+    f"<h1 style='text-align:center;'>⚡ {L['title']} ⚡</h1>",
+    unsafe_allow_html=True
+)
+
+if not st.session_state.agreed:
+    if st.button(L["open_studio"]):
+        st.session_state.agreed = True
+        st.rerun()
+    st.stop()
+
+token = st.secrets.get("REPLICATE_API_TOKEN", None)
+if token:
+    os.environ["REPLICATE_API_TOKEN"] = token
+else:
+    st.warning("REPLICATE_API_TOKEN saknas i st.secrets. Vissa AI-funktioner kommer inte fungera.")
+
+tabs = st.tabs([
+    L["magic_tab"],
+    L["director_tab"],
+    L["music_tab"],
+    L["archive_tab"],
+    L["feed_tab"],
+    L["admin_tab"]
+])
+
+# =========================
+# TAB 1: MAGI
+# =========================
+
+with tabs[0]:
+    st.subheader(L["magic_tab"])
+    prompt = st.text_area(L["prompt_label"])
+
+    if st.button(L["generate_btn"]):
+        if not prompt.strip():
+            st.error("Skriv en prompt först.")
+        else:
+            with st.status("AI arbetar..."):
+                user = load_user(artist)
+                units = user.get("units", 0)
+                is_admin = (artist == "TOMAS2026")
+
+                if units <= 0 and not is_admin:
+                    st.error("Du har slut på Units!")
+                else:
+                    if not is_admin:
+                        user["units"] = max(0, units - 1)
+                        db = load_db()
+                        db[artist] = user
+                        save_db(db)
+
+                    img_url = generate_image(prompt)
+                    mu_url = generate_music(prompt, duration=10)
+
+                    if img_url:
+                        if st.session_state.app_bg is None:
+                            st.session_state.app_bg = img_url
+                            user["bg"] = img_url
+                            db = load_db()
+                            db[artist] = user
+                            save_db(db)
+
+                        add_to_gallery(artist, prompt, img_url, mu_url)
+                        st.success("Verket är skapat och sparat i ARKIV & FEED.")
+                        st.image(img_url)
+                        if mu_url:
+                            st.audio(mu_url)
+                        st.rerun()
+                    else:
+                        st.error("Ingen bild kunde skapas.")
+
+# =========================
+# TAB 2: REGI
+# =========================
+
+with tabs[1]:
+    st.subheader(L["director_tab"])
+    gallery = get_user_gallery(artist)
+
+    if not gallery:
+        st.info(L["create_first"])
+    else:
+        names = [g["name"] for g in gallery]
+        choice = st.selectbox("Välj bild:", names)
+        selected = next(g for g in gallery if g["name"] == choice)
+
+        st.image(selected["url"], width=300)
+        vid_prompt = st.text_input(L["video_instr"], "Cinematic motion")
+
+        if st.button(L["create_video"]):
+            with st.status("Skapar video..."):
+                vid_url = generate_video(vid_prompt, selected["url"])
+                if vid_url:
+                    st.video(vid_url)
+                else:
+                    st.error("Ingen video kunde skapas.")
+
+# =========================
+# TAB 3: MUSIK
+# =========================
+
+with tabs[2]:
+    st.subheader(L["music_tab"])
+    mu_prompt = st.text_input(L["beat_label"])
+
+    if st.button(L["create_sound"]):
+        if not mu_prompt.strip():
+            st.error("Skriv en beskrivning först.")
+        else:
+            with st.spinner("Komponerar..."):
+                mu_url = generate_music(mu_prompt, duration=12)
+                if mu_url:
+                    st.audio(mu_url)
+                else:
+                    st.error("Ingen musik kunde skapas.")
+
+# =========================
+# TAB 4: ARKIV
+# =========================
+
+with tabs[3]:
+    st.subheader(L["archive_tab"])
+    gallery = get_user_gallery(artist)
+
+    if not gallery:
+        st.info(L["no_gallery"])
+    else:
+        for g in reversed(gallery):
+            with st.expander(g["name"]):
+                st.image(g["url"])
+                c1, c2 = st.columns(2)
+                if c1.button("Sätt som bakgrund", key=f"bg_{g['id']}"):
+                    st.session_state.app_bg = g["url"]
+                    user = load_user(artist)
+                    user["bg"] = g["url"]
+                    db = load_db()
+                    db[artist] = user
+                    save_db(db)
+                    st.rerun()
+                try:
+                    img_data = requests.get(g["url"], timeout=10).content
+                    c2.download_button(
+                        "Ladda ner",
+                        data=img_data,
+                        file_name=f"{g['name']}.png",
+                        mime="image/png",
+                        key=f"dl_{g['id']}"
+                    )
+                except Exception:
+                    pass
+                if g["audio"]:
+                    st.audio(g["audio"])
+
+# =========================
+# TAB 5: FEED
+# =========================
+
+with tabs[4]:
+    st.subheader(L["feed_tab"])
+    feed = get_global_feed()
+    if not feed:
+        st.info("Inga verk i feeden ännu.")
+    else:
+        for g in reversed(feed[-20:]):
+            st.image(g["url"], caption=f"Artist: {g['artist']}")
+            if g["audio"]:
+                st.audio(g["audio"])
+            st.divider()
+
+# =========================
+# TAB 6: ADMIN
+# =========================
+
+with tabs[5]:
+    if st.session_state.artist == "TOMAS2026":
+        st.subheader(L["admin_panel"])
+        db = load_db()
+        st.write("User DB:", db)
+        if st.button("RENSA GALLERY FÖR ALLA"):
+            for a in db:
+                db[a]["gallery"] = []
+            save_db(db)
+            st.success("Alla gallerier rensade.")
+            st.rerun()
+    else:
+        st.warning(L["admin_only"])
+
+  
