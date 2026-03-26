@@ -2,25 +2,28 @@ import streamlit as st
 import replicate
 import os
 
-# --- 1. CONFIG & API ---
+# --- 1. CONFIG & SESSION ---
 st.set_page_config(page_title="MAXIMUSIK AI OS", layout="wide", initial_sidebar_state="collapsed")
 
-# Hämtar token
-replicate_api_token = st.secrets.get("REPLICATE_API_TOKEN") or os.environ.get("REPLICATE_API_TOKEN")
-if not replicate_api_token:
-    st.error("API-nyckel saknas! Lägg till REPLICATE_API_TOKEN i Streamlit Secrets.")
-    st.stop()
-os.environ["REPLICATE_API_TOKEN"] = replicate_api_token
+if "REPLICATE_API_TOKEN" in st.secrets:
+    os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# Session States
-if "page" not in st.session_state: st.session_state.page = "DESKTOP"
-if "wallpaper" not in st.session_state: st.session_state.wallpaper = "https://images.unsplash.com"
-if "res_img" not in st.session_state: st.session_state.res_img = None
-if "res_audio" not in st.session_state: st.session_state.res_audio = None
+# Initiera alla systemvariabler
+states = {
+    "page": "DESKTOP",
+    "wallpaper": "https://images.unsplash.com",
+    "library": [],
+    "res_img": None,
+    "res_audio": None,
+    "accent_color": "#00f2ff"
+}
+for key, val in states.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 
 # --- 2. CSS ENGINE ---
 def apply_ui():
-    accent = "#00f2ff"
+    accent = st.session_state.accent_color
     st.markdown(f"""
         <style>
         [data-testid="stAppViewContainer"] {{
@@ -31,108 +34,129 @@ def apply_ui():
             background-attachment: fixed !important;
         }}
         [data-testid="stHeader"], .main {{ background: transparent !important; }}
+        
+        /* Fönster-effekt */
         .window-box {{
             background: rgba(0, 5, 10, 0.9);
-            backdrop-filter: blur(30px);
+            backdrop-filter: blur(40px);
             border: 1px solid {accent}44;
-            border-radius: 35px;
-            padding: 40px;
-            color: white;
-            box-shadow: 0 40px 80px rgba(0,0,0,0.8);
+            border-radius: 35px; padding: 40px; color: white;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.8);
         }}
+
+        /* Knappar på Desktop */
         .stButton > button {{
             background: rgba(255, 255, 255, 0.05) !important;
             border: 1px solid {accent}33 !important;
             color: white !important;
             border-radius: 20px !important;
-            height: 80px !important;
-            font-weight: bold !important;
+            height: 120px !important;
+            font-size: 1.2rem !important;
+            transition: 0.4s !important;
+        }}
+        .stButton > button:hover {{
+            border-color: {accent} !important;
+            box-shadow: 0 0 30px {accent}44 !important;
+            transform: scale(1.05);
         }}
         </style>
     """, unsafe_allow_html=True)
 
 apply_ui()
 
-# --- 3. DESKTOP ---
+# --- 3. DESKTOP VIEW ---
 if st.session_state.page == "DESKTOP":
-    st.markdown("<h1 style='text-align:center; color:white; letter-spacing:15px; padding-top:10vh;'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color:white; letter-spacing:15px; padding-top:10vh; text-shadow: 0 0 20px #00f2ff;'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
     st.write("<br><br>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        if st.button("🪄\nSYNTH", use_container_width=True): st.session_state.page = "SYNTH"; st.rerun()
-    with c2:
-        if st.button("🎧\nAUDIO", use_container_width=True): st.session_state.page = "AUDIO"; st.rerun()
-    with c3:
-        if st.button("🎬\nVIDEO", use_container_width=True): st.session_state.page = "VIDEO"; st.rerun()
-    with c4:
-        if st.button("🖼\nENGINE", use_container_width=True): st.session_state.page = "ENGINE"; st.rerun()
+    
+    cols = st.columns(5)
+    apps = [
+        ("🪄 SYNTH", "SYNTH"), 
+        ("🎧 AUDIO", "AUDIO"), 
+        ("📚 ARKIV", "LIBRARY"), 
+        ("🖼 ENGINE", "ENGINE"), 
+        ("⚙️ SYSTEM", "SYSTEM")
+    ]
+    
+    for i, (label, target) in enumerate(apps):
+        with cols[i]:
+            if st.button(label, use_container_width=True, key=f"nav_{target}"):
+                st.session_state.page = target
+                st.rerun()
 
-# --- 4. WINDOWS ---
+# --- 4. WINDOWS (MODUL-INNEHÅLL) ---
 else:
-    _, win_col, _ = st.columns([0.1, 0.8, 0.1])
+    _, win_col, _ = st.columns([0.05, 0.9, 0.05])
     with win_col:
         st.markdown('<div class="window-box">', unsafe_allow_html=True)
         h1, h2 = st.columns([0.9, 0.1])
         h1.title(f"// {st.session_state.page}")
-        if h2.button("✕"):
+        if h2.button("✕", key="close_win"): 
             st.session_state.page = "DESKTOP"; st.rerun()
+        
+        st.markdown("<hr style='border-color:rgba(255,255,255,0.1)'>", unsafe_allow_html=True)
 
-        # --- SYNTH (IMAGE) ---
+        # --- SYNTH: Bildgenerator ---
         if st.session_state.page == "SYNTH":
-            p = st.text_area("PROMPT:", "Cyberpunk city, neon lights, 8k")
-            if st.button("GENERATE IMAGE"):
-                with st.spinner("Processing..."):
+            p = st.text_area("PROMPT (Visualisera något):", "A cybernetic dragon in a neon rain forest, 8k")
+            if st.button("EXECUTE NEURAL SYNTH"):
+                with st.spinner("Genererar bild..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
-                    st.session_state.res_img = res; st.rerun()
+                    url = res[0] if isinstance(res, list) else res
+                    st.session_state.res_img = url
+                    st.session_state.library.append({"type": "image", "url": url, "prompt": p})
+                    st.rerun()
             if st.session_state.res_img:
-                st.image(st.session_state.res_img)
+                st.image(st.session_state.res_img, use_container_width=True)
 
-        # --- AUDIO (MUSIC) - FIXAD FÖR 422 ERROR ---
+        # --- AUDIO: Musikgenerator ---
         elif st.session_state.page == "AUDIO":
-            ap = st.text_input("SONIC PROMPT:", "Dark techno beat with heavy bass")
-            dur = st.slider("DURATION", 5, 15, 8)
-            if st.button("GENERATE AUDIO"):
-                try:
-                    with st.spinner("Composing..."):
-                        # Vi använder den mest stabila MusicGen-modellen på Replicate just nu
-                        res = replicate.run(
-                            "facebookresearch/musicgen:7a76a6d6", 
-                            input={"prompt": ap, "duration": dur}
-                        )
-                        st.session_state.res_audio = res; st.rerun()
-                except Exception as e:
-                    st.warning("Första försöket misslyckades. Testar reserv-server...")
-                    try:
-                        # Fallback till den universella pathen om hashen ovan dött
-                        res = replicate.run(
-                            "meta/musicgen", 
-                            input={"prompt": ap, "duration": dur}
-                        )
-                        st.session_state.res_audio = res; st.rerun()
-                    except Exception as e2:
-                        st.error(f"Kunde inte generera ljud: {e2}")
-
+            ap = st.text_input("BESKRIV MUSIKEN:", "Epic cinematic synthwave with heavy drums")
+            dur = st.slider("LÄNGD (SEKUNDER):", 5, 20, 10)
+            if st.button("COMPOSE SOUND"):
+                with st.spinner("Komponerar..."):
+                    res = replicate.run("meta/musicgen:b05b39c7", input={"prompt": ap, "duration": dur})
+                    st.session_state.res_audio = res
+                    st.session_state.library.append({"type": "audio", "url": res, "prompt": ap})
+                    st.rerun()
             if st.session_state.res_audio:
                 st.audio(st.session_state.res_audio)
 
-        # --- VIDEO ---
-        elif st.session_state.page == "VIDEO":
-            if st.session_state.res_img:
-                st.image(st.session_state.res_img, width=300)
-                if st.button("ANIMATE"):
-                    with st.spinner("Rendering..."):
-                        res = replicate.run("stability-ai/stable-video-diffusion:3f04571e", input={"input_image": st.session_state.res_img})
-                        st.video(res)
+        # --- LIBRARY: Arkivet ---
+        elif st.session_state.page == "LIBRARY":
+            if not st.session_state.library:
+                st.info("Arkivet är tomt. Skapa bilder eller musik först.")
             else:
-                st.warning("Skapa en bild i SYNTH först!")
+                for item in reversed(st.session_state.library):
+                    with st.container():
+                        st.write(f"**Prompt:** {item['prompt']}")
+                        if item['type'] == "image":
+                            st.image(item['url'], width=400)
+                            if st.button("SÄTT SOM BAKGRUND", key=item['url']):
+                                st.session_state.wallpaper = item['url']; st.rerun()
+                        else:
+                            st.audio(item['url'])
+                        st.markdown("---")
 
-        # --- ENGINE ---
+        # --- ENGINE: Miljö-generator ---
         elif st.session_state.page == "ENGINE":
-            wp_p = st.text_input("PROMPT FOR WALLPAPER:", "Cosmic nebula, deep purple")
-            if st.button("GENERATE WALLPAPER"):
-                with st.spinner("Updating..."):
-                    res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": wp_p, "aspect_ratio": "16:9"})
-                    st.session_state.wallpaper = res; st.rerun()
+            st.subheader("Skapa en ny systemmiljö (16:9)")
+            ep = st.text_area("MILJÖ-PROMPT:", "Abstract hyperspace tunnel, deep blue neon")
+            if st.button("GENERATE ENVIRONMENT"):
+                with st.spinner("Neural Sync..."):
+                    res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": ep, "aspect_ratio": "16:9"})
+                    url = res[0] if isinstance(res, list) else res
+                    st.session_state.wallpaper = url
+                    st.session_state.library.append({"type": "image", "url": url, "prompt": ep})
+                    st.rerun()
+
+        # --- SYSTEM: Inställningar ---
+        elif st.session_state.page == "SYSTEM":
+            st.session_state.accent_color = st.color_picker("UI ACCENT FÄRG:", st.session_state.accent_color)
+            st.write("Systemstatus: **ONLINE**")
+            if st.button("HARD RESET (Rensa allt)"):
+                st.session_state.clear()
+                st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
 
