@@ -3,7 +3,13 @@ import replicate
 import os
 import random
 
-# --- 1. PROMPT ENGINE (AI-hjärnan) ---
+# --- 1. HJÄLPFUNKTIONER ---
+def get_url(res):
+    """Säkerställer att vi får en sträng-URL från Replicates output"""
+    if isinstance(res, list) and len(res) > 0:
+        return str(res[0])
+    return str(res)
+
 def enhance_prompt(user_input):
     styles = ["8k cinematic", "hyper-detailed", "neon lighting", "volumetric fog", "masterpiece", "synthwave aesthetic"]
     if not user_input:
@@ -77,7 +83,7 @@ else:
         st.markdown('<div class="window-box">', unsafe_allow_html=True)
         h1, h2 = st.columns([0.9, 0.1])
         h1.title(f"// {st.session_state.page}")
-        if h2.button("✕"): st.session_state.page = "DESKTOP"; st.rerun()
+        if h2.button("✕", key="close_btn"): st.session_state.page = "DESKTOP"; st.rerun()
 
         # --- SYNTH (Bilder) ---
         if st.session_state.page == "SYNTH":
@@ -89,17 +95,18 @@ else:
             
             if st.button("EXECUTE NEURAL SYNTH", use_container_width=True):
                 enhanced = enhance_prompt(u_input)
-                with st.spinner(f"Förbättrar till: {enhanced}"):
+                with st.spinner("Neural Sync..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": enhanced})
-                    url = res[0] if isinstance(res, list) else res
+                    url = get_url(res) # HÄR FIXAR VI FELET
                     st.session_state.res_img = url
                     st.session_state.library.append({"type": "image", "url": url, "prompt": enhanced})
                     st.rerun()
-            if st.session_state.res_img: st.image(st.session_state.res_img)
+            if st.session_state.res_img: 
+                st.image(st.session_state.res_img)
 
         # --- AUDIO (Musik) ---
         elif st.session_state.page == "AUDIO":
-            ap = st.text_input("BESKRIV BEATET (eller lämna tom för slump):", value=st.session_state.input_text)
+            ap = st.text_input("BESKRIV BEATET:", value=st.session_state.input_text)
             if st.button("COMPOSE MUSIC", use_container_width=True):
                 final_p = ap if ap else "Epic dark synthwave beat"
                 with st.spinner("Komponerar..."):
@@ -116,20 +123,19 @@ else:
                 for idx, item in enumerate(reversed(st.session_state.library)):
                     with st.expander(f"{item['type'].upper()}: {item['prompt'][:50]}..."):
                         if item['type'] == "image":
-                            st.image(item['url'], width=500)
+                            st.image(item['url'], use_container_width=True)
                             if st.button("SÄTT SOM BAKGRUND", key=f"bg_{idx}"):
                                 st.session_state.wallpaper = item['url']; st.rerun()
                         else: st.audio(item['url'])
 
         # --- ENGINE (Miljö/Bakgrund) ---
         elif st.session_state.page == "ENGINE":
-            st.write("Generera en ny systembakgrund (16:9)")
             ep = st.text_input("MILJÖ-PROMPT:", value=st.session_state.input_text)
             if st.button("UPDATE REALITY"):
                 enhanced = enhance_prompt(ep)
                 with st.spinner("Rewriting Reality..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": enhanced, "aspect_ratio": "16:9"})
-                    url = res[0] if isinstance(res, list) else res
+                    url = get_url(res) # FIX HÄR OCKSÅ
                     st.session_state.wallpaper = url
                     st.session_state.library.append({"type": "image", "url": url, "prompt": enhanced})
                     st.rerun()
