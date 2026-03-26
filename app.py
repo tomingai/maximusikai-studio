@@ -11,11 +11,10 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 if "active_window" not in st.session_state: st.session_state.active_window = None
 if "last_res" not in st.session_state: st.session_state.last_res = None
 
-# --- 2. CLEAN UI DESIGN ---
+# --- 2. DESIGN ---
 def apply_ui():
     st.markdown("""
         <style>
-        /* BAKGRUND */
         .stAppViewContainer {
             background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), 
                               url("https://images.unsplash.com") !important;
@@ -34,7 +33,6 @@ def apply_ui():
             background-position: center !important;
             color: transparent !important;
             transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
         }
         div.stButton > button:hover {
             transform: scale(1.1) translateY(-10px) !important;
@@ -42,14 +40,14 @@ def apply_ui():
             box-shadow: 0 0 40px rgba(0, 242, 255, 0.5) !important;
         }
 
-        /* BILDER TILL IKONERNA */
+        /* BILDER TILL DE 4 IKONERNA */
         div.stButton > button[key="s"] { background-image: url('https://images.unsplash.com') !important; }
         div.stButton > button[key="a"] { background-image: url('https://images.unsplash.com') !important; }
         div.stButton > button[key="v"] { background-image: url('https://images.unsplash.com') !important; }
+        div.stButton > button[key="sys"] { background-image: url('https://images.unsplash.com') !important; }
 
-        .label { text-align: center; color: #00f2ff; font-family: monospace; font-weight: bold; margin-top: 10px; letter-spacing: 2px; }
+        .label { text-align: center; color: #00f2ff; font-family: monospace; font-weight: bold; margin-top: 10px; letter-spacing: 2px; font-size: 0.9rem; }
 
-        /* FÖNSTER */
         .window {
             background: rgba(0, 0, 0, 0.9) !important;
             backdrop-filter: blur(40px);
@@ -63,13 +61,14 @@ def apply_ui():
 
 apply_ui()
 
-# --- 3. DESKTOP ---
+# --- 3. DESKTOP (FYRA KOLUMNER) ---
 if st.session_state.active_window is None:
     st.markdown("<br><br><h1 style='text-align:center; color:white; font-size:4rem; font-weight:900;'>MAXIMUSIKAI</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:10px;'>SPACE_OS_REBORN</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:10px;'>QUAD_CORE_OS</p>", unsafe_allow_html=True)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
-    _, c1, c2, c3, _ = st.columns([1, 1.2, 1.2, 1.2, 1])
+    # Skapar 4 kolumner för ikonerna
+    _, c1, c2, c3, c4, _ = st.columns([0.5, 1, 1, 1, 1, 0.5])
     
     with c1:
         if st.button(".", key="s"):
@@ -88,6 +87,12 @@ if st.session_state.active_window is None:
             st.session_state.active_window = "VIDEO"
             st.rerun()
         st.markdown('<p class="label">VIDEO</p>', unsafe_allow_html=True)
+
+    with c4:
+        if st.button(".", key="sys"):
+            st.session_state.active_window = "SYSTEM"
+            st.rerun()
+        st.markdown('<p class="label">SYSTEM</p>', unsafe_allow_html=True)
 
 # --- 4. WINDOWS ---
 else:
@@ -114,13 +119,16 @@ else:
             if st.session_state.last_res:
                 st.image(st.session_state.last_res, use_container_width=True)
 
-        elif st.session_state.active_window == "AUDIO":
-            st.info("System ready. Connect MusicGen?")
+        elif st.session_state.active_window == "SYSTEM":
+            st.write("### System Status")
+            st.success("All cores online.")
+            st.info(f"Replicate Token Active: {'Yes' if 'REPLICATE_API_TOKEN' in os.environ else 'No'}")
 
-        elif st.session_state.active_window == "VIDEO":
-            st.info("System ready. Connect SVD?")
+        elif st.session_state.active_window in ["AUDIO", "VIDEO"]:
+            st.info(f"{st.session_state.active_window} system online. Module content pending.")
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
