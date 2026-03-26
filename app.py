@@ -51,54 +51,45 @@ def apply_ui():
         }}
         .main, .stAppHeader, .stAppViewBlockContainer {{ background: transparent !important; }}
 
+        /* MATRIX REGN ANIMATION (AKTIV VID PROCESSING) */
+        @keyframes matrix {{
+            0% {{ background-position: 0% 0%; }}
+            100% {{ background-position: 0% 1000%; }}
+        }}
+        .matrix-overlay {{
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(0, 0, 0, 0) 0%, {accent}22 50%, rgba(0, 0, 0, 0) 100%);
+            background-size: 100% 20px;
+            animation: matrix 20s linear infinite;
+            pointer-events: none; z-index: 1;
+        }}
+
         /* KNAPPAR SKRIVBORD */
         div[data-testid="stButton"] > button {{
             width: 200px !important; height: 200px !important;
-            border-radius: 50px !important; border: 1px solid {accent}33 !important;
+            border-radius: 50px !important; border: 2px solid {accent}33 !important;
             background: rgba(255, 255, 255, 0.05) !important;
             backdrop-filter: blur(10px) !important;
             transition: 0.4s ease !important;
             display: flex !important; align-items: center !important; justify-content: center !important;
         }}
-        
         div[data-testid="stButton"] > button p {{
             font-size: 8rem !important; margin: 0 !important; line-height: 1 !important;
         }}
 
-        /* ALLA MINDRE KNAPPAR (INUTI FÖNSTER) */
+        /* MINIMALISTISKA KNAPPAR */
         div[data-testid="stButton"] button {{
-            font-size: 0.65rem !important;
-            letter-spacing: 2px !important;
-            text-transform: uppercase !important;
+            font-size: 0.6rem !important; letter-spacing: 1px !important; text-transform: uppercase !important;
+            height: auto !important; width: auto !important; padding: 5px 10px !important;
         }}
 
-        /* MINSKAD TEXTSTORLEK GENERELT */
-        .space-title {{ 
-            text-align: center; color: white; font-size: 3rem; font-weight: 900; 
-            letter-spacing: -1px; margin-top: 50px; text-shadow: 0 0 20px {accent}44; 
-        }}
-        .world-status {{ 
-            text-align: center; color: {accent}; font-family: monospace; 
-            font-weight: bold; margin-top: 5px; letter-spacing: 8px; 
-            font-size: 0.7rem; text-transform: uppercase; opacity: 0.5; 
-        }}
-        .label {{ 
-            text-align: center; color: {accent}; font-family: monospace; 
-            font-weight: bold; margin-top: 15px; letter-spacing: 3px; 
-            font-size: 0.65rem; text-transform: uppercase; opacity: 0.8;
-        }}
-        .window {{ 
-            background: rgba(0, 5, 10, 0.98) !important; backdrop-filter: blur(40px); 
-            border: 1px solid {accent}22; border-radius: 30px; padding: 40px; color: white; 
-        }}
+        /* TEXTSTORLEK */
+        .space-title {{ text-align: center; color: white; font-size: 3rem; font-weight: 900; letter-spacing: -1px; margin-top: 50px; text-shadow: 0 0 20px {accent}44; }}
+        .world-status {{ text-align: center; color: {accent}; font-family: monospace; font-weight: bold; margin-top: 5px; letter-spacing: 8px; font-size: 0.7rem; text-transform: uppercase; opacity: 0.5; }}
+        .label {{ text-align: center; color: {accent}; font-family: monospace; font-weight: bold; margin-top: 15px; letter-spacing: 3px; font-size: 0.65rem; text-transform: uppercase; opacity: 0.8; }}
+        .window {{ background: rgba(0, 5, 10, 0.98) !important; backdrop-filter: blur(40px); border: 1px solid {accent}22; border-radius: 30px; padding: 40px; color: white; }}
         
-        /* Input fält & Textarea */
-        textarea, input {{
-            font-size: 0.8rem !important;
-            font-family: monospace !important;
-            background: rgba(255,255,255,0.02) !important;
-            color: {accent} !important;
-        }}
+        textarea, input {{ font-size: 0.75rem !important; font-family: monospace !important; background: rgba(255,255,255,0.02) !important; color: {accent} !important; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -107,7 +98,7 @@ apply_ui()
 # --- 4. DESKTOP ---
 if st.session_state.active_window is None:
     st.markdown("<h1 class='space-title'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
-    st.markdown(f<p class='world-status'>{st.session_state.world_name}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p class='world-status'>{st.session_state.world_name}</p>", unsafe_allow_html=True)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     _, c1, c2, c3, c4, c5, _ = st.columns([0.1, 1, 1, 1, 1, 1, 0.1])
@@ -136,7 +127,7 @@ else:
     with win_col:
         st.markdown('<div class="window">', unsafe_allow_html=True)
         h1, h2 = st.columns([0.9, 0.1])
-        h1.markdown(f"<h2 style='color:white; font-size:1.4rem; font-family:monospace; opacity:0.8;'>// {st.session_state.active_window}</h2>", unsafe_allow_html=True)
+        h1.markdown(f"<h2 style='color:white; font-size:1.3rem; font-family:monospace; opacity:0.8;'>// {st.session_state.active_window}</h2>", unsafe_allow_html=True)
         if h2.button("✕", key="close"):
             st.session_state.active_window = None
             st.rerun()
@@ -144,16 +135,17 @@ else:
         st.markdown(f"<hr style='border:1px solid {st.session_state.accent_color}22; margin:20px 0;'>", unsafe_allow_html=True)
 
         if st.session_state.active_window == "BG_ENGINE":
-            col_l, col_r = st.columns([0.75, 0.25])
+            col_l, col_r = st.columns([0.8, 0.2])
             with col_r:
                 if st.button("🧠 RANDOM", use_container_width=True):
                     st.session_state.temp_prompt = generate_random_prompt()
                     st.rerun()
             
-            bg_p = st.text_area("COMMAND_LINE:", value=st.session_state.get('temp_prompt', ''), height=80)
+            bg_p = st.text_area("COMMAND_LINE:", value=st.session_state.get('temp_prompt', ''), height=70)
             theme_color = st.color_picker("TEMA_HEX:", st.session_state.accent_color)
             
             if st.button("SYNC_ENVIRONMENT", use_container_width=True):
+                st.markdown('<div class="matrix-overlay"></div>', unsafe_allow_html=True)
                 with st.status("..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": bg_p, "aspect_ratio": "16:9"})
                     st.session_state.wallpaper = res
@@ -173,8 +165,9 @@ else:
                         st.rerun()
 
         elif st.session_state.active_window == "SYNTHESIS":
-            p = st.text_area("GEN_COMMAND:", height=80)
+            p = st.text_area("GEN_COMMAND:", height=70)
             if st.button("EXECUTE", use_container_width=True):
+                st.markdown('<div class="matrix-overlay"></div>', unsafe_allow_html=True)
                 with st.status("..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
                     st.session_state.synth_res = res
@@ -185,13 +178,14 @@ else:
                 if data: st.download_button("SAVE_FILE", data, "art.png", "image/png", use_container_width=True)
 
         elif st.session_state.active_window == "SYSTEM":
-            st.code(f"KERNEL: V5.0\nWORLD: {st.session_state.world_name}\nSTATUS: NOMINAL")
+            st.code(f"KERNEL: V6.0\nWORLD: {st.session_state.world_name}\nSTATUS: NOMINAL")
             if st.button("RESET_CACHE"):
                 st.session_state.bg_gallery = ["https://images.unsplash.com"]
                 st.session_state.wallpaper = st.session_state.bg_gallery[0]
                 st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
