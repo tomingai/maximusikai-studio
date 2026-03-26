@@ -33,39 +33,52 @@ def apply_ui():
     st.markdown(f"""
         <style>
         .stAppViewContainer {{
-            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), 
+            background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6)), 
                               url("{st.session_state.wallpaper}") !important;
             background-size: cover !important; background-position: center !important;
         }}
         .main, .stAppHeader, .stAppViewBlockContainer {{ background: transparent !important; }}
 
-        /* TEXT 1REM */
-        .space-title {{ text-align: center; color: white; font-size: 1.5rem; letter-spacing: 2px; margin-top: 30px; }}
-        .world-status {{ text-align: center; color: {accent}; font-family: monospace; letter-spacing: 5px; font-size: 1rem; text-transform: uppercase; opacity: 0.8; }}
-        .label {{ text-align: center; color: {accent}; font-family: monospace; margin-top: 15px; letter-spacing: 2px; font-size: 1rem; text-transform: uppercase; }}
+        /* SCANNING LINE ANIMATION */
+        @keyframes scan {{
+            0% {{ top: -100%; }}
+            100% {{ top: 100%; }}
+        }}
 
-        /* KNAPP-CONTAINER FIX */
+        /* KNAPPAR - TRANSPARENTA MED BILDER */
         div[data-testid="stButton"] > button {{
             width: 200px !important; height: 200px !important;
-            border-radius: 40px !important; border: 2px solid {accent}44 !important;
-            background-color: #000 !important;
+            border-radius: 40px !important; border: 1px solid {accent}33 !important;
+            background-color: transparent !important; /* BORTTAGEN BAKGRUNDSFÄRG */
             position: relative !important;
             overflow: hidden !important;
             transition: 0.4s ease-in-out !important;
         }}
 
-        /* BILD-INJEKTION VIA PSEUDO-ELEMENT */
+        /* BILDERNA */
         div[data-testid="stButton"] > button::before {{
             content: "" !important;
             position: absolute !important;
             top: 0; left: 0; right: 0; bottom: 0 !important;
             background-size: cover !important;
             background-position: center !important;
-            opacity: 0.7 !important;
+            opacity: 0.6 !important;
             transition: 0.4s !important;
+            z-index: 1 !important;
         }}
 
-        /* SPECIFIKA BILDER PER KNAPP */
+        /* SCANNING LINJEN */
+        div[data-testid="stButton"] > button::after {{
+            content: "" !important;
+            position: absolute !important;
+            width: 100% !important; height: 50px !important;
+            background: linear-gradient(to bottom, transparent, {accent}22, transparent) !important;
+            animation: scan 3s linear infinite !important;
+            z-index: 2 !important;
+            pointer-events: none !important;
+        }}
+
+        /* BILD-LÄNKAR */
         div[data-testid="stButton"] > button[key="s"]::before {{ background-image: url('https://images.unsplash.com') !important; }}
         div[data-testid="stButton"] > button[key="a"]::before {{ background-image: url('https://images.unsplash.com') !important; }}
         div[data-testid="stButton"] > button[key="v"]::before {{ background-image: url('https://images.unsplash.com') !important; }}
@@ -79,13 +92,22 @@ def apply_ui():
         
         div[data-testid="stButton"] > button:hover {{
             border-color: {accent} !important;
-            box-shadow: 0 0 50px {accent}66 !important;
+            box-shadow: 0 0 40px {accent}44 !important;
+            background-color: rgba(255,255,255,0.05) !important;
         }}
 
-        /* Döljer Streamlits interna text i knappen */
         div[data-testid="stButton"] > button p {{ display: none !important; }}
 
-        .window {{ background: rgba(0, 5, 10, 0.98) !important; backdrop-filter: blur(50px); border: 1px solid {accent}11; border-radius: 25px; padding: 30px; color: white; }}
+        /* FÖNSTER - MER TRANSPARENT */
+        .window {{ 
+            background: rgba(0, 5, 10, 0.8) !important; /* MER GENOMSKINLIGT */
+            backdrop-filter: blur(30px); 
+            border: 1px solid {accent}22; 
+            border-radius: 30px; padding: 40px; color: white; 
+        }}
+
+        .label {{ text-align: center; color: {accent}; font-family: monospace; margin-top: 15px; letter-spacing: 2px; font-size: 1rem; text-transform: uppercase; opacity: 0.9; }}
+        .space-title {{ text-align: center; color: white; font-size: 1.5rem; letter-spacing: 2px; margin-top: 30px; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -94,7 +116,7 @@ apply_ui()
 # --- 4. DESKTOP ---
 if st.session_state.active_window is None:
     st.markdown("<h1 class='space-title'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p class='world-status'>{st.session_state.world_name}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align:center; color:{st.session_state.accent_color}; font-family:monospace; letter-spacing:5px; font-size:1rem;'>{st.session_state.world_name}</p>", unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
     _, c1, c2, c3, c4, c5, _ = st.columns([0.1, 1, 1, 1, 1, 1, 0.1])
@@ -122,15 +144,15 @@ else:
     with win_col:
         st.markdown('<div class="window">', unsafe_allow_html=True)
         h1, h2 = st.columns([0.9, 0.1])
-        h1.markdown(f"<h2>// {st.session_state.active_window}</h2>", unsafe_allow_html=True)
+        h1.markdown(f"<h2 style='font-size:1.2rem; font-family:monospace;'>// {st.session_state.active_window}</h2>", unsafe_allow_html=True)
         if h2.button("✕", key="close"):
             st.session_state.active_window = None
             st.rerun()
 
         if st.session_state.active_window == "SYNTH":
-            p = st.text_area("MATRIX_PROMPT:")
+            p = st.text_area("PROMPT:")
             if st.button("GENERATE", use_container_width=True):
-                with st.status("WORKING..."):
+                with st.status("PROCESSING..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
                     st.session_state.synth_res = res
                 st.rerun()
@@ -138,7 +160,7 @@ else:
                 st.image(st.session_state.synth_res)
 
         elif st.session_state.active_window == "ENGINE":
-            bg_p = st.text_area("NEW_ENVIRONMENT:")
+            bg_p = st.text_area("ENVIRONMENT COMMAND:")
             if st.button("SYNC", use_container_width=True):
                 with st.status("..."):
                     res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": bg_p, "aspect_ratio": "16:9"})
@@ -146,6 +168,7 @@ else:
                 st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
