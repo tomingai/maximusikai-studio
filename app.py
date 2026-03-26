@@ -18,13 +18,13 @@ if "wallpaper" not in st.session_state:
 def apply_ui():
     st.markdown(f"""
         <style>
-        /* DYNAMISK BAKGRUND */
+        /* DYNAMISK BAKGRUND SOM GENERERAS AV AI */
         .stAppViewContainer {{
-            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), 
+            background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), 
                               url("{st.session_state.wallpaper}") !important;
             background-size: cover !important;
             background-position: center !important;
-            transition: 1s ease-in-out !important;
+            transition: 2s ease-in-out !important; /* Mjuk övergång vid byte */
         }}
         .main, .stAppHeader, .stAppViewBlockContainer {{ background: transparent !important; }}
 
@@ -49,7 +49,6 @@ def apply_ui():
         div[data-testid="stButton"] > button:hover {{
             transform: scale(1.1) translateY(-10px) !important;
             border-color: #00f2ff !important;
-            background: rgba(0, 242, 255, 0.1) !important;
             box-shadow: 0 0 70px rgba(0, 242, 255, 0.4) !important;
         }}
 
@@ -58,14 +57,10 @@ def apply_ui():
             letter-spacing: -3px; margin-top: 50px;
             text-shadow: 0 0 30px rgba(0, 242, 255, 0.5);
         }}
-        .label {{ 
-            text-align: center; color: #00f2ff; font-family: monospace; 
-            font-weight: bold; margin-top: 25px; letter-spacing: 5px; 
-            font-size: 1rem; text-transform: uppercase;
-        }}
+        .label {{ text-align: center; color: #00f2ff; font-family: monospace; font-weight: bold; margin-top: 25px; letter-spacing: 5px; font-size: 1rem; text-transform: uppercase; }}
 
         .window {{
-            background: rgba(0, 5, 15, 0.98) !important;
+            background: rgba(0, 5, 15, 0.95) !important;
             backdrop-filter: blur(50px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 40px;
@@ -86,33 +81,19 @@ if st.session_state.active_window is None:
     _, c1, c2, c3, c4, c5, _ = st.columns([0.1, 1, 1, 1, 1, 1, 0.1])
     
     with c1:
-        if st.button("🌌", key="s"): 
-            st.session_state.active_window = "SYNTHESIS"
-            st.rerun()
+        if st.button("🌌", key="s"): st.session_state.active_window = "SYNTHESIS"; st.rerun()
         st.markdown('<p class="label">Synth</p>', unsafe_allow_html=True)
-
     with c2:
-        if st.button("👽", key="a"): 
-            st.session_state.active_window = "AUDIO"
-            st.rerun()
+        if st.button("👽", key="a"): st.session_state.active_window = "AUDIO"; st.rerun()
         st.markdown('<p class="label">Audio</p>', unsafe_allow_html=True)
-
     with c3:
-        if st.button("🛸", key="v"): 
-            st.session_state.active_window = "VIDEO"
-            st.rerun()
+        if st.button("🛸", key="v"): st.session_state.active_window = "VIDEO"; st.rerun()
         st.markdown('<p class="label">Video</p>', unsafe_allow_html=True)
-
     with c4:
-        if st.button("🖼️", key="wp"): 
-            st.session_state.active_window = "WALLPAPER"
-            st.rerun()
-        st.markdown('<p class="label">Visuals</p>', unsafe_allow_html=True)
-
+        if st.button("🖼️", key="wp"): st.session_state.active_window = "WALLPAPER"; st.rerun()
+        st.markdown('<p class="label">BG Engine</p>', unsafe_allow_html=True)
     with c5:
-        if st.button("☄️", key="sys"): 
-            st.session_state.active_window = "SYSTEM"
-            st.rerun()
+        if st.button("☄️", key="sys"): st.session_state.active_window = "SYSTEM"; st.rerun()
         st.markdown('<p class="label">System</p>', unsafe_allow_html=True)
 
 # --- 4. WINDOW MANAGER ---
@@ -131,34 +112,23 @@ else:
         st.markdown("<hr style='border:1px solid rgba(255,255,255,0.1); margin:30px 0;'>", unsafe_allow_html=True)
 
         if st.session_state.active_window == "WALLPAPER":
-            st.write("### VÄLJ DIN ATMOSFÄR")
+            st.write("### GENERERA NY BAKGRUND VIA AI")
+            bg_prompt = st.text_area("BESKRIV DIN NYA BAKGRUND:", placeholder="Ex: A cinematic deep space nebula with purple and teal stars, high detail, 8k...")
             
-            # CUSTOM URL INPUT
-            custom_url = st.text_input("KLISTRA IN EGEN BILD-URL:", placeholder="https://exempel.se")
-            if st.button("ANVÄND EGEN BILD", use_container_width=True):
-                if custom_url:
-                    st.session_state.wallpaper = custom_url
-                    st.rerun()
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.write("### PRESETS")
-            w1, w2, w3, w4 = st.columns(4)
-            with w1:
-                if st.button("NEBULA", key="w1"):
-                    st.session_state.wallpaper = "https://images.unsplash.com"
-                    st.rerun()
-            with w2:
-                if st.button("GALAXY", key="w2"):
-                    st.session_state.wallpaper = "https://images.unsplash.com"
-                    st.rerun()
-            with w3:
-                if st.button("CYBER", key="w3"):
-                    st.session_state.wallpaper = "https://images.unsplash.com"
-                    st.rerun()
-            with w4:
-                if st.button("VOID", key="w4"):
-                    st.session_state.wallpaper = "https://images.unsplash.com"
-                    st.rerun()
+            if st.button("RENDERA OCH APPLICERA BAKGRUND", use_container_width=True):
+                with st.status("SKAPAR NY DIMENSION..."):
+                    # Vi använder Flux för att skapa en snygg bakgrund
+                    res = replicate.run(
+                        "black-forest-labs/flux-schnell", 
+                        input={"prompt": bg_prompt, "aspect_ratio": "16:9"}
+                    )
+                    st.session_state.wallpaper = res
+                st.success("Ny bakgrund applicerad!")
+                st.rerun()
+            
+            if st.button("ÅTERSTÄLL TILL STANDARD"):
+                st.session_state.wallpaper = "https://images.unsplash.com"
+                st.rerun()
 
         elif st.session_state.active_window == "SYNTHESIS":
             p = st.text_area("COMMAND:")
@@ -171,11 +141,13 @@ else:
 
         elif st.session_state.active_window == "SYSTEM":
             st.write("CORE STATUS: MAXIMUM")
-            if st.button("PURGE ALL DATA"):
+            st.info(f"Nuvarande bakgrunds-URL: {st.session_state.wallpaper}")
+            if st.button("PURGE CACHE"):
                 st.session_state.synth_res = None
                 st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
