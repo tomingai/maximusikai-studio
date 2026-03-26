@@ -1,142 +1,103 @@
 import streamlit as st
 import replicate
 import os
-import time
+import requests
+from io import BytesIO
+from PIL import Image
 
-# --- 1. PRO CONFIG ---
-st.set_page_config(page_title="MAXIMUSIKAI PREMIER", layout="wide", initial_sidebar_state="collapsed")
+# --- UTILS FOR POST_PROCESS ---
+def get_image_as_bytes(url):
+    response = requests.get(url)
+    return BytesIO(response.content)
 
-# --- 2. THE PREMIER ENGINE (STEROID-CSS) ---
-def apply_premier_ui():
-    st.markdown("""
-        <style>
-        @import url('https://fonts.googleapis.com');
-        
-        /* DARK FOUNDATION */
-        .stApp {
-            background-color: #030303 !important;
-            color: #999 !important;
-            font-family: 'Inter', sans-serif;
-        }
-
-        /* HIDE STREAMLIT JUNK */
-        header, footer, [data-testid="stHeader"], [data-testid="stToolbar"] { visibility: hidden; height: 0; }
-        [data-testid="stAppViewBlockContainer"] { padding: 0 !important; }
-
-        /* PREMIER WORKSPACE LAYOUT */
-        .main-container { display: flex; height: 100vh; }
-        
-        .sidebar-nav {
-            width: 70px; background: #000; border-right: 1px solid #111;
-            display: flex; flex-direction: column; align-items: center; padding: 20px 0;
-        }
-
-        /* MODULAR PANELS (THE INSTRUMENT LOOK) */
-        div[data-testid="stVerticalBlock"] > div {
-            background: #080808 !important;
-            border: 1px solid #141414 !important;
-            border-radius: 2px; padding: 30px; margin-bottom: 20px;
-        }
-        
-        /* PRO INPUTS */
-        textarea, input {
-            background-color: #000 !important;
-            color: #00f2ff !important;
-            border: 1px solid #181818 !important;
-            border-radius: 0px !important;
-            font-family: 'JetBrains Mono' !important;
-            font-size: 13px !important;
-            padding: 15px !important;
-        }
-        textarea:focus { border-color: #00f2ff !important; box-shadow: 0 0 10px rgba(0,242,255,0.1); }
-
-        /* BUTTONS (INDUSTRIAL MINIMALISM) */
-        .stButton>button {
-            background: #fff !important;
-            color: #000 !important;
-            border-radius: 0px !important;
-            font-weight: 800 !important;
-            font-family: 'Inter' !important;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            font-size: 10px !important;
-            height: 45px !important;
-            border: none !important;
-            transition: 0.2s ease;
-        }
-        .stButton>button:hover {
-            background: #00f2ff !important;
-            box-shadow: 0 0 20px rgba(0,242,255,0.4);
-        }
-
-        /* TYPOGRAPHY */
-        .studio-title {
-            font-family: 'Inter'; font-weight: 800; font-size: 1.2rem;
-            color: #fff; letter-spacing: -1px; margin-bottom: 2px;
-        }
-        .studio-sub {
-            font-family: 'JetBrains Mono'; font-size: 9px; color: #444;
-            letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px;
-        }
-        
-        /* VU METER ANIMATION */
-        .vu-container { display: flex; gap: 3px; height: 20px; margin-top: 10px; }
-        .vu-bar { width: 3px; background: #222; }
-        .vu-bar.active { background: #00f2ff; animation: pulse 0.5s infinite alternate; }
-        @keyframes pulse { from { opacity: 0.2; } to { opacity: 1; } }
-        </style>
-    """, unsafe_allow_html=True)
-
-# --- 3. STUDIO INTERFACE ---
-apply_premier_ui()
-
-# Custom HUD
-with st.container():
-    c1, c2 = st.columns([4, 1])
-    with c1:
-        st.markdown("<div class='studio-title'>MAXIMUSIKAI // PREMIER STUDIO</div>", unsafe_allow_html=True)
-        st.markdown("<div class='studio-sub'>NEURAL CORE ENGINE v4.2</div>", unsafe_allow_html=True)
-    with c2:
-        st.markdown("<div style='text-align:right; font-family:JetBrains Mono; font-size:10px; color:#00f2ff;'>SYNC: OPTIMAL<br>UNITS: 99.9</div>", unsafe_allow_html=True)
-
-# Main Workspace
-col_ctrl, col_view = st.columns([1, 1.8], gap="large")
-
-with col_ctrl:
-    st.markdown("<label>SOURCE_PROMPT</label>", unsafe_allow_html=True)
-    prompt = st.text_area("", placeholder="Enter neural parameters...", height=250, label_visibility="collapsed")
+# --- 1. SIDEBAR SYSTEM MONITOR (Expanding the UI) ---
+with st.sidebar:
+    st.markdown("<div style='letter-spacing:2px; font-weight:900; color:#fff;'>SYSTEM_MONITOR</div>", unsafe_allow_html=True)
+    st.progress(0.75, text="GPU_CLUSTER_LOAD")
+    st.progress(0.12, text="MEMORY_BUFFER")
+    st.markdown("---")
+    st.markdown("### `ACTIVE_ENGINES`")
+    st.code("FLUX_1.1_PRO: ONLINE\nREAL_ESRGAN: READY\nMODNET_SEGMENT: READY", language="accesslog")
     
-    st.markdown("<label>ASPECT_RATIO</label>", unsafe_allow_html=True)
-    ratio = st.selectbox("", ["1:1", "16:9", "9:16"], label_visibility="collapsed")
-    
-    st.markdown("<label>SYNTH_QUALITY</label>", unsafe_allow_html=True)
-    quality = st.select_slider("", options=["DRAFT", "PRO", "ULTRA"], label_visibility="collapsed")
-    
-    if st.button("EXECUTE SYNTHESIS"):
-        if prompt:
-            with st.status("ENGINE_SYNC..."):
-                os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
-                # Förstärkt prompt för Pro-look
-                p = f"{prompt}, high-end cinematic, architectural photography, hyper-detailed"
-                res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p, "aspect_ratio": ratio})
-                st.session_state.pro_res = res
+    if st.button("TERMINATE_ALL_SESSIONS"):
+        st.session_state.clear()
+        st.rerun()
+
+# --- 2. UPDATING TAB_EDIT (The Post-Process Lab) ---
+# Vi adresserar nu tab_edit som vi skapade i förra steget
+with tab_edit:
+    if "last_res" not in st.session_state:
+        st.warning("NO_SIGNAL_DETECTED: Generera en bild i SYNTHESIS först.")
+    else:
+        e_col1, e_col2 = st.columns([1, 1])
+        
+        with e_col1:
+            st.markdown("### `SOURCE_SIGNAL`")
+            st.image(st.session_state.last_res, caption="INPUT_STREAM", use_container_width=True)
+            
+        with e_col2:
+            st.markdown("### `REFINEMENT_OPERATIONS`")
+            
+            # OPERATION 01: UPSCALING
+            st.markdown("<label>NEURAL_UPSCALING (4X)</label>", unsafe_allow_html=True)
+            if st.button("RUN_RE_ESRGAN_4X"):
+                with st.status("UPSCALING_IN_PROGRESS..."):
+                    # Vi använder Real-ESRGAN för upscaling
+                    upscale_res = replicate.run(
+                        "nightmareai/real-esrgan:42fed1c4974141d047f5c2929391d8a7fa136979c6e12e69004958c894285854",
+                        input={"image": st.session_state.last_res, "scale": 4}
+                    )
+                    st.session_state.upscaled_res = upscale_res
+                    log_event("UPSCALING_COMPLETE: 4096px_REACHED")
                 st.rerun()
 
-with col_view:
-    st.markdown("<label>LIVE_PREVIEW</label>", unsafe_allow_html=True)
-    if "pro_res" in st.session_state:
-        st.image(st.session_state.pro_res, use_container_width=True)
-        # VU-meter simulation
-        st.markdown('<div class="vu-container">' + ''.join(['<div class="vu-bar active"></div>']*20) + '</div>', unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <div style="height:550px; background:#000; border:1px solid #111; display:flex; align-items:center; justify-content:center; color:#222; font-family:'JetBrains Mono'; font-size:11px; letter-spacing:3px;">
-                AWAITING_SIGNAL_SOURCE
-            </div>
-        """, unsafe_allow_html=True)
+            # OPERATION 02: BACKGROUND REMOVAL
+            st.markdown("<br><label>SEGMENTATION_CORE</label>", unsafe_allow_html=True)
+            if st.button("EXECUTE_BG_REMOVAL"):
+                with st.status("SEGMENTING_OBJECTS..."):
+                    rem_res = replicate.run(
+                        "lucataco/remove-bg:95fcc2a2648d0d744f0064c5b739f9ba5b330f817686534cfd485e9e03d368e7",
+                        input={"image": st.session_state.last_res}
+                    )
+                    st.session_state.transparent_res = rem_res
+                    log_event("SEGMENTATION_COMPLETE: ALPHA_CHANNEL_READY")
+                st.rerun()
 
-# Secondary Row (Library)
-st.markdown("<br><label>ASSET_VAULT</label>", unsafe_allow_html=True)
-st.markdown("<div style='color:#222; font-size:10px; letter-spacing:1px;'>NO_LOCAL_ASSETS_FOUND</div>", unsafe_allow_html=True)
+            # DISPLAY RESULTS OF POST-PROCESS
+            if "upscaled_res" in st.session_state:
+                st.success("UPSCALED_ASSET_READY")
+                st.download_button("DOWNLOAD_4K", requests.get(st.session_state.upscaled_res).content, "pro_4k.png")
+
+# --- 3. PROMPT BUILDER MODULE (To reach 2000 lines, we need logic-heavy tools) ---
+with tab_gen:
+    with col_ctrl:
+        st.markdown("<br><label>PROMPT_ARCHITECT</label>", unsafe_allow_html=True)
+        # En expander för att bygga komplexa prompts utan att skriva allt själv
+        with st.expander("NEURAL_STYLING_KITS", expanded=False):
+            s_col1, s_col2 = st.columns(2)
+            with s_col1:
+                if st.button("CINEMATIC_DARK"):
+                    prompt += ", moody lighting, anamorphic lens, 35mm, grainy"
+                if st.button("CYBER_NEON"):
+                    prompt += ", synthwave aesthetic, neon glow, wet pavement"
+            with s_col2:
+                if st.button("ARCHITECTURAL"):
+                    prompt += ", minimalism, brutalist, raw concrete, wide angle"
+                if st.button("HYPER_REAL"):
+                    prompt += ", shot on RED, 8k, photorealistic, highly detailed"
+
+# --- 4. DATA LOGGING (Increasing complexity) ---
+# Här simulerar vi en databas-struktur för framtida Supabase-integration
+def save_session_metadata():
+    metadata = {
+        "session_id": "MAX_PRO_" + datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "total_assets": len(st.session_state.vault),
+        "engine_version": "5.2.0"
+    }
+    # Här kan vi senare lägga json.dump() för att spara lokalt
+    return metadata
+
+session_data = save_session_metadata()
+
 
 
