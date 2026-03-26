@@ -3,170 +3,126 @@ import replicate
 import os
 import time
 import json
-import hashlib
+import random
 from datetime import datetime
-from PIL import Image
 
-# --- 1. OSYNLIG KÄRNA (THE NEURAL ENGINE) ---
-# Denna del hanterar tunga beräkningar och databassynk i bakgrunden
-class MobileStudioKernel:
-    @staticmethod
-    def get_system_v(): return "PRO-2026-MOBILE-ULTIMATE"
-    
-    @staticmethod
-    def log_action(user, action):
-        if "action_logs" not in st.session_state: st.session_state.action_logs = []
-        st.session_state.action_logs.append(f"[{datetime.now().strftime('%H:%M')}] {user}: {action}")
+# --- 1. CORE ENGINE & QUALITY CONTROL ---
+st.set_page_config(page_title="MAXIMUSIKAI PRO 2026", page_icon="⚡", layout="wide")
 
-    @staticmethod
-    def optimize_for_mobile():
-        # Dold CSS-injektion för att dölja Streamlits standard-padding på mobil
-        st.markdown("""
-            <style>
-            [data-testid="stAppViewBlockContainer"] { padding: 1rem 0.5rem !important; }
-            [data-testid="stHeader"] { background: transparent !important; }
-            .stTabs [data-baseweb="tab-list"] { gap: 10px !important; }
-            </style>
-        """, unsafe_allow_html=True)
-
-# --- 2. DATABAS & STATE ---
-DB_FILE = "mobile_studio_vault.json"
 if "gallery" not in st.session_state: st.session_state.gallery = []
-if "app_bg" not in st.session_state: 
-    st.session_state.app_bg = "https://images.unsplash.com"
-if "user_units" not in st.session_state: st.session_state.user_units = 25
+if "units" not in st.session_state: st.session_state.units = 50
 
-# --- 3. MOBILE-CORE CSS (Häftiga bakgrunder & Glas) ---
-def apply_mobile_design():
-    bg = st.session_state.app_bg
-    st.markdown(f"""
+def enhance_result(user_prompt):
+    """Denna funktion garanterar att resultatet ser proffsigt ut"""
+    quality_boost = "hyper-realistic, 8k resolution, cinematic lighting, highly detailed, octane render, masterpiece, trending on artstation, sharp focus, vivid colors"
+    return f"{user_prompt}, {quality_boost}"
+
+# --- 2. THE ULTIMATE NEBULA UI (ANIMERAD & MOBIL-ANPASSAD) ---
+def apply_2026_design():
+    st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com');
         
-        /* Mobil-bakgrund med parallax-känsla */
-        .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), url("{bg}") !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-attachment: fixed !important;
-        }}
+        /* ANIMERAD RUMS-BAKGRUND */
+        .stApp {
+            background: linear-gradient(125deg, #000428, #004e92, #000428, #050505);
+            background-size: 400% 400%;
+            animation: nebulaFlow 20s ease infinite;
+        }
+        @keyframes nebulaFlow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
-        /* Glas-paneler för mobil (Full-width) */
-        .mobile-card {{
-            background: rgba(0, 15, 30, 0.75) !important;
-            backdrop-filter: blur(20px) !important;
-            border: 1px solid rgba(0, 242, 255, 0.4) !important;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 10px;
-        }}
+        /* SCANLINES / HOLOGRAM FILTER */
+        .stApp::before {
+            content: " "; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 255, 255, 0.02) 50%);
+            background-size: 100% 4px; pointer-events: none; z-index: 1000;
+        }
 
-        /* Neon-knappar optimerade för tum-tryck */
-        .stButton>button {{
-            background: transparent !important;
-            color: #00f2ff !important;
-            border: 1px solid #00f2ff !important;
-            height: 60px !important;
-            font-family: 'Orbitron', sans-serif;
-            text-transform: uppercase;
-            font-size: 1rem !important;
-            letter-spacing: 2px;
-            box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
-        }}
-        
-        .stButton>button:active {{
-            background: #00f2ff !important;
-            color: black !important;
-            box-shadow: 0 0 30px #00f2ff;
-        }}
-
-        /* Inmatningsfält */
-        textarea, input {{
-            background-color: rgba(0,0,0,0.5) !important;
-            color: #00f2ff !important;
+        /* MOBIL-OPTIMERADE KONTROLLER (GLASSMORPHISM) */
+        div[data-testid="stVerticalBlock"] > div {
+            background: rgba(255, 255, 255, 0.02) !important;
+            backdrop-filter: blur(25px) !important;
             border: 1px solid rgba(0, 242, 255, 0.3) !important;
-            font-size: 16px !important; /* Förhindrar auto-zoom på iPhone */
-        }}
+            border-radius: 15px; padding: 20px;
+        }
 
-        .logo-text {{
-            font-family: 'Orbitron'; font-size: 2.2rem; font-weight: 900;
-            color: white; text-align: center; letter-spacing: 5px;
-            text-shadow: 0 0 15px #00f2ff; padding: 20px 0;
-        }}
+        /* KNAPPAR: TOUCH-VÄNLIGA & NEON */
+        .stButton>button {
+            background: transparent !important; color: #00f2ff !important;
+            border: 1px solid #00f2ff !important; border-radius: 5px !important;
+            font-family: 'Orbitron'; height: 60px !important; letter-spacing: 3px;
+            width: 100%; transition: 0.4s;
+        }
+        .stButton>button:active { background: #00f2ff !important; color: black !important; box-shadow: 0 0 40px #00f2ff; }
+
+        /* LOGO */
+        .logo {
+            font-family: 'Orbitron'; font-size: 2.8rem; text-align: center;
+            color: #fff; letter-spacing: 8px; text-shadow: 0 0 20px #00f2ff;
+            margin: 20px 0;
+        }
+
+        /* INPUTS */
+        textarea, input {
+            background-color: rgba(0,0,0,0.5) !important; color: #00f2ff !important;
+            border: 1px solid rgba(0, 242, 255, 0.2) !important; font-family: 'JetBrains Mono';
+        }
         </style>
     """, unsafe_allow_html=True)
 
-# --- 4. EXPLICIT MOBIL-GRÄNSSNITT ---
-apply_mobile_design()
-MobileStudioKernel.optimize_for_mobile()
+# --- 3. STUDIO CORE ---
+apply_2026_design()
+st.markdown('<div class="logo">MAXIMUSIKAI</div>', unsafe_allow_html=True)
 
-st.markdown('<div class="logo-text">MAXIMUSIKAI</div>', unsafe_allow_html=True)
+# HUD (Statusrad)
+c1, c2 = st.columns(2)
+with c1: st.write(f"📡 CORE: ACTIVE")
+with c2: st.markdown(f"<p style='text-align:right;'>⚡ UNITS: {st.session_state.units}</p>", unsafe_allow_html=True)
 
-# Status-bar (Högst upp på mobil)
-c1, c2 = st.columns([2, 1])
-with c1:
-    artist = st.text_input("PILOT ID:", "ANONYM", key="pilot").upper()
-with c2:
-    st.markdown(f"<p style='margin-top:35px; text-align:right;'>⚡ {st.session_state.user_units}</p>", unsafe_allow_html=True)
+# --- 4. COMMAND CENTER (INPUT) ---
+st.markdown("### 🪄 NEURAL SYNTHESIS")
+prompt = st.text_area("BESKRIV DIN VISION", placeholder="T.ex. En futuristisk stad i regn...", height=120)
 
-# --- 5. STUDIO MODULER ---
-tabs = st.tabs(["🪄 MAGI", "🎬 REGI", "📚 ARKIV"])
+col_gen, col_opt = st.columns([2,1])
+with col_opt:
+    ratio = st.selectbox("FORMAT", ["9:16 (MOBIL)", "1:1 (SQUARE)", "16:9 (WIDE)"])
+    map_ratio = {"9:16 (MOBIL)": "9:16", "1:1 (SQUARE)": "1:1", "16:9 (WIDE)": "16:9"}
 
-with tabs[0]: # MAGI-FLIKEN
-    st.markdown('<div class="mobile-card">', unsafe_allow_html=True)
-    prompt = st.text_area("VAD SKA VI SKAPA?", placeholder="En rymdstation i neon...", height=120)
-    
-    # Snabb-knappar för mobil
-    c1, c2 = st.columns(2)
-    if c1.button("✨ FÖRBÄTTRA"):
-        prompt = f"{prompt}, cinematic lighting, futuristic architecture, hyper-detailed, 8k, neon refraction"
-        st.toast("Prompt optimerad för 2026!")
-    
-    if st.button("🔥 GENERERA (9:16)", use_container_width=True):
-        if st.session_state.user_units > 0:
-            with st.status("Neural Sync..."):
+if col_gen.button("🔥 EXECUTE SYNTHESIS", use_container_width=True):
+    if prompt and st.session_state.units > 0:
+        with st.status("Linking to AI Cores...") as status:
+            try:
+                # Förstärk prompten för maxat resultat
+                final_prompt = enhance_result(prompt)
+                status.write("Optimizing Prompt for 2026 Graphics...")
+                
                 os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
-                # Tvingar 9:16 format för mobil-bakgrund
+                
+                # BILD-GENERERING (Flux Schnell)
                 res = replicate.run("black-forest-labs/flux-schnell", 
-                                   input={"prompt": prompt, "aspect_ratio": "9:16"})
-                url = str(res[0]) if isinstance(res, list) else str(res)
-                st.session_state.gallery.append({"u": artist, "url": url, "p": prompt})
-                st.session_state.user_units -= 1
-                MobileStudioKernel.log_action(artist, "Generated Image")
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with tabs[1]: # REGI (Video)
-    user_stuff = [p for p in st.session_state.gallery if p["u"] == artist]
-    if user_stuff:
-        st.markdown('<div class="mobile-card">', unsafe_allow_html=True)
-        target = user_stuff[-1] # Senaste bilden
-        st.image(target["url"], caption="SENASTE SKAPELSEN", use_container_width=True)
-        if st.button("🎬 ANIMERA TILL VIDEO (5 UNITS)", use_container_width=True):
-            if st.session_state.user_units >= 5:
-                with st.spinner("Luma Engine..."):
-                    vid = replicate.run("luma-ai/luma-dream-machine", input={"image_url": target["url"]})
-                    st.video(str(vid))
-                    st.session_state.user_units -= 5
-            else: st.error("Ladda units!")
-        st.markdown('</div>', unsafe_allow_html=True)
+                                   input={"prompt": final_prompt, "aspect_ratio": map_ratio[ratio]})
+                
+                img_url = str(res[0]) if isinstance(res, list) else str(res)
+                st.session_state.gallery.append(img_url)
+                st.session_state.units -= 1
+                
+                st.image(img_url, use_container_width=True, caption="RESULTAT: NEURAL SYNC COMPLETE")
+                status.update(label="SYNTHESIS COMPLETE", state="complete")
+            except Exception as e:
+                st.error(f"SYSTEM ERROR: {e}")
     else:
-        st.info("Skapa en bild i MAGI först.")
+        st.warning("SKRIV EN PROMPT OCH KOLLA DINA UNITS.")
 
-with tabs[2]: # ARKIV (Häftiga Bakgrunder)
-    st.markdown("### 🖼️ DITT ARKIV")
-    my_stuff = [p for p in st.session_state.gallery if p["u"] == artist]
-    for i, item in enumerate(reversed(my_stuff)):
-        st.markdown('<div class="mobile-card">', unsafe_allow_html=True)
-        st.image(item["url"], use_container_width=True)
-        if st.button("🖼️ SÄTT SOM STUDIO-BG", key=f"bg_{i}"):
-            st.session_state.app_bg = item["url"]
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+# --- 5. DATA VAULT (ARKIV) ---
+if st.session_state.gallery:
+    st.divider()
+    st.markdown("### 📚 DITT ARKIV")
+    cols = st.columns(2) # Bra för mobilscroll
+    for idx, img in enumerate(reversed(st.session_state.gallery)):
+        with cols[idx % 2]:
+            st.image(img, use_container_width=True)
+            if st.button(f"LADDA NER #{idx}", key=f"dl_{idx}"):
+                st.write("Håll ner fingret på bilden för att spara!")
 
-# Osynlig logg längst ner (för felsökning)
-if artist == "TOMAS2026":
-    with st.expander("KERNEL_LOGS"):
-        st.write(st.session_state.get("action_logs", []))
-
+st.caption(f"MAXIMUSIKAI STUDIO PRO v4.2 | 2026.03.26")
 
