@@ -30,9 +30,9 @@ def get_media_data(url):
     except: return None
 
 def generate_random_prompt():
-    subjects = ["nebula", "black hole", "supernova", "alien planet", "cybernetic moon", "star cluster", "galactic core"]
+    subjects = ["nebula", "black hole", "supernova", "alien planet", "cybernetic moon"]
     colors = ["neon purple", "electric cyan", "deep crimson", "emerald green", "golden solar flares"]
-    return f"Cinematic 8k shot of a {random.choice(subjects)} with {random.choice(colors)}, swirling cosmic dust, high contrast, wide angle."
+    return f"Cinematic 8k shot of a {random.choice(subjects)} with {random.choice(colors)}, swirling cosmic dust, high contrast."
 
 def generate_world_name():
     prefix = ["NEO", "ZION", "VOID", "AURA", "CYBER", "STAR", "GIGA", "CORE", "OMEGA"]
@@ -45,38 +45,40 @@ def apply_ui():
     st.markdown(f"""
         <style>
         .stAppViewContainer {{
-            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.8)), 
+            background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), 
                               url("{st.session_state.wallpaper}") !important;
             background-size: cover !important; background-position: center !important; transition: 1.5s ease-in-out !important;
         }}
         .main, .stAppHeader, .stAppViewBlockContainer {{ background: transparent !important; }}
 
-        /* FIX FÖR SVARTA FÄLT I KNAPPAR */
+        /* FIX FÖR GIGANTISKA EMOJIS UTAN SVARTA FÄLT */
         div[data-testid="stButton"] > button {{
-            display: flex !important; align-items: center !important; justify-content: center !important;
-            margin: 0 auto !important; width: 200px !important; height: 200px !important;
+            width: 200px !important; height: 200px !important;
             border-radius: 50px !important; border: 2px solid {accent}44 !important;
-            background: transparent !important; /* TVINGA TRANSPARENT */
+            background: rgba(255, 255, 255, 0.05) !important;
             backdrop-filter: blur(10px) !important;
-            font-size: 8rem !important; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
             box-shadow: 0 15px 50px rgba(0,0,0,0.8) !important;
+            display: flex !important; align-items: center !important; justify-content: center !important;
         }}
         
-        /* TAR BORT STREAMLITS INRE SVARTA FÄLT */
-        div[data-testid="stButton"] > button div {{
-            background: transparent !important;
+        /* Tvinga storlek på emojin inuti knappen */
+        div[data-testid="stButton"] > button p {{
+            font-size: 8rem !important; 
+            margin: 0 !important;
+            line-height: 1 !important;
         }}
 
         div[data-testid="stButton"] > button:hover {{
             transform: scale(1.1) translateY(-10px) !important;
             border-color: {accent} !important; box-shadow: 0 0 70px {accent}66 !important;
-            background: rgba(255,255,255,0.05) !important;
+            background: rgba(255, 255, 255, 0.1) !important;
         }}
 
         .space-title {{ text-align: center; color: white; font-size: 6rem; font-weight: 900; letter-spacing: -3px; margin-top: 50px; text-shadow: 0 0 30px {accent}88; }}
-        .world-status {{ text-align: center; color: {accent}; font-family: monospace; font-weight: bold; margin-top: 10px; letter-spacing: 15px; font-size: 1.2rem; text-transform: uppercase; opacity: 0.8; }}
-        .label {{ text-align: center; color: {accent}; font-family: monospace; font-weight: bold; margin-top: 25px; letter-spacing: 5px; font-size: 1rem; text-transform: uppercase; }}
-        .window {{ background: rgba(0, 5, 15, 0.96) !important; backdrop-filter: blur(50px); border: 2px solid {accent}44; border-radius: 40px; padding: 50px; color: white; }}
+        .world-status {{ text-align: center; color: {accent}; font-family: monospace; font-weight: bold; margin-top: 10px; letter-spacing: 15px; font-size: 1.2rem; text-transform: uppercase; }}
+        .label {{ text-align: center; color: {accent}; font-family: monospace; font-weight: bold; margin-top: 20px; letter-spacing: 5px; font-size: 0.9rem; text-transform: uppercase; }}
+        .window {{ background: rgba(0, 5, 15, 0.96) !important; backdrop-filter: blur(50px); border: 1px solid {accent}44; border-radius: 40px; padding: 50px; color: white; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -122,7 +124,7 @@ else:
         st.markdown(f"<hr style='border:1px solid {st.session_state.accent_color}44; margin:30px 0;'>", unsafe_allow_html=True)
 
         if st.session_state.active_window == "BG_ENGINE":
-            st.write("### 🌍 SKAPA OCH NAMNGE EN VÄRLD")
+            st.write("### 🌍 GENERERA NY VÄRLD")
             col_l, col_r = st.columns([0.7, 0.3])
             with col_r:
                 if st.button("🧠 SLUMPA PROMPT", use_container_width=True):
@@ -130,7 +132,7 @@ else:
                     st.rerun()
             
             bg_p = st.text_area("BESKRIV MILJÖN:", value=st.session_state.get('temp_prompt', ''))
-            theme_color = st.color_picker("VÄLJ ACCENTFÄRG:", st.session_state.accent_color)
+            theme_color = st.color_picker("VÄLJ TEMA-FÄRG:", st.session_state.accent_color)
             
             if st.button("RENDERA OCH DÖP VÄRLDEN", use_container_width=True):
                 with st.status("SYNTETISERAR..."):
@@ -138,7 +140,7 @@ else:
                     st.session_state.wallpaper = res
                     st.session_state.accent_color = theme_color
                     st.session_state.world_name = generate_world_name()
-                    if res not in st.session_state.bg_gallery: st.session_state.bg_gallery.append(res)
+                    st.session_state.bg_gallery.append(res)
                 st.rerun()
             
             st.write("### 🎞️ GALLERI")
@@ -161,10 +163,10 @@ else:
             if st.session_state.synth_res:
                 st.image(st.session_state.synth_res, use_container_width=True)
                 data = get_media_data(st.session_state.synth_res)
-                if data: st.download_button("📥 LADDA NER BILD", data, "art.png", "image/png", use_container_width=True)
+                if data: st.download_button("📥 LADDA NER", data, "art.png", "image/png", use_container_width=True)
 
         elif st.session_state.active_window == "SYSTEM":
-            st.write(f"CURRENT_WORLD: {st.session_state.world_name}")
+            st.write(f"SYSTEM STATUS: **NOMINAL**")
             if st.button("HARD RESET"):
                 st.session_state.bg_gallery = ["https://images.unsplash.com"]
                 st.session_state.wallpaper = st.session_state.bg_gallery[0]
