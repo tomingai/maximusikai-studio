@@ -3,7 +3,7 @@ import replicate
 import os
 import requests
 
-# --- 1. IMPORT CHECK ---
+# --- 1. IMPORT LOTTIE ---
 try:
     from streamlit_lottie import st_lottie
     LOTTIE_AVAILABLE = True
@@ -16,24 +16,25 @@ st.set_page_config(page_title="MAXIMUSIK AI PRO", layout="wide", initial_sidebar
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
+# Session State Init
 if "active_window" not in st.session_state: st.session_state.active_window = None
 if "synth_res" not in st.session_state: st.session_state.synth_res = None
+if "audio_res" not in st.session_state: st.session_state.audio_res = None
 
-# --- 3. LOTTIE LOADER (FIXED) ---
+# --- 3. LOTTIE LOADER ---
+@st.cache_data
 def load_lottieurl(url: str):
     try:
         r = requests.get(url, timeout=10)
-        if r.status_code != 200:
-            return None
-        return r.json() # Detta kraschar om url inte är en ren .json fil
-    except Exception:
+        return r.json() if r.status_code == 200 else None
+    except:
         return None
 
-# Direkta JSON-länkar (Viktigt!)
-lottie_synth = load_lottieurl("https://assets10.lottiefiles.com")
-lottie_audio = load_lottieurl("https://assets10.lottiefiles.com")
-lottie_video = load_lottieurl("https://assets1.lottiefiles.com")
-lottie_sys = load_lottieurl("https://assets1.lottiefiles.com")
+# Pro-ikoner (Lottie JSON)
+lottie_synth = load_lottieurl("https://assets10.lottiefiles.com") # AI
+lottie_audio = load_lottieurl("https://assets10.lottiefiles.com") # Audio
+lottie_video = load_lottieurl("https://assets1.lottiefiles.com") # Video
+lottie_sys = load_lottieurl("https://assets1.lottiefiles.com") # System
 
 # --- 4. DESIGN (CSS) ---
 def apply_ui():
@@ -44,9 +45,9 @@ def apply_ui():
             background-image: radial-gradient(circle at 50% 50%, #001a2d 0%, #020205 100%) !important;
         }
         
-        /* Knappen ligger ovanpå för klickbarhet */
+        /* Knappar ovanpå animationerna */
         div[data-testid="stButton"] > button {
-            background: rgba(0, 242, 255, 0.05) !important;
+            background: rgba(0, 242, 255, 0.02) !important;
             border: 1px solid rgba(0, 242, 255, 0.2) !important;
             height: 180px !important;
             width: 100% !important;
@@ -55,10 +56,10 @@ def apply_ui():
             transition: 0.3s all !important;
             color: transparent !important;
         }
-        
         div[data-testid="stButton"] > button:hover {
-            background: rgba(0, 242, 255, 0.15) !important;
+            background: rgba(0, 242, 255, 0.1) !important;
             border-color: #00f2ff !important;
+            transform: scale(1.02) !important;
         }
 
         .pro-title {
@@ -67,10 +68,7 @@ def apply_ui():
             background: linear-gradient(to bottom, #ffffff 40%, #00f2ff 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        
         .label { text-align: center; color: #00f2ff; font-family: monospace; font-weight: bold; margin-top: 10px; letter-spacing: 3px; }
-        
-        /* Positionerar animationen bakom/i knappen */
         .lottie-box { margin-top: -185px; pointer-events: none; text-align: center; }
 
         .window {
@@ -86,7 +84,7 @@ apply_ui()
 # --- 5. DESKTOP ---
 if st.session_state.active_window is None:
     st.markdown("<br><br><h1 class='pro-title'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:10px; opacity:0.4;'>NEURAL_CORE_V3</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#00f2ff; font-family:monospace; letter-spacing:10px; opacity:0.4;'>NEURAL_CORE_READY</p>", unsafe_allow_html=True)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     _, c1, c2, c3, c4, _ = st.columns([0.5, 1, 1, 1, 1, 0.5])
@@ -101,14 +99,12 @@ if st.session_state.active_window is None:
     cols = [c1, c2, c3, c4]
 
     for i, col in enumerate(cols):
-        name, lottie_data, fallback_emoji = modules[i]
+        name, lottie_data, fallback = modules[i]
         with col:
-            # Knappen tar emot klicket
-            if st.button(fallback_emoji, key=f"btn_{i}"):
+            if st.button(fallback, key=f"btn_{i}"):
                 st.session_state.active_window = name
                 st.rerun()
             
-            # Animationen visas om den laddats korrekt
             if LOTTIE_AVAILABLE and lottie_data:
                 st.markdown('<div class="lottie-box">', unsafe_allow_html=True)
                 st_lottie(lottie_data, height=180, key=f"lottie_{i}")
@@ -140,8 +136,21 @@ else:
                 st.rerun()
             if st.session_state.synth_res: st.image(st.session_state.synth_res)
 
+        elif st.session_state.active_window == "AUDIO":
+            p = st.text_input("SONIC PARAMETERS:")
+            if st.button("GENERATE"):
+                with st.status("TUNING..."):
+                    res = replicate.run("facebookresearch/musicgen:7b57424c30623a3111867c006579c3b88d2f1f0a204364ef0c6e93833f48a901", input={"prompt": p})
+                    st.session_state.audio_res = res
+                st.rerun()
+            if st.session_state.audio_res: st.audio(st.session_state.audio_res)
+
         elif st.session_state.active_window == "SYSTEM":
             st.code(f"ANIMATION_ENGINE: {'LOADED' if LOTTIE_AVAILABLE else 'ERROR'}\nSYSTEM_STATUS: NOMINAL")
+            if st.button("HARD RESET"):
+                st.session_state.synth_res = None
+                st.session_state.audio_res = None
+                st.success("CACHE PURGED")
         
         st.markdown('</div>', unsafe_allow_html=True)
 
