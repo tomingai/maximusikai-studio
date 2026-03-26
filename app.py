@@ -132,6 +132,16 @@ else:
 
         if st.session_state.active_window == "WALLPAPER":
             st.write("### VÄLJ DIN ATMOSFÄR")
+            
+            # CUSTOM URL INPUT
+            custom_url = st.text_input("KLISTRA IN EGEN BILD-URL:", placeholder="https://exempel.se")
+            if st.button("ANVÄND EGEN BILD", use_container_width=True):
+                if custom_url:
+                    st.session_state.wallpaper = custom_url
+                    st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.write("### PRESETS")
             w1, w2, w3, w4 = st.columns(4)
             with w1:
                 if st.button("NEBULA", key="w1"):
@@ -166,6 +176,7 @@ else:
                 st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
