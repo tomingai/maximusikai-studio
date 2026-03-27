@@ -6,7 +6,7 @@ import requests
 from io import BytesIO
 
 # --- 1. SYSTEM-KONFIGURATION ---
-st.set_page_config(page_title="MAXIMUSIK AI OS v7.2 FIXED", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="MAXIMUSIK AI OS v7.3 FIXED SONIFY", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
@@ -41,45 +41,39 @@ def get_random_prompt(mode="IMAGE"):
     return random.choice(audio_prompts if mode == "AUDIO" else img_prompts)
 
 def sonify_image(image_url):
-    """FIXAD: BILD -> TEXT -> LJUD"""
-    with st.spinner("Analyzing Visual DNA..."):
+    """BILD -> TEXT -> LJUD (Korrigerad för stabilitet)"""
+    with st.spinner("AI läser bilden..."):
         try:
-            # Steg 1: Analysera bilden med Moondream
-            descr = replicate.run(
+            # Steg 1: Bildanalys (Moondream)
+            analysis = replicate.run(
                 "lucataco/moondream2:610746815820698144-8848-436e-b76e-07a829a7386d", 
-                input={"image": image_url, "prompt": "Describe the musical style, mood and tempo of this image in one sentence."}
+                input={"image": image_url, "prompt": "Describe the musical genre, instruments and mood of this image in 10 words."}
             )
-            st.info(f"AI-Analys: {descr}")
+            st.info(f"AI Tolkning: {analysis}")
             
-            # Steg 2: Skapa musik med den stabila MusicGen-sökvägen
-            res = replicate.run(
+            # Steg 2: Musikgenerering (MusicGen)
+            music_res = replicate.run(
                 "meta/musicgen", 
-                input={"prompt": f"Soundtrack: {descr}", "duration": 8}
+                input={"prompt": f"High quality music: {analysis}", "duration": 8}
             )
-            st.session_state.library.append({"type": "audio", "url": res, "prompt": f"Sonify: {descr[:20]}"})
-            return res
+            st.session_state.library.append({"type": "audio", "url": music_res, "prompt": f"Vision: {analysis[:20]}"})
+            st.success("Musik skapad!")
+            return music_res
         except Exception as e:
-            st.error(f"Sonify Error: {e}")
+            st.error(f"Sonify misslyckades: {e}")
             return None
 
 def visualize_audio(audio_url):
     """LJUD -> TEXT -> BILD"""
-    with st.spinner("Visualizing Soundwaves..."):
+    with st.spinner("AI lyssnar på ljudet..."):
         try:
-            descr = replicate.run(
-                "nateraw/clap:5070f69a53238676d1e43e74643b0d4c6d67b070", 
-                input={"audio": audio_url, "task": "caption"}
-            )
-            res = replicate.run(
-                "black-forest-labs/flux-schnell", 
-                input={"prompt": f"Cinematic digital art inspired by the sound of: {descr}"}
-            )
-            url = get_url(res)
-            st.session_state.library.append({"type": "image", "url": url, "prompt": f"Visualize: {descr[:20]}"})
+            descr = replicate.run("nateraw/clap:5070f69a53238676d1e43e74643b0d4c6d67b070", input={"audio": audio_url, "task": "caption"})
+            img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": f"Digital art inspired by: {descr}"})
+            url = get_url(img_res)
+            st.session_state.library.append({"type": "image", "url": url, "prompt": f"Sound: {descr[:20]}"})
             return url
         except Exception as e:
-            st.error(f"Visualize Error: {e}")
-            return None
+            st.error(f"Visualize misslyckades: {e}"); return None
 
 # --- 3. UI ENGINE ---
 def apply_ui():
@@ -92,7 +86,6 @@ def apply_ui():
             background: linear-gradient(rgba(0,0,0,{overlay}), rgba(0,0,0,{overlay + 0.1})), 
                         url("{st.session_state.wallpaper}") !important;
             background-size: cover !important; background-attachment: fixed !important;
-            background-position: center !important;
         }}
         [data-testid="stHeader"], .main {{ background: transparent !important; }}
         h1, h2, h3, p, label, .stCaption {{ color: {accent} !important; text-shadow: 0 0 10px {accent}77 !important; font-family: 'Courier New', monospace !important; }}
@@ -107,7 +100,7 @@ apply_ui()
 # --- 4. DESKTOP ---
 if st.session_state.page == "DESKTOP":
     st.markdown(f"<h1 style='text-align:center; letter-spacing:20px; padding-top:15vh; font-size:4.5rem; font-weight:900;'>MAXIMUSIK</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align:center; color:{st.session_state.accent_color}; opacity:0.7;'>SYSTEM OS v7.2 // FIXED SONIFY ENGINE</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align:center; color:{st.session_state.accent_color}; opacity:0.7;'>SYSTEM OS v7.3 // FIXED SONIFY ENGINE</p>", unsafe_allow_html=True)
     cols = st.columns(5)
     apps = [("🪄 SYNTH", "SYNTH"), ("🎧 AUDIO", "AUDIO"), ("📚 ARKIV", "LIBRARY"), ("🖼 ENGINE", "ENGINE"), ("⚙️ SYSTEM", "SYSTEM")]
     for i, (label, target) in enumerate(apps):
@@ -124,7 +117,7 @@ else:
         h1.markdown(f"<h2>// {st.session_state.page}</h2>", unsafe_allow_html=True)
         if h2.button("✕"): st.session_state.page = "DESKTOP"; st.rerun()
 
-        # SYNTH (BILD TILL MUSIK)
+        # SYNTH
         if st.session_state.page == "SYNTH":
             if st.button("🎲 RANDOM"): st.session_state.last_synth_p = get_random_prompt("IMAGE"); st.rerun()
             p = st.text_area("PROMPT:", value=st.session_state.last_synth_p)
@@ -137,30 +130,26 @@ else:
                 st.image(st.session_state.last_image_res, width=400)
                 if st.button("🎵 SKAPA MUSIK AV DENNA BILD", use_container_width=True):
                     st.session_state.last_audio_res = sonify_image(st.session_state.last_image_res); st.rerun()
-            if st.session_state.last_audio_res:
-                st.audio(st.session_state.last_audio_res)
+            if st.session_state.last_audio_res: st.audio(st.session_state.last_audio_res)
 
-        # AUDIO (MUSIK TILL BILD)
+        # AUDIO
         elif st.session_state.page == "AUDIO":
             up_audio = st.file_uploader("LADDA UPP LJUD:", type=["mp3", "wav"])
             if up_audio:
                 st.audio(up_audio)
-                if st.button("🖼 VISUALIZE UPLOAD"): st.session_state.last_image_res = visualize_audio(up_audio); st.rerun()
-            
+                if st.button("🖼 VISUALIZE"): st.session_state.last_image_res = visualize_audio(up_audio); st.rerun()
             st.markdown("---")
             if st.button("🎲 RANDOM"): st.session_state.last_synth_p = get_random_prompt("AUDIO"); st.rerun()
-            ap = st.text_input("PROMPT:", value=st.session_state.last_synth_p)
+            ap = st.text_input("SONIC PROMPT:", value=st.session_state.last_synth_p)
             if st.button("GENERATE AUDIO", use_container_width=True):
                 res = replicate.run("meta/musicgen", input={"prompt": ap, "duration": 8})
                 st.session_state.last_audio_res = res
                 st.session_state.library.append({"type": "audio", "url": res, "prompt": ap}); st.rerun()
-            
             if st.session_state.last_audio_res:
                 st.audio(st.session_state.last_audio_res)
-                if st.button("🖼 VISUALIZE GENERERAT LJUD"):
-                    st.session_state.last_image_res = visualize_audio(st.session_state.last_audio_res); st.rerun()
+                if st.button("🖼 VISUALIZE GEN"): st.session_state.last_image_res = visualize_audio(st.session_state.last_audio_res); st.rerun()
 
-        # ARKIV
+        # LIBRARY
         elif st.session_state.page == "LIBRARY":
             st.session_state.lib_filter = st.radio("FILTER:", ["ALLA", "BILDER", "LJUD"], horizontal=True)
             f_lib = [i for i in st.session_state.library if st.session_state.lib_filter == "ALLA" or (st.session_state.lib_filter == "BILDER" and i['type'] == "image") or (st.session_state.lib_filter == "LJUD" and i['type'] == "audio")]
@@ -200,6 +189,7 @@ else:
             if st.button("FACTORY RESET"): st.session_state.clear(); st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
