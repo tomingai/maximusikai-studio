@@ -51,12 +51,27 @@ def apply_ui():
             background: linear-gradient(rgba(0,0,0,{overlay}), rgba(0,0,0,{overlay + 0.1})), 
                         url("{st.session_state.wallpaper}") !important;
             background-size: cover !important; background-attachment: fixed !important;
+            background-position: center !important;
         }}
         [data-testid="stHeader"], .main {{ background: transparent !important; }}
         h1, h2, h3, p, label, .stCaption {{ color: {accent} !important; text-shadow: 0 0 10px {accent}77 !important; font-family: monospace !important; }}
-        .window-box {{ background: rgba(0, 5, 12, 0.94); backdrop-filter: blur(50px); border: 2px solid {accent}33; border-radius: 40px; padding: 40px; }}
-        .stButton > button {{ background: rgba(0,0,0,0.6) !important; border: 1px solid {accent}44 !important; color: {accent} !important; border-radius: 15px !important; height: 50px !important; font-weight: bold; }}
-        audio {{ filter: sepia(1) saturate(5) hue-rotate(160deg); width: 100%; border-radius: 12px; }}
+        .window-box {{ 
+            background: rgba(0, 5, 12, 0.85); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid {accent}44; 
+            border-radius: 25px; 
+            padding: 30px;
+            margin-top: 20px;
+        }}
+        .stButton > button {{ 
+            background: rgba(0,0,0,0.6) !important; 
+            border: 1px solid {accent}44 !important; 
+            color: {accent} !important; 
+            border-radius: 10px !important; 
+            transition: 0.3s;
+        }}
+        .stButton > button:hover {{ border-color: {accent} !important; box-shadow: 0 0 15px {accent}44; }}
+        audio {{ filter: sepia(1) saturate(5) hue-rotate(160deg); width: 100%; border-radius: 12px; margin-top: 10px; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -64,7 +79,10 @@ apply_ui()
 
 # --- 4. DESKTOP ---
 if st.session_state.page == "DESKTOP":
-    st.markdown(f"<h1 style='text-align:center; letter-spacing:25px; padding-top:10vh; font-size:3.5rem;'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align:center; letter-spacing:20px; padding-top:15vh; font-size:4rem; font-weight:900;'>MAXIMUSIK AI</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; opacity:0.6;'>OS v6.6 // NEURAL INTERFACE</p>", unsafe_allow_html=True)
+    
+    st.markdown("<br><br>", unsafe_allow_html=True)
     cols = st.columns(5)
     apps = [("🪄 SYNTH", "SYNTH"), ("🎧 AUDIO", "AUDIO"), ("📚 ARKIV", "LIBRARY"), ("🖼 ENGINE", "ENGINE"), ("⚙️ SYSTEM", "SYSTEM")]
     for i, (label, target) in enumerate(apps):
@@ -81,7 +99,7 @@ else:
         h1.markdown(f"<h2>// {st.session_state.page}</h2>", unsafe_allow_html=True)
         if h2.button("✕", key="exit_os"): st.session_state.page = "DESKTOP"; st.rerun()
 
-        # --- AUDIO (FIXAD MODELL-PATH) ---
+        # --- AUDIO ---
         if st.session_state.page == "AUDIO":
             st.write("### SONIC GENERATOR")
             if st.button("🎲 SLUMPA BEAT"):
@@ -90,7 +108,6 @@ else:
             if st.button("GENERATE AUDIO", use_container_width=True):
                 with st.spinner("Neural Composing..."):
                     try:
-                        # FIX: Använder den mest stabila officiella pathen
                         res = replicate.run("meta/musicgen", input={"prompt": ap, "duration": 8})
                         st.session_state.last_audio_res = res
                         st.session_state.library.append({"type": "audio", "url": res, "prompt": ap})
@@ -113,9 +130,9 @@ else:
                     st.session_state.library.append({"type": "image", "url": url, "prompt": p})
                 st.rerun()
             if st.session_state.last_image_res:
-                st.image(st.session_state.last_image_res, width=400)
+                st.image(st.session_state.last_image_res, width=500)
 
-        # --- ARKIV (KOMPAKT + DOWNLOAD) ---
+        # --- ARKIV ---
         elif st.session_state.page == "LIBRARY":
             st.session_state.lib_filter = st.radio("FILTER:", ["ALLA", "BILDER", "LJUD"], horizontal=True)
             f_lib = st.session_state.library
@@ -129,7 +146,7 @@ else:
                     with lib_cols[idx % 3]:
                         if item['type'] == "image": st.image(item['url'], use_container_width=True)
                         else: st.audio(item['url'])
-                        st.caption(f"{item['prompt'][:20]}...")
+                        st.caption(f"{item['prompt'][:30]}...")
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             if st.button("🗑", key=f"del_{idx}"):
@@ -142,7 +159,7 @@ else:
                                 response = requests.get(item['url'])
                                 ext = "png" if item['type'] == "image" else "wav"
                                 st.download_button(label="💾", data=response.content, file_name=f"maximusik_{idx}.{ext}", mime=f"{item['type']}/{ext}", key=f"dl_{idx}")
-                            except: st.write("err")
+                            except: st.write("!")
                         st.markdown("---")
 
         # --- ENGINE & SYSTEM ---
@@ -150,10 +167,11 @@ else:
             st.session_state.brightness = st.slider("LJUSSTYRKA", 0.0, 1.0, st.session_state.brightness)
             ep = st.text_area("MILJÖ-PROMPT (16:9):")
             if st.button("UPDATE REALITY"):
-                res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": ep, "aspect_ratio": "16:9"})
-                url = get_url(res)
-                st.session_state.wallpaper = url
-                st.session_state.library.append({"type": "image", "url": url, "prompt": ep})
+                with st.spinner("Rendering Environment..."):
+                    res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": ep, "aspect_ratio": "16:9"})
+                    url = get_url(res)
+                    st.session_state.wallpaper = url
+                    st.session_state.library.append({"type": "image", "url": url, "prompt": ep})
                 st.rerun()
 
         elif st.session_state.page == "SYSTEM":
