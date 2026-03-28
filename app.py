@@ -9,7 +9,7 @@ import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "NR 1.1.3" 
+VERSION = "NR 1.1.5" 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -58,8 +58,7 @@ st.markdown(f"""
         background: rgba(0, 10, 30, 0.75); backdrop-filter: blur(40px); 
         border: 1px solid {accent}33; border-radius: 20px; padding: 25px; margin-bottom: 20px;
     }}
-    h1, h2, h3, label, p {{ color: white !important; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); }}
-    .stButton>button {{ 
+    .stButton>button, .stDownloadButton>button {{ 
         border: 1px solid {accent}66 !important; background: {accent}11 !important; 
         color: white !important; border-radius: 12px; font-weight: bold; width: 100%;
     }}
@@ -89,6 +88,7 @@ if st.session_state.page == "SYNTH":
     if st.button("🚀 GENERERA BILD"):
         if user_p:
             with st.status("Neural kedja aktiv..."):
+                st.session_state.last_prompt = user_p
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 if url:
@@ -104,16 +104,16 @@ if st.session_state.page == "SYNTH":
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SUB-APP)</h2>", unsafe_allow_html=True)
-    vid_p = st.text_input("BESKRIV DIN SCEN:", placeholder="Klistra in Samurai-prompten här...")
+    vid_p = st.text_input("BESKRIV DIN SCEN:", placeholder="Samuraj-prompten här...")
     
     if st.button("🎬 GENERERA 5S VIDEO"):
         if vid_p:
             with st.status("Renderar film (vänta ca 90s)...") as status:
-                # FIX: Hämta modellen först för att säkra versionen
-                model = replicate.models.get("luma/dream-machine")
-                prediction = model.predictions.create(input={"prompt": vid_p})
-                
-                # Polling loop
+                # Använder Luma Dream Machine via prediction-API
+                prediction = replicate.predictions.create(
+                    version="aae1987b-7b0b-466d-88f5-3c9716616a12", 
+                    input={"prompt": vid_p}
+                )
                 while prediction.status not in ["succeeded", "failed", "canceled"]:
                     time.sleep(5)
                     prediction.reload()
@@ -122,10 +122,13 @@ elif st.session_state.page == "MOVIE":
                 if prediction.status == "succeeded":
                     vid_url = sanitize_url(prediction.output)
                     st.session_state.last_vid = vid_url
-                    st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": vid_p})
+                    st.session_state.video_library.append({
+                        "id": time.time(), 
+                        "url": vid_url, 
+                        "prompt": vid_p,
+                        "ts": datetime.now().strftime("%H:%M")
+                    })
                     st.rerun()
-                else:
-                    st.error(f"Fel: {prediction.error}")
     
     if st.session_state.last_vid:
         st.video(st.session_state.last_vid)
@@ -135,11 +138,24 @@ elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     t_img, t_vid = st.tabs(["🖼️ BILDER", "🎬 FILMER"])
     with t_img:
-        for item in reversed(st.session_state.library):
-            st.image(item['data'], width=300)
+        if not st.session_state.library: st.info("Bildarkivet är tomt.")
+        else:
+            grid = st.columns(3)
+            for i, item in enumerate(list(reversed(st.session_state.library))):
+                with grid[i % 3]:
+                    st.image(item['data'], use_container_width=True)
+                    if st.button("SLÄNG", key=f"del_img_{item['id']}"):
+                        st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]
+                        st.rerun()
     with t_vid:
-        for v in reversed(st.session_state.video_library):
-            st.video(v['url'])
+        if not st.session_state.video_library: st.info("Videoarkivet är tomt.")
+        else:
+            for v in reversed(st.session_state.video_library):
+                st.video(v['url'])
+                st.caption(f"🎥 {v['prompt']} ({v['ts']})")
+                if st.button("RADERA", key=f"del_vid_{v['id']}"):
+                    st.session_state.video_library = [vid for vid in st.session_state.video_library if vid['id'] != v['id']]
+                    st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
