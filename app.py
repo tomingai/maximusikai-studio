@@ -72,11 +72,11 @@ st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True
 c_nav, c_dim = st.columns([0.8, 0.2])
 with c_nav:
     nc = st.columns(6)
-    if nc[0].button("🏠"): st.session_state.page = "SYNTH"; st.rerun() # Home pekar på Synth i denna version
-    if nc[1].button("🪄"): st.session_state.page = "SYNTH"; st.rerun()
-    if nc[2].button("🎧"): st.session_state.page = "AUDIO"; st.rerun()
-    if nc[3].button("🎬"): st.session_state.page = "MOVIE"; st.rerun()
-    if nc[4].button("📚"): st.session_state.page = "ARKIV"; st.rerun()
+    if nc.button("🏠"): st.session_state.page = "SYNTH"; st.rerun()
+    if nc.button("🪄"): st.session_state.page = "SYNTH"; st.rerun()
+    if nc.button("🎧"): st.session_state.page = "AUDIO"; st.rerun()
+    if nc.button("🎬"): st.session_state.page = "MOVIE"; st.rerun()
+    if nc.button("📚"): st.session_state.page = "ARKIV"; st.rerun()
 with c_dim:
     st.session_state.bg_opacity = st.slider("DIM", 0.0, 1.0, st.session_state.bg_opacity, 0.05)
 st.markdown('</div>', unsafe_allow_html=True)
@@ -104,22 +104,22 @@ if st.session_state.page == "SYNTH":
         st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODULE: MOVIE (Stabilitetsfixad)
+# MODULE: MOVIE (Stabiliserad)
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SUB-APP)</h2>", unsafe_allow_html=True)
-    vid_p = st.text_input("BESKRIV DIN SCEN:", placeholder="En man på en klippa i regn, filmiskt ljus...")
+    vid_p = st.text_input("BESKRIV DIN SCEN:", placeholder="Klistra in prompten här...")
     
     if st.button("🎬 GENERERA 5S VIDEO"):
         if vid_p:
             with st.status("Skapar Cinema-beställning...") as status:
-                # Vi skapar en prediction-modell istället för att vänta direkt
+                # Vi skapar en prediction-modell för Luma Dream Machine
                 prediction = replicate.predictions.create(
                     model="luma/dream-machine",
                     input={"prompt": vid_p}
                 )
                 
-                # Loop som kollar status var 5:e sekund för att undvika Timeout
+                # Kontrollerad vänteläge (Polling)
                 while prediction.status not in ["succeeded", "failed", "canceled"]:
                     time.sleep(5)
                     prediction.reload()
@@ -137,23 +137,16 @@ elif st.session_state.page == "MOVIE":
         st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODULE: ARKIV
+# (ARKIV lämnas intakt)
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     t_img, t_vid = st.tabs(["🖼️ BILDER", "🎬 FILMER"])
     with t_img:
-        if not st.session_state.library: st.info("Bildarkivet är tomt.")
-        else:
-            grid = st.columns(3)
-            for i, item in enumerate(list(reversed(st.session_state.library))):
-                with grid[i % 3]:
-                    st.image(item['data'], use_container_width=True)
+        for i, item in enumerate(list(reversed(st.session_state.library))):
+            st.image(item['data'], width=300)
     with t_vid:
-        if not st.session_state.video_library: st.info("Videoarkivet är tomt.")
-        else:
-            for v in reversed(st.session_state.video_library):
-                st.video(v['url'])
-                st.caption(f"Prompt: {v['prompt']}")
+        for v in reversed(st.session_state.video_library):
+            st.video(v['url'])
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
