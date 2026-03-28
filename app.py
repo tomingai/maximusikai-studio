@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 
 # --- 1. KÄRN-KONFIGURATION & DATA-SHIELD ---
-VERSION = "11.3.6-GLOW-SHIELD"
+VERSION = "11.3.6-ULTIMATE"
 DB_FILE = "maximusik_history.json"
 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
@@ -14,7 +14,7 @@ st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", init
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# --- 2. PERSISTENCE ENGINE (Spara/Ladda) ---
+# --- 2. PERSISTENCE ENGINE ---
 def save_data():
     try:
         data = {
@@ -23,8 +23,7 @@ def save_data():
             "brightness": st.session_state.get("brightness", 5),
             "last_img": st.session_state.get("last_img", None)
         }
-        with open(DB_FILE, "w") as f:
-            json.dump(data, f)
+        with open(DB_FILE, "w") as f: json.dump(data, f)
     except: pass
 
 def load_data():
@@ -34,13 +33,15 @@ def load_data():
         except: return None
     return None
 
-# --- 3. MOTOR & CLEANER ---
+# --- 3. MOTOR & URL-SANITIZER ---
 def clean_prompt(text):
     if not text: return ""
     return str(text).replace('"', '').replace('Prompt:', '').strip()
 
 def sanitize_url(output):
-    if isinstance(output, list) and len(output) > 0: return str(output[0])
+    """Fixar list-kraschen genom att extrahera första strängen"""
+    if isinstance(output, list) and len(output) > 0:
+        return str(output[0])
     return str(output)
 
 def safe_replicate_run(model, input_data):
@@ -48,9 +49,11 @@ def safe_replicate_run(model, input_data):
         res = replicate.run(model, input=input_data)
         if "moondream" in model or "llama" in model: return res
         return sanitize_url(res)
-    except: return None
+    except Exception as e:
+        st.error(f"Neural Error: {str(e)[:100]}")
+        return None
 
-# --- 4. INITIALISERING (Återställ från Shield) ---
+# --- 4. INITIALISERING ---
 if "page" not in st.session_state:
     saved = load_data()
     st.session_state.update({
@@ -75,26 +78,15 @@ st.markdown(f"""
     }}
     [data-testid="stAppViewContainer"] {{ 
         background: url("{st.session_state.wallpaper}"); 
-        background-size: cover; background-attachment: fixed; background-position: center;
+        background-size: cover; background-attachment: fixed;
     }}
     .glass {{ 
         background: rgba(0, 10, 30, 0.85); backdrop-filter: blur(50px); 
         border: 1px solid {accent}66; border-radius: 20px; padding: 25px; 
     }}
-    h1, h2, h3, label, p {{ 
-        color: white !important; 
-        text-shadow: 2px 2px 12px rgba(0,0,0,1) !important; 
-        font-weight: 800 !important;
-    }}
-    .stTextInput>div>div>input, .stSelectbox>div>div {{
-        background-color: rgba(0, 0, 0, 0.6) !important;
-        color: white !important; border: 1px solid {accent}44 !important;
-    }}
-    .stButton>button {{ 
-        border: 1px solid {accent}88 !important; color: white !important; 
-        background: {accent}22 !important; border-radius: 12px; height: 3.5rem; font-weight: bold;
-    }}
-    .success-box {{ border: 2px solid #00ff88; border-radius: 12px; padding: 10px; text-align: center; color: #00ff88; font-family: monospace; background: rgba(0,255,136,0.1); }}
+    h1, h2, h3, label, p {{ color: white !important; text-shadow: 2px 2px 12px rgba(0,0,0,1) !important; font-weight: 800 !important; }}
+    .stTextInput>div>div>input, .stSelectbox>div>div {{ background-color: rgba(0, 0, 0, 0.6) !important; color: white !important; border: 1px solid {accent}44 !important; }}
+    .stButton>button {{ border: 1px solid {accent}88 !important; color: white !important; background: {accent}22 !important; border-radius: 12px; height: 3.5rem; font-weight: bold; width: 100%; }}
     .neural-console {{ background: rgba(0,0,0,0.8); border: 1px solid {accent}44; padding: 12px; border-radius: 8px; font-family: monospace; color: {accent}; font-size: 0.8rem; }}
     </style>
 """, unsafe_allow_html=True)
@@ -125,7 +117,7 @@ if st.session_state.page == "SYNTH":
     with c1:
         st.session_state.style = st.selectbox("STIL:", ["Photorealistic", "Cinematic", "Cyberpunk", "Digital Art"])
     with c2:
-        aspect = st.selectbox("FORMAT:", ["1:1", "16:9", "9:16"], index=1)
+        aspect = st.selectbox("FORMAT:", ["1x1", "16x9", "9x16"], index=1)
 
     if st.button("🚀 STARTA NEURAL KEDJA"):
         if user_p:
@@ -133,18 +125,18 @@ if st.session_state.page == "SYNTH":
             console = st.empty()
             log = ["› INITIALIZING NEURAL ENGINE..."]
             prog.progress(20, text="EXPANDING VISION...")
-            raw_expanded = "".join(list(replicate.run("meta/meta-llama-3-8b-instruct", input={"prompt": f"Expand to 8k {st.session_state.style} prompt: {user_p}"})))
+            raw_expanded = "".join(list(replicate.run("meta/meta-llama-3-8b-instruct", input={"prompt": f"Expand to a {st.session_state.style} 8k image prompt: {user_p}"})))
             expanded = clean_prompt(raw_expanded)
             log.append("› PROMPT OPTIMIZED.")
             console.markdown(f'<div class="neural-console">{"<br>".join(log)}</div>', unsafe_allow_html=True)
             prog.progress(50, text="RENDERING PIXELS...")
-            url = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": expanded, "aspect_ratio": aspect.replace(":", "x")})
+            # FIXED: aspect_ratio använder nu korrekt x-format
+            url = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": expanded, "aspect_ratio": aspect})
             if url:
                 st.session_state.last_img = url
                 st.session_state.library.append({"url": url, "prompt": user_p, "ts": datetime.now().strftime("%H:%M")})
                 save_data()
-                st.markdown('<div class="success-box">✅ PIPELINE SUCCESSFUL</div>', unsafe_allow_html=True)
-                time.sleep(1); st.rerun()
+                st.rerun()
     if st.session_state.last_img:
         st.divider(); st.image(st.session_state.last_img, use_column_width=True)
         if st.button("🖼 SÄTT SOM BAKGRUND"): st.session_state.wallpaper = st.session_state.last_img; save_data(); st.rerun()
@@ -160,16 +152,6 @@ elif st.session_state.page == "ARKIV":
                 st.image(item['url'], use_column_width=True)
                 if st.button("VÄLJ", key=f"ark_{i}"):
                     st.session_state.last_img = item['url']; st.session_state.wallpaper = item['url']; save_data(); st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-elif st.session_state.page == "ENGINE":
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
-    if not st.session_state.last_img and st.session_state.library: st.session_state.last_img = st.session_state.library[-1]['url']
-    if st.session_state.last_img:
-        st.image(st.session_state.last_img, width=400)
-        if st.button("🔍 ANALYSERA"):
-            res = safe_replicate_run("lucataco/moondream2", {"image": st.session_state.last_img, "prompt": "Describe textures."})
-            st.info(res)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
