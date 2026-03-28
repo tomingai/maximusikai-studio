@@ -22,9 +22,9 @@ def get_safe_filename(text):
     return f"MAX_{clean[:30]}"
 
 def sanitize_url(output):
-    # REGEL: Fixar InvalidURL genom att tvinga fram en ren http-sträng
     if not output: return None
     url = ""
+    # Hanterar både listor, objekt och råa strängar från olika modeller
     if isinstance(output, list) and len(output) > 0:
         url = str(output[0])
     elif hasattr(output, 'url'):
@@ -32,12 +32,8 @@ def sanitize_url(output):
     else:
         url = str(output)
     
-    # Ta bort allt som inte tillhör en URL
     url = url.replace("['", "").replace("']", "").replace("[", "").replace("]", "").replace("'", "").replace('"', "").strip()
-    
-    if not url.startswith("http"):
-        return None
-    return url
+    return url if url.startswith("http") else None
 
 # --- 3. INITIALISERING ---
 if "page" not in st.session_state:
@@ -94,6 +90,8 @@ if st.session_state.page == "SYNTH":
     if st.button("🚀 GENERERA BILD"):
         if user_p:
             with st.status("Neural kedja aktiv..."):
+                st.session_state.last_prompt = user_p
+                # Använder Flux Schnell för snabb bildgenerering
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 if url:
@@ -103,17 +101,14 @@ if st.session_state.page == "SYNTH":
                             st.session_state.last_img = resp.content
                             st.session_state.library.append({"id": time.time(), "data": resp.content, "prompt": user_p})
                             st.rerun()
-                    except Exception as e:
-                        st.error(f"Download error: {e}")
-                else:
-                    st.error("Kunde inte hämta en giltig bild-URL.")
+                    except: st.error("Kunde inte hämta bilden.")
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SVD-XT)</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (STABLE VIDEO)</h2>", unsafe_allow_html=True)
     
     if st.session_state.last_img:
         st.image(st.session_state.last_img, caption="Redo för animation", width=300)
@@ -121,17 +116,25 @@ elif st.session_state.page == "MOVIE":
         
         if st.button("🎬 ANIMERA BILD"):
             progress_bar = st.progress(0)
+            status_text = st.empty()
             try:
                 img_stream = io.BytesIO(st.session_state.last_img)
+                # FIX: Använder det officiella modellnamnet för att undvika 404
+                model = replicate.models.get("stability-ai/stable-video-diffusion")
                 prediction = replicate.predictions.create(
-                    model="stability-ai/stable-video-diffusion",
-                    input={"input_image": img_stream, "motion_bucket_id": motion}
+                    version=model.latest_version,
+                    input={
+                        "input_image": img_stream,
+                        "motion_bucket_id": motion,
+                        "video_length": "14_frames_with_svd"
+                    }
                 )
                 start_time = time.time()
                 while prediction.status not in ["succeeded", "failed", "canceled"]:
                     elapsed = int(time.time() - start_time)
                     progress_bar.progress(min(elapsed * 2, 99))
-                    time.sleep(3)
+                    status_text.write(f"Bearbetar... {elapsed}s")
+                    time.sleep(4)
                     prediction.reload()
                 
                 if prediction.status == "succeeded":
@@ -140,8 +143,8 @@ elif st.session_state.page == "MOVIE":
                     st.session_state.last_vid = vid_url
                     st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": "Animation"})
                     st.rerun()
-            except Exception as e:
-                st.error(f"Cinema Error: {e}")
+                else: st.error(f"Fel: {prediction.error}")
+            except Exception as e: st.error(f"Cinema Error: {e}")
     else:
         st.warning("Skapa en bild i SYNTH först!")
 
@@ -150,3 +153,4 @@ elif st.session_state.page == "MOVIE":
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
+city:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
