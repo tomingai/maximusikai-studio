@@ -24,7 +24,7 @@ def get_safe_filename(text):
 def sanitize_url(output):
     if not output: return None
     url = ""
-    if isinstance(output, list) and len(output) > 0: url = str(output[0])
+    if isinstance(output, list) and len(output) > 0: url = str(output)
     elif hasattr(output, 'url'): url = str(output.url)
     else: url = str(output)
     url = url.replace("['", "").replace("']", "").replace("[", "").replace("]", "").replace("'", "").replace('"', "").strip()
@@ -58,7 +58,14 @@ st.markdown(f"""
         background: rgba(0, 10, 30, 0.75); backdrop-filter: blur(40px); 
         border: 1px solid {accent}33; border-radius: 20px; padding: 25px; margin-bottom: 20px;
     }}
-    .stButton>button, .stDownloadButton>button {{ 
+    /* CSS för att begränsa maxbredd på bilder och videos */
+    .stImage, .stVideo {{
+        max-width: 80% !important;
+        margin: auto !important;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }}
+    .stButton>button {{ 
         border: 1px solid {accent}66 !important; background: {accent}11 !important; 
         color: white !important; border-radius: 12px; font-weight: bold; width: 100%;
     }}
@@ -89,28 +96,31 @@ if st.session_state.page == "SYNTH":
         if user_p:
             with st.status("Neural kedja aktiv...", expanded=True) as status:
                 st.session_state.last_prompt = user_p
-                # Använder Flux Schnell
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 if url:
-                    status.update(label="Bild klar! Laddar ner data...", state="running")
+                    status.update(label="Bild klar! Laddar ner...", state="running")
                     resp = requests.get(url, timeout=20)
                     if resp.status_code == 200:
                         st.session_state.last_img = resp.content
                         st.session_state.library.append({"id": time.time(), "data": resp.content, "url": url, "prompt": user_p})
-                        status.update(label="Klar!", state="complete")
                         st.rerun()
-                else:
-                    st.error("Kunde inte hämta bild-URL.")
+    
     if st.session_state.last_img:
-        st.image(st.session_state.last_img, use_container_width=True)
+        # Centrerad vy för bilden
+        _, mid, _ = st.columns([0.15, 0.7, 0.15])
+        with mid:
+            st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SVD)</h2>", unsafe_allow_html=True)
     if st.session_state.last_img:
-        st.image(st.session_state.last_img, caption="Startbild klar", width=300)
+        _, mid_pre, _ = st.columns([0.3, 0.4, 0.3])
+        with mid_pre:
+            st.image(st.session_state.last_img, caption="Redo för animation", use_container_width=True)
+        
         motion = st.slider("RÖRELSE:", 1, 255, 127)
         if st.button("🎬 ANIMERA"):
             progress_bar = st.progress(0)
@@ -125,15 +135,15 @@ elif st.session_state.page == "MOVIE":
                     time.sleep(4)
                     prediction.reload()
                 if prediction.status == "succeeded":
-                    progress_bar.progress(100)
-                    vid_url = sanitize_url(prediction.output)
-                    st.session_state.last_vid = vid_url
-                    st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": "Animation"})
+                    st.session_state.last_vid = sanitize_url(prediction.output)
+                    st.session_state.video_library.append({"id": time.time(), "url": st.session_state.last_vid, "prompt": "Animation"})
                     st.rerun()
             except Exception as e: st.error(f"Error: {e}")
-    else: st.warning("Skapa bild i SYNTH först.")
+    
     if st.session_state.last_vid:
-        st.video(st.session_state.last_vid)
+        _, mid_vid, _ = st.columns([0.1, 0.8, 0.1])
+        with mid_vid:
+            st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "ARKIV":
@@ -142,18 +152,25 @@ elif st.session_state.page == "ARKIV":
     with t_img:
         if not st.session_state.library: st.info("Bildarkivet är tomt.")
         else:
-            grid = st.columns(3)
+            grid = st.columns(4) # Fler kolumner = mindre bilder
             for i, item in enumerate(list(reversed(st.session_state.library))):
-                with grid[i % 3]:
+                with grid[i % 4]:
                     st.image(item['data'], use_container_width=True)
-                    if st.button("🖼️", key=f"bg_{item['id']}"):
+                    c1, c2 = st.columns(2)
+                    if c1.button("🖼️", key=f"bg_{item['id']}"):
                         st.session_state.wallpaper = item['url']; st.rerun()
-                    if st.button("🗑️", key=f"del_{item['id']}"):
+                    if c2.button("🗑️", key=f"del_{item['id']}"):
                         st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]; st.rerun()
     with t_vid:
-        for v in reversed(st.session_state.video_library):
-            st.video(v['url'])
-            st.markdown(f"[📥 LADDA NER VIDEO]({v['url']})", unsafe_allow_html=True)
+        if not st.session_state.video_library: st.info("Videoarkivet är tomt.")
+        else:
+            for v in reversed(st.session_state.video_library):
+                _, mid_v, _ = st.columns([0.2, 0.6, 0.2])
+                with mid_v:
+                    st.video(v['url'])
+                    st.markdown(f"[📥 HÄMTA VIDEO]({v['url']})", unsafe_allow_html=True)
+                    if st.button("RADERA", key=f"del_v_{v['id']}"):
+                        st.session_state.video_library = [vid for vid in st.session_state.video_library if vid['id'] != v['id']]; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
