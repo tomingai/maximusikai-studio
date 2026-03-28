@@ -9,8 +9,8 @@ import time
 from datetime import datetime
 
 # --- 1. SYSTEM-KONFIGURATION ---
-# VERSION: 9.9.3 | STATUS: BUTTON-FIX | REGLER 1-18
-st.set_page_config(page_title="MAXIMUSIK AI OS v9.9.3", layout="wide", initial_sidebar_state="collapsed")
+# VERSION: 9.9.5 | STATUS: REFRESHED & SECURED | REGLER 1-18
+st.set_page_config(page_title="MAXIMUSIK AI OS v9.9.5", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
@@ -63,7 +63,20 @@ def clean_url(res):
         return str(res)
     except: return None
 
-# --- 3. UI ENGINE (Borttagning av svarta rutor) ---
+# --- 3. CORE AI LOGIC ---
+def sonify_logic(image_url, prompt_context, progress_bar):
+    progress_bar.progress(70, text="SONIFY: Analyserar...")
+    descr = safe_replicate_run("lucataco/moondream2:610746815820698144-8848-436e-b76e-07a829a7386d", 
+                              {"image": image_url, "prompt": "Music mood in 5 words."}, "SONIFY_ANALYSIS")
+    progress_bar.progress(85, text="SONIFY: Skapar ljud...")
+    snd = safe_replicate_run("meta/musicgen:671ac645", {"prompt": f"{descr}, {prompt_context}", "duration": 8}, "SONIFY_GEN")
+    url = clean_url(snd)
+    if url:
+        st.session_state.library.append({"type": "audio", "url": url, "prompt": f"Mood: {descr}"})
+        return url
+    return None
+
+# --- 4. UI ENGINE (Transparency Fix) ---
 def apply_ui():
     accent = st.session_state.accent_color
     bright = st.session_state.brightness
@@ -75,55 +88,35 @@ def apply_ui():
             background: linear-gradient(rgba(0,0,0,{overlay}), rgba(0,0,0,{overlay + 0.1})), 
                         url("{st.session_state.wallpaper}") !important; 
             background-size: cover !important; 
+            background-attachment: fixed !important;
         }}
-        .window-box {{ 
-            background: rgba(0, 5, 15, 0.95); 
-            backdrop-filter: blur(40px); 
-            border: 1px solid {accent}44; 
-            border-radius: 20px; 
-            padding: 25px; 
-            min-height: 80vh; 
-        }}
-        .nav-bar {{ 
-            display: flex; 
-            justify-content: space-around; 
-            background: rgba(0,0,0,0.8); 
-            padding: 10px; 
-            border-radius: 15px; 
-            margin-bottom: 20px; 
-            border: 1px solid {accent}22; 
-        }}
-        h1, h2, h3, p, label, span {{ 
-            color: {accent} !important; 
-            font-family: 'Courier New', monospace !important; 
-        }}
-        /* FIX FÖR SVARTA RUTOR I KNAPPAR */
-        .stButton > button {{ 
-            background: transparent !important; 
+        .window-box {{ background: rgba(0, 5, 15, 0.9); backdrop-filter: blur(30px); border: 1px solid {accent}33; border-radius: 20px; padding: 25px; min-height: 80vh; }}
+        .nav-bar {{ display: flex; justify-content: space-around; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 15px; margin-bottom: 20px; border: 1px solid {accent}11; }}
+        h1, h2, h3, p, label {{ color: {accent} !important; font-family: 'Courier New', monospace !important; }}
+        
+        /* FIX: TRANSPARENTA KNAPPAR UTAN SVART RUTA */
+        div[data-testid="stButton"] button {{
+            background: transparent !important;
             background-color: transparent !important;
-            border: 1px solid {accent}44 !important; 
-            color: {accent} !important; 
-            width: 100%; 
+            color: {accent} !important;
+            border: 1px solid {accent}55 !important;
+            width: 100%;
             border-radius: 10px !important;
             box-shadow: none !important;
+            height: 3rem;
         }}
-        .stButton > button:hover {{
-            border-color: {accent} !important;
+        div[data-testid="stButton"] button:hover {{
             background: {accent}11 !important;
+            border-color: {accent} !important;
         }}
-        .status-dot {{ 
-            height: 10px; width: 10px; background-color: {alert_c}; border-radius: 50%; 
-            box-shadow: 0 0 10px {alert_c}; display: inline-block; 
-        }}
-        .log-box {{ 
-            background: #000; color: #0f0; font-family: 'Courier New', monospace; 
-            padding: 10px; border-radius: 10px; font-size: 0.75rem; 
-            height: 120px; border: 1px solid #0f02; overflow-y: scroll; 
-        }}
+        
+        .status-dot {{ height: 10px; width: 10px; background-color: {alert_c}; border-radius: 50%; box-shadow: 0 0 10px {alert_c}; display: inline-block; }}
+        .log-box {{ background: #000; color: #0f0; font-family: 'Courier New', monospace; padding: 10px; border-radius: 10px; font-size: 0.75rem; height: 120px; border: 1px solid #0f02; overflow-y: scroll; }}
+        audio, video {{ filter: sepia(1) saturate(5) hue-rotate(160deg); border-radius: 10px; width: 100%; }}
         </style>
     """, unsafe_allow_html=True)
 
-# --- 4. STATES ---
+# --- 5. STATES ---
 if "page" not in st.session_state:
     st.session_state.update({
         "page": "DESKTOP",
@@ -131,7 +124,7 @@ if "page" not in st.session_state:
         "accent_color": "#00f2ff",
         "brightness": 0.5,
         "library": load_history(),
-        "logs": ["OS v9.9.3 BUTTON-FIX DEPLOYED"],
+        "logs": ["OS v9.9.5 REFRESHED"],
         "system_alert": False,
         "last_image_res": None, "last_audio_res": None, "last_video_res": None,
         "last_synth_p": ""
@@ -139,7 +132,7 @@ if "page" not in st.session_state:
 
 apply_ui()
 
-# --- 5. NAVIGATION ---
+# --- 6. NAVIGATION & MODULER ---
 if st.session_state.page == "DESKTOP":
     st.markdown(f"<h1 style='text-align:center; letter-spacing:25px; padding-top:20vh; font-size:4rem; font-weight:900;'>MAXIMUSIK</h1>", unsafe_allow_html=True)
     cols = st.columns(6)
@@ -165,13 +158,15 @@ else:
             if url:
                 st.session_state.last_image_res = url
                 st.session_state.library.append({"type": "image", "url": url, "prompt": p})
+                st.session_state.last_audio_res = sonify_logic(url, p, prog)
                 prog.progress(100, text="KLART.")
                 save_history(); st.rerun()
         if st.session_state.last_image_res: st.image(st.session_state.last_image_res, width=400)
 
     elif st.session_state.page == "AUDIO":
-        ap = st.text_input("MANUAL AUDIO PROMPT:")
-        if st.button("🔊 SKAPA"):
+        st.write("### 🎧 AUDIO SYNTH")
+        ap = st.text_input("VAD VILL DU HÖRA?")
+        if st.button("🔊 SKAPA LJUD"):
             res = safe_replicate_run("meta/musicgen:671ac645", {"prompt": ap, "duration": 10})
             url = clean_url(res)
             if url:
@@ -181,9 +176,9 @@ else:
         if st.session_state.last_audio_res: st.audio(st.session_state.last_audio_res)
 
     elif st.session_state.page == "MOVIE":
+        st.write("### 🎬 MOVIE ENGINE")
         if st.session_state.last_image_res:
-            st.image(st.session_state.last_image_res, width=200)
-            if st.button("🎞 ANIMERA"):
+            if st.button("🎞 ANIMERA BILD"):
                 res = safe_replicate_run("stability-ai/video-diffusion:3f0457148a1aa577d638be204a4002c1d58ce1bd57b7f7c4d328b3d24883990c", {"input_image": st.session_state.last_image_res})
                 url = clean_url(res)
                 if url:
@@ -192,7 +187,16 @@ else:
                     save_history(); st.rerun()
         if st.session_state.last_video_res: st.video(st.session_state.last_video_res)
 
+    elif st.session_state.page == "ENGINE":
+        st.write("### 🖼 WALLPAPER ENGINE")
+        wp = st.text_input("NY OS-STIL:")
+        if st.button("🎨 UPPDATERA"):
+            img = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": wp})
+            url = clean_url(img)
+            if url: st.session_state.wallpaper = url; st.rerun()
+
     elif st.session_state.page == "LIBRARY":
+        st.write("### 📚 ARKIV")
         for i, item in enumerate(reversed(st.session_state.library)):
             with st.expander(f"{item['type'].upper()} - {item['prompt'][:20]}"):
                 if item['type'] == "image": st.image(item['url'])
@@ -204,9 +208,9 @@ else:
 
     elif st.session_state.page == "SYSTEM":
         st.session_state.accent_color = st.color_picker("FÄRG", st.session_state.accent_color)
+        st.session_state.brightness = st.slider("LJUS", 0.1, 1.0, st.session_state.brightness)
         if st.button("🟢 RESET ALERT"): st.session_state.system_alert = False; st.rerun()
-        log_text = "<br>".join(st.session_state.logs[::-1])
-        st.markdown(f'<div class="log-box">{log_text}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="log-box">{"<br>".join(st.session_state.logs[::-1])}</div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
