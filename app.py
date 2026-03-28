@@ -9,7 +9,7 @@ import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "NR 1.1.2" 
+VERSION = "NR 1.1.3" 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -52,22 +52,21 @@ st.markdown(f"""
     [data-testid="stAppViewContainer"] {{ 
         background: linear-gradient(rgba(0,0,0,{st.session_state.bg_opacity}), rgba(0,0,0,{st.session_state.bg_opacity})), 
                     url("{st.session_state.wallpaper}"); 
-        background-size: cover !important; background-position: center !important;
-        background-repeat: no-repeat !important; background-attachment: fixed !important;
+        background-size: cover !important; background-attachment: fixed !important;
     }}
     .glass {{ 
         background: rgba(0, 10, 30, 0.75); backdrop-filter: blur(40px); 
         border: 1px solid {accent}33; border-radius: 20px; padding: 25px; margin-bottom: 20px;
     }}
     h1, h2, h3, label, p {{ color: white !important; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); }}
-    .stButton>button, .stDownloadButton>button {{ 
+    .stButton>button {{ 
         border: 1px solid {accent}66 !important; background: {accent}11 !important; 
         color: white !important; border-radius: 12px; font-weight: bold; width: 100%;
     }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. NAVIGATION (STABILISERAD) ---
+# --- 5. NAVIGATION ---
 st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True)
 c_nav, c_dim = st.columns([0.8, 0.2])
 with c_nav:
@@ -83,7 +82,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
 
-# MODULE: SYNTH
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 NEURAL SYNTH STATION</h2>", unsafe_allow_html=True)
@@ -91,7 +89,6 @@ if st.session_state.page == "SYNTH":
     if st.button("🚀 GENERERA BILD"):
         if user_p:
             with st.status("Neural kedja aktiv..."):
-                st.session_state.last_prompt = user_p
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 if url:
@@ -104,7 +101,6 @@ if st.session_state.page == "SYNTH":
         st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODULE: MOVIE (PROMPT-TO-VIDEO)
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SUB-APP)</h2>", unsafe_allow_html=True)
@@ -113,12 +109,11 @@ elif st.session_state.page == "MOVIE":
     if st.button("🎬 GENERERA 5S VIDEO"):
         if vid_p:
             with st.status("Renderar film (vänta ca 90s)...") as status:
-                # Skapa prediction för Luma
-                prediction = replicate.predictions.create(
-                    model="luma/dream-machine",
-                    input={"prompt": vid_p}
-                )
-                # Polling loop för att hålla appen vid liv
+                # FIX: Hämta modellen först för att säkra versionen
+                model = replicate.models.get("luma/dream-machine")
+                prediction = model.predictions.create(input={"prompt": vid_p})
+                
+                # Polling loop
                 while prediction.status not in ["succeeded", "failed", "canceled"]:
                     time.sleep(5)
                     prediction.reload()
@@ -136,22 +131,15 @@ elif st.session_state.page == "MOVIE":
         st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODULE: ARKIV
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     t_img, t_vid = st.tabs(["🖼️ BILDER", "🎬 FILMER"])
     with t_img:
-        if not st.session_state.library: st.info("Bildarkivet är tomt.")
-        else:
-            grid = st.columns(3)
-            for i, item in enumerate(list(reversed(st.session_state.library))):
-                with grid[i % 3]:
-                    st.image(item['data'], use_container_width=True)
+        for item in reversed(st.session_state.library):
+            st.image(item['data'], width=300)
     with t_vid:
-        if not st.session_state.video_library: st.info("Videoarkivet är tomt.")
-        else:
-            for v in reversed(st.session_state.video_library):
-                st.video(v['url'])
+        for v in reversed(st.session_state.video_library):
+            st.video(v['url'])
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
