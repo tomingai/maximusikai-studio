@@ -24,7 +24,7 @@ def get_safe_filename(text):
 def sanitize_url(output):
     if not output: return None
     url = ""
-    if isinstance(output, list) and len(output) > 0: url = str(output)
+    if isinstance(output, list) and len(output) > 0: url = str(output[0])
     elif hasattr(output, 'url'): url = str(output.url)
     else: url = str(output)
     url = url.replace("['", "").replace("']", "").replace("[", "").replace("]", "").replace("'", "").replace('"', "").strip()
@@ -137,6 +137,7 @@ elif st.session_state.page == "MOVIE":
             start = time.time()
             try:
                 img_stream = io.BytesIO(st.session_state.last_img)
+                # FIX: Använder direkt modellnamn för att undvika 404 på versioner
                 prediction = replicate.predictions.create(
                     model="stability-ai/stable-video-diffusion",
                     input={"input_image": img_stream, "motion_bucket_id": motion}
