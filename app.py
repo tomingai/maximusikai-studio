@@ -3,7 +3,7 @@ from datetime import datetime
 import streamlit as st
 
 # VERSIONSHANTERING (Regel NR 1)
-VERSION = "1.2.3" 
+VERSION = "1.2.4" 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -11,10 +11,8 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 
 def sanitize_url(output):
     if not output: return None
-    # Om output är en lista, ta första elementet
     target = output[0] if isinstance(output, list) else output
-    url = str(target).strip()
-    return url if url.startswith("http") else None
+    return str(target).strip()
 
 # INITIALISERING
 if "page" not in st.session_state:
@@ -34,7 +32,7 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# TOP NAVIGATION
+# NAV
 st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True)
 c_nav, c_dim = st.columns([0.8, 0.2])
 with c_nav:
@@ -50,16 +48,19 @@ st.markdown('</div>', unsafe_allow_html=True)
 # MODUL: SYNTH
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    user_p = st.text_input("VAD SKALL VI SKAPA?", placeholder="Skriv din prompt här...")
+    user_p = st.text_input("VAD SKALL VI SKAPA?", placeholder="Testa Chrome Note prompten här...")
     if st.button("🚀 GENERERA BILD"):
-        with st.status("Syntetiserar bild...", expanded=True) as status:
-            res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
-            url = sanitize_url(res)
-            resp = requests.get(url)
-            st.session_state.last_img = resp.content
-            st.session_state.library.append({"id": time.time(), "data": resp.content, "url": url, "prompt": user_p})
-            status.update(label="Bild klar!", state="complete")
-            st.rerun()
+        try:
+            with st.status("Syntetiserar...", expanded=True) as status:
+                res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
+                url = sanitize_url(res)
+                resp = requests.get(url)
+                st.session_state.last_img = resp.content
+                st.session_state.library.append({"id": time.time(), "data": resp.content, "url": url, "prompt": user_p})
+                st.rerun()
+        except Exception as e:
+            st.error(f"SYNTH ERROR (Regel NR 6): {str(e)}")
+    
     if st.session_state.last_img:
         _, mid, _ = st.columns([0.1, 0.8, 0.1]); mid.image(st.session_state.last_img)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -67,51 +68,45 @@ if st.session_state.page == "SYNTH":
 # MODUL: AUDIO
 elif st.session_state.page == "AUDIO":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    audio_p = st.text_area("BESKRIV DIN LÅT (STIL, TEXT):")
+    audio_p = st.text_area("BESKRIV DIN LÅT:")
     if st.button("🎸 GENERERA MUSIK"):
-        with st.status("Komponerar...", expanded=True) as status:
-            res = replicate.run("sumit-poddar/suno-v3.5:96773229b4344400e9603099958742512f5a0446f25f19036c0192e21b777a87", 
-                                input={"prompt": audio_p})
-            audio_url = sanitize_url(res)
-            resp = requests.get(audio_url)
-            st.session_state.last_audio = resp.content
-            st.session_state.audio_library.append({"id": time.time(), "data": resp.content, "prompt": audio_p})
-            status.update(label="Musik klar!", state="complete")
+        try:
+            with st.status("Komponerar...", expanded=True) as status:
+                res = replicate.run("sumit-poddar/suno-v3.5:96773229b4344400e9603099958742512f5a0446f25f19036c0192e21b777a87", input={"prompt": audio_p})
+                audio_url = sanitize_url(res)
+                resp = requests.get(audio_url)
+                st.session_state.last_audio = resp.content
+                st.session_state.audio_library.append({"id": time.time(), "data": resp.content, "prompt": audio_p})
+                st.rerun()
+        except Exception as e:
+            st.error(f"AUDIO ERROR (Regel NR 6): {str(e)}")
     if st.session_state.last_audio:
         st.audio(st.session_state.last_audio)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODUL: MOVIE (Säkrad version-ID hantering)
+# MODUL: MOVIE (Fallback till Stable Video Diffusion)
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     if st.session_state.last_img:
-        _, mid_pre, _ = st.columns([0.3, 0.4, 0.3]); mid_pre.image(st.session_state.last_img, caption="Basbild")
-        vid_p = st.text_input("RÖRELSE:", value="Cinematic motion, slow pans")
-        if st.button("🎬 ANIMERA"):
-            with st.status("Animerar...", expanded=True) as status:
-                img_url = st.session_state.library[-1]['url']
-                # Hämtar senaste versionen explicit för att undvika 404
-                model = replicate.models.get("luma/ray-2")
-                version = model.versions.list()[0]
-                prediction = replicate.predictions.create(
-                    version=version.id,
-                    input={"prompt": vid_p, "start_image_url": img_url}
-                )
-                while prediction.status not in ["succeeded", "failed", "canceled"]:
-                    time.sleep(5)
-                    prediction.reload()
-                    status.write(f"Status: {prediction.status}...")
-                
-                if prediction.status == "succeeded":
-                    vid_url = sanitize_url(prediction.output)
+        _, mid_pre, _ = st.columns([0.3, 0.4, 0.3]); mid_pre.image(st.session_state.last_img, caption="Referens")
+        if st.button("🎬 ANIMERA (SVD)"):
+            try:
+                with st.status("Animerar via SVD...", expanded=True) as status:
+                    # Regel NR 4: Skicka som BytesIO för SVD
+                    img_io = io.BytesIO(st.session_state.last_img)
+                    res = replicate.run(
+                        "stability-ai/svd:3f7790f5403028243f6ed291775796f600473ef7116975591d1e433f443b740e",
+                        input={"input_image": img_io, "video_length": "14_frames_with_svd"}
+                    )
+                    vid_url = sanitize_url(res)
                     resp = requests.get(vid_url)
-                    st.session_state.last_vid = resp.content 
-                    st.session_state.video_library.append({"id": time.time(), "data": resp.content, "prompt": vid_p})
+                    st.session_state.last_vid = resp.content
+                    st.session_state.video_library.append({"id": time.time(), "data": resp.content, "prompt": "SVD Animation"})
                     st.rerun()
-                else:
-                    st.error(f"Fel: {prediction.error}")
+            except Exception as e:
+                st.error(f"MOVIE ERROR (Regel NR 6): {str(e)}")
     else:
-        st.info("Skapa en bild i SYNTH först.")
+        st.info("Skapa en bild först.")
     if st.session_state.last_vid:
         _, mid_vid, _ = st.columns([0.1, 0.8, 0.1]); mid_vid.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -130,7 +125,6 @@ elif st.session_state.page == "ARKIV":
     with t_aud:
         for a in reversed(st.session_state.audio_library):
             st.audio(a['data'])
-            st.caption(a['prompt'])
     with t_vid:
         for v in reversed(st.session_state.video_library):
             st.video(v['data'])
