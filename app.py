@@ -4,16 +4,23 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # VERSIONSHANTERING
-VERSION = "1.3.8" 
+VERSION = "1.3.9" 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
 def sanitize_url(output):
+    """Extraherar en ren URL-sträng från Replicates olika svarsformat."""
     if not output: return None
-    target = output if isinstance(output, list) else output
-    return str(target).strip()
+    try:
+        # Om det är en lista, ta första elementet
+        if isinstance(output, list): output = output[0]
+        # Om det är en generator/iterator, konvertera till lista och ta första
+        if hasattr(output, '__iter__') and not isinstance(output, (str, bytes)):
+            output = list(output)[0]
+        return str(output).strip()
+    except: return None
 
 def ai_call(prompt, system_prompt="You are a helpful assistant."):
     try:
@@ -60,12 +67,21 @@ if st.session_state.page == "SYNTH":
     st.session_state.synth_p = st.text_input("VAD SKALL VI SKAPA?", value=st.session_state.synth_p)
     if st.button("🚀 GENERERA"):
         with st.status("Syntetiserar..."):
+            # Flux Schnell anrop
             res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": st.session_state.synth_p, "aspect_ratio": "16:9"})
             url = sanitize_url(res)
-            st.session_state.last_img = requests.get(url).content
-            st.session_state.last_img_url = url
-            st.session_state.library.append({"id": time.time(), "data": st.session_state.last_img, "url": url})
-            st.rerun()
+            
+            if url and url.startswith("http"):
+                try:
+                    img_data = requests.get(url).content
+                    st.session_state.last_img = img_data
+                    st.session_state.last_img_url = url
+                    st.session_state.library.append({"id": time.time(), "data": img_data, "url": url})
+                    st.rerun()
+                except Exception as e: st.error(f"Nedladdningsfel: {e}")
+            else:
+                st.error("Kunde inte generera en giltig bild-URL. Försök igen.")
+
     if st.session_state.last_img: 
         st.image(st.session_state.last_img, width=400)
         if st.button("✂️ GÖR LOGO"):
@@ -75,7 +91,7 @@ if st.session_state.page == "SYNTH":
                 st.success("Logotyp redo!")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODUL: WEB-GEN (Nu med AI-Chatbot)
+# MODUL: WEB-GEN
 elif st.session_state.page == "APP-GEN":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.subheader("WEB ARCHITECT")
@@ -109,30 +125,11 @@ elif st.session_state.page == "APP-GEN":
             st.session_state.last_audio_url = sanitize_url(out)
             st.session_state.last_html = st.session_state.last_html.replace("<body>", f"<body><audio autoplay loop><source src='{st.session_state.last_audio_url}' type='audio/mpeg'></audio>")
             st.rerun()
-    if row2[1].button("🔍 SEO"):
-        with st.status("Optimerar..."):
-            seo = json.loads(ai_call(f"SEO JSON: meta_title, meta_desc for {st.session_state.web_p}", "Output ONLY raw JSON."))
-            st.session_state.last_html = st.session_state.last_html.replace("<head>", f"<head><title>{seo['meta_title']}</title><meta name='description' content='{seo['meta_desc']}'>")
-            st.toast("SEO Klar!")
     
-    if row2[2].button("🤖 INJECT CHAT"):
-        chat_code = f"""
-        <script src="https://cdn.jsdelivr.net"></script>
-        <div id="ai-chat-bubble" style="position:fixed; bottom:20px; right:20px; width:60px; height:60px; background:{accent}; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:9999; font-size:24px;">💬</div>
-        <script>
-            document.getElementById('ai-chat-bubble').onclick = function() {{ 
-                alert('Här startar chatten för: {st.session_state.web_p}'); 
-            }};
-        </script>
-        """
-        st.session_state.last_html = st.session_state.last_html.replace("</body>", f"{chat_code}</body>")
-        st.success("Chat-bubbla injicerad!")
-        st.rerun()
-
     if st.session_state.last_html:
         st.divider()
         components.html(st.session_state.last_html, height=500, scrolling=True)
-        st.download_button("🚀 EXPORTERA SAJT", st.session_state.last_html, "index.html")
+        st.download_button("🚀 EXPORTERA index.html", st.session_state.last_html, "index.html")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # MODULER: MOVIE & ARKIV
@@ -142,7 +139,8 @@ elif st.session_state.page == "MOVIE":
         if st.button("🎬 ANIMERA"):
             with st.status("Animerar..."):
                 output = replicate.run("stability-ai/svd:3f7790f5403028243f6ed291775796f600473ef7116975591d1e433f443b740e", input={"input_image": io.BytesIO(st.session_state.last_img)})
-                st.session_state.last_vid = requests.get(sanitize_url(output)).content
+                vid_url = sanitize_url(output)
+                st.session_state.last_vid = requests.get(vid_url).content
                 st.rerun()
     if st.session_state.last_vid: st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
