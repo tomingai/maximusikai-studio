@@ -49,7 +49,7 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# NAV (FIXAD RAD 59)
+# NAV
 st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True)
 c_nav, c_dim = st.columns([0.8, 0.2])
 with c_nav:
@@ -68,7 +68,7 @@ if st.session_state.page == "SYNTH":
     st.subheader("BILD-SYNTHESIZER")
     st.session_state.synth_p = st.text_input("PROMPT:", value=st.session_state.synth_p)
     if st.button("🚀 GENERERA BILD"):
-        with st.spinner("Beräknar pixlar...", show_time=True):
+        with st.spinner("Bearbetar neurala nätverk...", show_time=True):
             try:
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": st.session_state.synth_p})
                 img_data, img_url = handle_replicate_output(res)
@@ -122,8 +122,7 @@ elif st.session_state.page == "APP-GEN":
             except Exception as e: st.error(f"MusicGen Error: {e}")
 
     if st.session_state.last_html:
-        # HÄR KAN DU REDIGERA KODEN MANUELLT
-        st.session_state.last_html = st.text_area("MANUELL KOD-EDITOR (Editera här för att ändra sajten live):", value=st.session_state.last_html, height=300)
+        st.session_state.last_html = st.text_area("🔧 KOD-EDITOR (Live):", value=st.session_state.last_html, height=250)
         components.html(st.session_state.last_html, height=500, scrolling=True)
         st.download_button("🚀 EXPORT index.html", st.session_state.last_html, "index.html")
     st.markdown('</div>', unsafe_allow_html=True)
