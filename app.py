@@ -50,11 +50,20 @@ accent = st.session_state.accent
 st.markdown(f"""
     <style>
     [data-testid="stAppViewContainer"] {{ 
-        background: linear-gradient(rgba(0,0,0,{st.session_state.bg_opacity}), rgba(0,0,0,{st.session_state.bg_opacity})), url("{st.session_state.wallpaper}"); 
-        background-size: cover; background-attachment: fixed;
+        background: linear-gradient(rgba(0,0,0,{st.session_state.bg_opacity}), rgba(0,0,0,{st.session_state.bg_opacity})), 
+                    url("{st.session_state.wallpaper}"); 
+        background-size: cover !important; background-position: center !important;
+        background-repeat: no-repeat !important; background-attachment: fixed !important;
     }}
-    .glass {{ background: rgba(0, 10, 30, 0.75); backdrop-filter: blur(40px); border: 1px solid {accent}33; border-radius: 20px; padding: 25px; margin-bottom: 20px; }}
-    .stButton>button, .stDownloadButton>button {{ border: 1px solid {accent}66 !important; background: {accent}11 !important; color: white !important; border-radius: 12px; font-weight: bold; width: 100%; }}
+    .glass {{ 
+        background: rgba(0, 10, 30, 0.75); backdrop-filter: blur(40px); 
+        border: 1px solid {accent}33; border-radius: 20px; padding: 25px; margin-bottom: 20px;
+    }}
+    h1, h2, h3, label, p {{ color: white !important; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); }}
+    .stButton>button, .stDownloadButton>button {{ 
+        border: 1px solid {accent}66 !important; background: {accent}11 !important; 
+        color: white !important; border-radius: 12px; font-weight: bold; width: 100%;
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -63,23 +72,25 @@ st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True
 c_nav, c_dim = st.columns([0.8, 0.2])
 with c_nav:
     nc = st.columns(6)
-    if nc[0].button("🪄 SYNTH"): st.session_state.page = "SYNTH"; st.rerun()
-    if nc[1].button("🎧 AUDIO"): st.session_state.page = "AUDIO"; st.rerun()
-    if nc[2].button("🎬 MOVIE"): st.session_state.page = "MOVIE"; st.rerun()
-    if nc[3].button("📚 ARKIV"): st.session_state.page = "ARKIV"; st.rerun()
+    if nc[0].button("🏠"): st.session_state.page = "SYNTH"; st.rerun() # Home pekar på Synth i denna version
+    if nc[1].button("🪄"): st.session_state.page = "SYNTH"; st.rerun()
+    if nc[2].button("🎧"): st.session_state.page = "AUDIO"; st.rerun()
+    if nc[3].button("🎬"): st.session_state.page = "MOVIE"; st.rerun()
+    if nc[4].button("📚"): st.session_state.page = "ARKIV"; st.rerun()
 with c_dim:
     st.session_state.bg_opacity = st.slider("DIM", 0.0, 1.0, st.session_state.bg_opacity, 0.05)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
 
+# MODULE: SYNTH
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 NEURAL SYNTH STATION</h2>", unsafe_allow_html=True)
     user_p = st.text_input("VAD SKALL VI SKAPA?", placeholder="Beskriv visionen...")
     if st.button("🚀 GENERERA BILD"):
         if user_p:
-            with st.status("Neural kedja aktiv..."):
+            with st.status("Neural kedja aktiv...", expanded=True):
                 st.session_state.last_prompt = user_p
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
@@ -93,24 +104,26 @@ if st.session_state.page == "SYNTH":
         st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
+# MODULE: MOVIE (Stabilitetsfixad)
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SUB-APP)</h2>", unsafe_allow_html=True)
-    vid_p = st.text_input("BESKRIV DIN SCEN:", placeholder="En man på en klippa i regn...")
+    vid_p = st.text_input("BESKRIV DIN SCEN:", placeholder="En man på en klippa i regn, filmiskt ljus...")
     
     if st.button("🎬 GENERERA 5S VIDEO"):
         if vid_p:
-            with st.status("Väntar på Cinema-server (detta tar ca 1-2 min)...") as status:
-                # FIX: Skapar prediktion istället för att köra direkt
+            with st.status("Skapar Cinema-beställning...") as status:
+                # Vi skapar en prediction-modell istället för att vänta direkt
                 prediction = replicate.predictions.create(
-                    version="luma/dream-machine",
+                    model="luma/dream-machine",
                     input={"prompt": vid_p}
                 )
-                # Polling: Väntar tills den är klar
+                
+                # Loop som kollar status var 5:e sekund för att undvika Timeout
                 while prediction.status not in ["succeeded", "failed", "canceled"]:
                     time.sleep(5)
                     prediction.reload()
-                    status.update(label=f"Bearbetar... ({prediction.status})")
+                    status.update(label=f"Bearbetar film... ({prediction.status})")
                 
                 if prediction.status == "succeeded":
                     vid_url = sanitize_url(prediction.output)
@@ -118,21 +131,29 @@ elif st.session_state.page == "MOVIE":
                     st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": vid_p})
                     st.rerun()
                 else:
-                    st.error(f"Generering misslyckades: {prediction.error}")
+                    st.error(f"Ett fel uppstod: {prediction.error}")
     
     if st.session_state.last_vid:
         st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
 
+# MODULE: ARKIV
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     t_img, t_vid = st.tabs(["🖼️ BILDER", "🎬 FILMER"])
     with t_img:
-        for i, item in enumerate(list(reversed(st.session_state.library))):
-            st.image(item['data'], width=300)
+        if not st.session_state.library: st.info("Bildarkivet är tomt.")
+        else:
+            grid = st.columns(3)
+            for i, item in enumerate(list(reversed(st.session_state.library))):
+                with grid[i % 3]:
+                    st.image(item['data'], use_container_width=True)
     with t_vid:
-        for v in reversed(st.session_state.video_library):
-            st.video(v['url'])
+        if not st.session_state.video_library: st.info("Videoarkivet är tomt.")
+        else:
+            for v in reversed(st.session_state.video_library):
+                st.video(v['url'])
+                st.caption(f"Prompt: {v['prompt']}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
