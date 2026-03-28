@@ -23,22 +23,17 @@ def get_safe_filename(text):
 
 def sanitize_url(output):
     if not output: return None
-    # Hanterar olika typer av returdata (listor, objekt, strängar)
-    if isinstance(output, list) and len(output) > 0: target = output[0]
+    if isinstance(output, list) and len(output) > 0: target = output
     elif hasattr(output, 'url'): target = str(output.url)
     else: target = str(output)
-    
-    url = str(target)
-    for char in ["['", "']", "[", "]", "'", '"']:
-        url = url.replace(char, "")
-    return url.strip()
+    url = str(target).replace("['", "").replace("']", "").replace("'", "").replace('"', "").strip()
+    return url
 
 # --- 3. INITIALISERING ---
 if "page" not in st.session_state:
     st.session_state.update({
         "page": "SYNTH", 
         "library": [], 
-        "audio_library": [],
         "video_library": [],
         "accent": "#00f2ff", 
         "last_img": None,
@@ -74,8 +69,6 @@ c_nav, c_dim = st.columns([0.8, 0.2])
 with c_nav:
     nc = st.columns(6)
     if nc[0].button("🏠"): st.session_state.page = "SYNTH"; st.rerun()
-    if nc[1].button("🪄"): st.session_state.page = "SYNTH"; st.rerun()
-    if nc[2].button("🎧"): st.session_state.page = "AUDIO"; st.rerun()
     if nc[3].button("🎬"): st.session_state.page = "MOVIE"; st.rerun()
     if nc[4].button("📚"): st.session_state.page = "ARKIV"; st.rerun()
 with c_dim:
@@ -91,7 +84,6 @@ if st.session_state.page == "SYNTH":
     if st.button("🚀 GENERERA BILD"):
         if user_p:
             with st.status("Neural kedja aktiv..."):
-                st.session_state.last_prompt = user_p
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 if url:
@@ -106,51 +98,53 @@ if st.session_state.page == "SYNTH":
 
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (DYNAMIC ENGINE)</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SVD-XT)</h2>", unsafe_allow_html=True)
     
     if st.session_state.last_img:
         st.image(st.session_state.last_img, caption="Redo för animation", width=300)
-        motion = st.slider("RÖRELSESTYRKA (Motion Bucket):", 1, 255, 127)
+        motion = st.slider("RÖRELSESTYRKA:", 1, 255, 127)
         
         if st.button("🎬 ANIMERA BILD"):
-            with st.status("Bearbetar neural rörelse..."):
-                try:
-                    # Konvertera bytes till en stream som Replicate kan läsa
-                    img_stream = io.BytesIO(st.session_state.last_img)
+            # NYTT: Progress-bar och timer
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            try:
+                img_stream = io.BytesIO(st.session_state.last_img)
+                # Vi skapar en prediction för att kunna följa status
+                prediction = replicate.predictions.create(
+                    model="stability-ai/stable-video-diffusion",
+                    input={
+                        "input_image": img_stream,
+                        "motion_bucket_id": motion,
+                        "video_length": "14_frames_with_svd"
+                    }
+                )
+                
+                start_time = time.time()
+                while prediction.status not in ["succeeded", "failed", "canceled"]:
+                    # Simulera framsteg (genomsnittlig tid 45s)
+                    elapsed = int(time.time() - start_time)
+                    percent = min(elapsed * 2, 99) # Ökar mätaren upp till 99%
+                    progress_bar.progress(percent)
+                    status_text.markdown(f"**Status:** {prediction.status}... ({elapsed}s förflutit)")
                     
-                    # Kör dynamisk version av SVD
-                    output = replicate.run(
-                        "stability-ai/stable-video-diffusion",
-                        input={
-                            "input_image": img_stream,
-                            "motion_bucket_id": motion,
-                            "video_length": "14_frames_with_svd",
-                            "frames_per_second": 6
-                        }
-                    )
-                    vid_url = sanitize_url(output)
-                    if vid_url:
-                        st.session_state.last_vid = vid_url
-                        st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": "Dynamic Animation"})
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Cinema Error: {e}")
+                    time.sleep(3)
+                    prediction.reload()
+                
+                if prediction.status == "succeeded":
+                    progress_bar.progress(100)
+                    vid_url = sanitize_url(prediction.output)
+                    st.session_state.last_vid = vid_url
+                    st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": "Animation"})
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Cinema Error: {e}")
     else:
         st.warning("Skapa en bild i SYNTH först!")
 
     if st.session_state.last_vid:
         st.video(st.session_state.last_vid)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-elif st.session_state.page == "ARKIV":
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
-    t_img, t_vid = st.tabs(["🖼️ BILDER", "🎬 FILMER"])
-    with t_img:
-        for item in reversed(st.session_state.library):
-            st.image(item['data'], width=300)
-    with t_vid:
-        for v in reversed(st.session_state.video_library):
-            st.video(v['url'])
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
