@@ -67,12 +67,11 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. NAVIGATION (LAGAD) ---
+# --- 5. NAVIGATION (STABILISERAD) ---
 st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True)
 c_nav, c_dim = st.columns([0.8, 0.2])
 with c_nav:
     nc = st.columns(6)
-    # FIX: Adressera kolumnerna med index [0, 1, 2...]
     if nc[0].button("🏠"): st.session_state.page = "SYNTH"; st.rerun()
     if nc[1].button("🪄"): st.session_state.page = "SYNTH"; st.rerun()
     if nc[2].button("🎧"): st.session_state.page = "AUDIO"; st.rerun()
@@ -84,6 +83,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
 
+# MODULE: SYNTH
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 NEURAL SYNTH STATION</h2>", unsafe_allow_html=True)
@@ -91,6 +91,7 @@ if st.session_state.page == "SYNTH":
     if st.button("🚀 GENERERA BILD"):
         if user_p:
             with st.status("Neural kedja aktiv..."):
+                st.session_state.last_prompt = user_p
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 if url:
@@ -103,44 +104,54 @@ if st.session_state.page == "SYNTH":
         st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
+# MODULE: MOVIE (PROMPT-TO-VIDEO)
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SUB-APP)</h2>", unsafe_allow_html=True)
-    vid_p = st.text_input("BESKRIV DIN SCEN:", placeholder="Klistra in samurai-prompten här...")
+    vid_p = st.text_input("BESKRIV DIN SCEN:", placeholder="Klistra in Samurai-prompten här...")
     
     if st.button("🎬 GENERERA 5S VIDEO"):
         if vid_p:
-            with st.status("Bearbetar film i molnet...") as status:
-                # Skapa prediction
+            with st.status("Renderar film (vänta ca 90s)...") as status:
+                # Skapa prediction för Luma
                 prediction = replicate.predictions.create(
                     model="luma/dream-machine",
                     input={"prompt": vid_p}
                 )
-                # Polling loop
+                # Polling loop för att hålla appen vid liv
                 while prediction.status not in ["succeeded", "failed", "canceled"]:
                     time.sleep(5)
                     prediction.reload()
-                    status.update(label=f"Status: {prediction.status}...")
+                    status.update(label=f"Bearbetar film... ({prediction.status})")
                 
                 if prediction.status == "succeeded":
                     vid_url = sanitize_url(prediction.output)
                     st.session_state.last_vid = vid_url
                     st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": vid_p})
                     st.rerun()
+                else:
+                    st.error(f"Fel: {prediction.error}")
     
     if st.session_state.last_vid:
         st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
 
+# MODULE: ARKIV
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     t_img, t_vid = st.tabs(["🖼️ BILDER", "🎬 FILMER"])
     with t_img:
-        for item in reversed(st.session_state.library):
-            st.image(item['data'], width=300)
+        if not st.session_state.library: st.info("Bildarkivet är tomt.")
+        else:
+            grid = st.columns(3)
+            for i, item in enumerate(list(reversed(st.session_state.library))):
+                with grid[i % 3]:
+                    st.image(item['data'], use_container_width=True)
     with t_vid:
-        for v in reversed(st.session_state.video_library):
-            st.video(v['url'])
+        if not st.session_state.video_library: st.info("Videoarkivet är tomt.")
+        else:
+            for v in reversed(st.session_state.video_library):
+                st.video(v['url'])
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
