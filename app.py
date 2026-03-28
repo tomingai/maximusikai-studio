@@ -12,13 +12,13 @@ st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", init
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# --- 2. MOTOR & CLEANER (Frysta bas-funktioner) ---
+# --- 2. MOTOR & CLEANER (Regel 2: Frysta funktioner) ---
 def clean_prompt(text):
     if not text: return ""
     return str(text).replace('"', '').replace('Prompt:', '').strip()
 
 def sanitize_url(output):
-    # Regel 3: Rensar URL från list-tecken för att undvika MediaFileStorageError
+    # Regel 3: Förhindrar MediaFileStorageError
     url = str(output)
     for char in ["[", "]", "'", '"']:
         url = url.replace(char, "")
@@ -43,7 +43,7 @@ if "page" not in st.session_state:
         "accent": "#00f2ff", "last_img": None, "last_audio": None,
         "wallpaper": "https://images.unsplash.com",
         "style": "Cinematic", "bg_opacity": 0.80,
-        "temp_audio_prompt": "" # För AI-genererade musikprompter
+        "temp_audio_prompt": ""
     })
 
 # --- 4. UI ENGINE ---
@@ -84,7 +84,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
 
-# --- MODUL: SYNTH STATION (BILDER) ---
+# --- SYNTH ---
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 SYNTH STATION</h2>", unsafe_allow_html=True)
@@ -100,36 +100,34 @@ if st.session_state.page == "SYNTH":
     if st.session_state.last_img: st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- MODUL: AUDIO STATION (NY MUSIKSKAPARE) ---
+# --- AUDIO (Fixat för 404 Error) ---
 elif st.session_state.page == "AUDIO":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎧 NEURAL MUSIC COMPOSER</h2>", unsafe_allow_html=True)
     
-    # 1. Prompt-hjärnan
     st.markdown("### 🧠 AI PROMPT GENERATOR")
     c_a1, c_a2 = st.columns([0.8, 0.2])
-    idea = c_a1.text_input("VAD FÖR SLAGS MUSIK TÄNKER DU PÅ?", placeholder="t.ex. mörk techno, lugn piano...")
+    idea = c_a1.text_input("VAD FÖR SLAGS MUSIK TÄNKER DU PÅ?", placeholder="t.ex. mörk techno...")
     
-    if c_a2.button("✨ SKAPA PROMPT"):
+    if c_a2.button("✨ SKAPA"):
         if idea:
             with st.spinner("Llama komponerar..."):
+                # Vi använder en stabil referens för Llama-3
                 res = "".join(list(replicate.run("meta/meta-llama-3-8b-instruct", input={
-                    "prompt": f"Create a professional MusicGen prompt for: {idea}. Include instruments, mood and BPM. Max 30 words. Output ONLY prompt.",
+                    "prompt": f"Create a professional MusicGen prompt for: {idea}. Instruments, mood, BPM. Max 30 words. Output ONLY prompt.",
                     "max_new_tokens": 100
                 })))
                 st.session_state.temp_audio_prompt = clean_prompt(res)
     
-    # 2. Den färdiga prompten (kan redigeras manuellt)
-    final_audio_p = st.text_area("MUSIK-PROMPT (REDO FÖR GENERERING):", value=st.session_state.temp_audio_prompt, height=100)
-    
+    final_audio_p = st.text_area("MUSIK-PROMPT:", value=st.session_state.temp_audio_prompt, height=100)
     duration = st.slider("LÄNGD (SEK):", 5, 20, 10)
     
-    if st.button("🎵 STARTA KOMPOSITION"):
+    if st.button("🎵 KOMPONERA"):
         if final_audio_p:
             with st.status("Neural audio-kedja aktiv...", expanded=True):
-                st.write("Genererar ljudvågor via MusicGen...")
-                res = safe_replicate_run("facebookresearch/musicgen", {
-                    "prompt": final_audio_p, "duration": duration, "model_version": "stereo-small"
+                # FIX: Exakt versions-ID för MusicGen för att undvika 404
+                res = safe_replicate_run("facebookresearch/musicgen:7a76a8258b299b66d0c0a25ef24bc5550f196b771101c5b8a0d212160d77312e", {
+                    "prompt": final_audio_p, "duration": duration, "model_version": "stereo-melody"
                 })
                 if res:
                     st.session_state.last_audio = res
@@ -141,7 +139,7 @@ elif st.session_state.page == "AUDIO":
         st.audio(st.session_state.last_audio)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- MODUL: ARKIV ---
+# --- ARKIV ---
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     t1, t2 = st.tabs(["🖼️ BILDER", "🎵 LJUD"])
@@ -165,9 +163,6 @@ elif st.session_state.page == "ARKIV":
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
-
-
-
 
 
 
