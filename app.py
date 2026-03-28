@@ -9,7 +9,7 @@ import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "NR 1.1.5" 
+VERSION = "NR 1.1.6" 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -23,8 +23,10 @@ def get_safe_filename(text):
 
 def sanitize_url(output):
     if not output: return None
+    # Hanterar nya FileOutput-objekt från Replicate
     target = output if isinstance(output, list) else output
     if hasattr(target, 'url'): return str(target.url)
+    if isinstance(target, list) and len(target) > 0: return str(target[0])
     url = str(target)
     for char in ["['", "']", "[", "]", "'", '"']:
         url = url.replace(char, "")
@@ -108,30 +110,33 @@ elif st.session_state.page == "MOVIE":
     
     if st.button("🎬 GENERERA 5S VIDEO"):
         if vid_p:
-            with st.status("Renderar film (vänta ca 90s)...") as status:
-                # Använder Luma Dream Machine via prediction-API
-                prediction = replicate.predictions.create(
-                    version="aae1987b-7b0b-466d-88f5-3c9716616a12", 
-                    input={"prompt": vid_p}
-                )
-                while prediction.status not in ["succeeded", "failed", "canceled"]:
-                    time.sleep(5)
-                    prediction.reload()
-                    status.update(label=f"Bearbetar film... ({prediction.status})")
-                
-                if prediction.status == "succeeded":
-                    vid_url = sanitize_url(prediction.output)
-                    st.session_state.last_vid = vid_url
-                    st.session_state.video_library.append({
-                        "id": time.time(), 
-                        "url": vid_url, 
-                        "prompt": vid_p,
-                        "ts": datetime.now().strftime("%H:%M")
-                    })
-                    st.rerun()
+            with st.status("Kontaktar Cinema-server...") as status:
+                try:
+                    # Dynamiskt hämtande av senaste Luma-versionen
+                    model = replicate.models.get("luma/dream-machine")
+                    prediction = replicate.predictions.create(
+                        model=model,
+                        input={"prompt": vid_p}
+                    )
+                    while prediction.status not in ["succeeded", "failed", "canceled"]:
+                        time.sleep(5)
+                        prediction.reload()
+                        status.update(label=f"Bearbetar film... ({prediction.status})")
+                    
+                    if prediction.status == "succeeded":
+                        vid_url = sanitize_url(prediction.output)
+                        st.session_state.last_vid = vid_url
+                        st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": vid_p, "ts": datetime.now().strftime("%H:%M")})
+                        st.rerun()
+                    else:
+                        st.error(f"Fel vid rendering: {prediction.error}")
+                except Exception as e:
+                    st.error(f"System Error: {e}")
     
     if st.session_state.last_vid:
         st.video(st.session_state.last_vid)
+        # DIREKTNEDLADDNING VIDEO
+        st.markdown(f"[📥 KLICKA HÄR FÖR ATT LADDA NER VIDEON]({st.session_state.last_vid})", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "ARKIV":
@@ -152,7 +157,7 @@ elif st.session_state.page == "ARKIV":
         else:
             for v in reversed(st.session_state.video_library):
                 st.video(v['url'])
-                st.caption(f"🎥 {v['prompt']} ({v['ts']})")
+                st.caption(f"🎥 {v['prompt']}")
                 if st.button("RADERA", key=f"del_vid_{v['id']}"):
                     st.session_state.video_library = [vid for vid in st.session_state.video_library if vid['id'] != v['id']]
                     st.rerun()
