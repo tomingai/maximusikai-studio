@@ -6,162 +6,152 @@ import time
 from datetime import datetime
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "11.6.1-STABLE"
-DB_FILE = "maximusik_history.json"
+VERSION = "11.4.5-CONTRAST"
 st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# --- 2. DATA SHIELD FUNCTIONS ---
-def save_data():
-    try:
-        data = {
-            "library": st.session_state.get("library", []),
-            "wallpaper": st.session_state.get("wallpaper", ""),
-            "brightness": st.session_state.get("brightness", 5),
-            "last_img": st.session_state.get("last_img", None),
-            "style": st.session_state.get("style", "Photorealistic"),
-            "enhance_lvl": st.session_state.get("enhance_lvl", 0.8)
-        }
-        with open(DB_FILE, "w") as f: json.dump(data, f)
-    except: pass
+# --- 2. MOTOR & SANITIZER ---
+def clean_prompt(text):
+    if not text: return ""
+    return str(text).replace('"', '').replace('Prompt:', '').strip()
 
-def load_data():
-    if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "r") as f: return json.load(f)
-        except: return None
-    return None
+def sanitize_url(output):
+    if isinstance(output, list) and len(output) > 0: return str(output[0])
+    return str(output)
 
-# --- 3. MOTORER & NUCLEAR CLEANER (v2) ---
-def nuclear_clean(text):
-    if not text: return "A beautiful artistic vision"
-    # Ta bort allt utom ren text och siffror
-    clean = "".join(c for c in str(text) if c.isalnum() or c in " ,.-")
-    prefixes = ["Here is", "Prompt", "Expanded", "Sure", "The prompt"]
-    for p in prefixes:
-        if p in clean: clean = clean.split(p)[-1]
-    return clean.strip()[:400] # Hård gräns på 400 tecken för FLUX-stabilitet
-
-# --- 4. INITIALISERING ---
+# --- 3. INITIALISERING ---
 if "page" not in st.session_state:
-    saved = load_data()
     st.session_state.update({
-        "page": "SYNTH",
-        "library": saved.get("library", []) if saved else [],
-        "last_img": saved.get("last_img", None) if saved else None,
-        "wallpaper": saved.get("wallpaper", "https://images.unsplash.com") if saved else "https://images.unsplash.com",
-        "brightness": saved.get("brightness", 5) if saved else 5,
-        "style": saved.get("style", "Photorealistic") if saved else "Photorealistic",
-        "enhance_lvl": saved.get("enhance_lvl", 0.8) if saved else 0.8,
-        "process_log": []
+        "page": "SYNTH", "library": [], "accent": "#00f2ff", "last_img": None,
+        "wallpaper": "https://images.unsplash.com",
+        "style": "Photorealistic", "brightness": 5 
     })
 
-# --- 5. UI ENGINE (HD Gloss) ---
-accent = "#00f2ff"
+# --- 4. UI ENGINE (ADAPTIV KONTRAST) ---
+accent = st.session_state.accent
 bright_val = (11 - st.session_state.brightness) / 10
+# Dynamisk skugga: blir tyngre ju högre ljusstyrkan (st.session_state.brightness) är
+shadow_intensity = st.session_state.brightness * 0.15
+
 st.markdown(f"""
     <style>
+    /* Bakgrund & Ljusstyrka-Overlay */
     [data-testid="stAppViewContainer"]::before {{
         content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, {bright_val}); z-index: -1; transition: 0.3s;
+        background: rgba(0, 0, 0, {bright_val});
+        z-index: -1; transition: 0.3s ease;
     }}
-    [data-testid="stAppViewContainer"] {{ background: url("{st.session_state.wallpaper}"); background-size: cover; background-attachment: fixed; }}
-    h1, h2, h3, label, p {{ color: #FFFFFF !important; text-shadow: 0px 0px 15px rgba(0,0,0,1), 2px 2px 5px rgba(0,0,0,1) !important; font-weight: 800 !important; }}
-    .glass {{ background: rgba(0, 8, 20, 0.92); backdrop-filter: blur(55px); border: 1.5px solid {accent}55; border-radius: 20px; padding: 25px; }}
-    .neural-console {{ background: rgba(0,0,0,0.7); border: 1px solid {accent}33; padding: 12px; border-radius: 10px; font-family: monospace; color: {accent}; font-size: 0.8rem; }}
-    .stButton>button {{ border: 2px solid {accent}aa !important; background: {accent}22 !important; color: white !important; font-weight: 900 !important; }}
+    [data-testid="stAppViewContainer"] {{ 
+        background: url("{st.session_state.wallpaper}"); 
+        background-size: cover; background-attachment: fixed; background-position: center;
+    }}
+
+    /* ADAPTIV TEXT (Glow & Shadow) */
+    h1, h2, h3, label, p, .stMarkdown {{ 
+        color: #FFFFFF !important; 
+        text-shadow: 0px 0px {10 + (shadow_intensity*5)}px rgba(0,0,0,0.9), 
+                     2px 2px {2 + shadow_intensity}px rgba(0,0,0,1) !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.5px;
+    }}
+
+    /* Glas-paneler */
+    .glass {{ 
+        background: rgba(0, 5, 15, 0.88); 
+        backdrop-filter: blur(60px); 
+        border: 1.5px solid {accent}55; 
+        border-radius: 20px; padding: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }}
+
+    /* Inputs & Selectbox med hög kontrast */
+    .stTextInput>div>div>input, .stSelectbox>div>div {{
+        background-color: rgba(0, 0, 0, 0.6) !important;
+        color: white !important;
+        border: 1px solid {accent}88 !important;
+        font-weight: bold !important;
+    }}
+
+    /* Knappar */
+    .stButton>button {{ 
+        border: 2px solid {accent}aa !important; 
+        background: {accent}22 !important; 
+        color: white !important; 
+        font-weight: 900 !important; 
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- 6. NAVIGATION & LUMINA ---
+# --- 5. NAVIGATION & LUMINA CONTROL ---
 st.markdown('<div class="glass" style="padding: 15px; margin-bottom: 25px;">', unsafe_allow_html=True)
 c_nav, c_bright = st.columns([0.7, 0.3])
+
 with c_nav:
     nc = st.columns(7)
     nav_icons = [("🏠","HOME",True), ("🪄","SYNTH",False), ("🎧","AUDIO",True), ("🎬","MOVIE",True), ("📚","ARKIV",False), ("🖼","ENGINE",False), ("⚙️","SYSTEM",True)]
     for i, (icon, target, locked) in enumerate(nav_icons):
         if not locked:
-            if nc[i].button(icon, key=f"n_{target}"): st.session_state.page = target; st.rerun()
-        else: nc[i].markdown(f'<p style="text-align:center; opacity:0.1; font-size:1.5rem; margin:0; padding-top:10px;">{icon}</p>', unsafe_allow_html=True)
+            if nc[i].button(icon, key=f"nav_{target}"): 
+                st.session_state.page = target; st.rerun()
+        else: nc[i].markdown(f'<p style="text-align:center; opacity:0.2; font-size:1.5rem; margin:0;">{icon}</p>', unsafe_allow_html=True)
+
 with c_bright:
-    new_bright = st.slider("🔅 LUMINA", 1, 10, st.session_state.brightness)
-    if new_bright != st.session_state.brightness:
-        st.session_state.brightness = new_bright
-        save_data(); st.rerun()
+    st.session_state.brightness = st.slider("🔅 LUMINA (1-10)", 1, 10, st.session_state.brightness)
+
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 7. MODUL: SYNTH PRECISION ---
+# --- 6. MODULER ---
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent};'>🪄 SYNTH STATION</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:{accent}; letter-spacing:5px;'>🪄 SYNTH PRECISION</h2>", unsafe_allow_html=True)
     
-    user_p = st.text_input("VISION PROMPT:", placeholder="Banan-lejon...")
+    user_p = st.text_input("VAD SKALL VI SKAPA?", placeholder="Skriv din vision...")
     
-    t1, t2, t3 = st.columns(3)
-    st.session_state.style = t1.selectbox("STIL:", ["Photorealistic", "Cinematic", "Cyberpunk", "Digital Art"], index=0)
-    st.session_state.enhance_lvl = t2.slider("AI DEPTH", 0.0, 1.0, st.session_state.enhance_lvl)
-    aspect = t3.selectbox("FORMAT:", ["1:1", "16:9", "9:16"], index=1)
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        st.session_state.style = st.selectbox("STIL:", ["Photorealistic", "Cinematic", "Cyberpunk", "Digital Art"])
+    with col2:
+        aspect = st.selectbox("FORMAT:", ["1:1", "16:9", "9:16"], index=1)
 
-    if st.button("🚀 EXEKVERA NEURAL KEDJA", use_container_width=True):
+    if st.button("🚀 STARTA NEURAL KEDJA"):
         if user_p:
-            console_area = st.empty()
-            with st.status("Neural Connection Established...") as status:
-                st.session_state.process_log = [f"› [{datetime.now().strftime('%H:%M:%S')}] ANALYZING INPUT..."]
-                console_area.markdown(f'<div class="neural-console">{"<br>".join(st.session_state.process_log)}</div>', unsafe_allow_html=True)
+            prog = st.progress(0)
+            with st.status("Neural Pipeline...") as status:
+                res_llm = replicate.run("meta/meta-llama-3-8b-instruct", input={"prompt": f"Expand to 8k {st.session_state.style} prompt: {user_p}"})
+                expanded = clean_prompt("".join(list(res_llm)))
                 
-                # Step 1: Llama Expansion
-                status.update(label="Llama-3 expanderar visionen...")
-                prompt_instr = f"Expand this to a {st.session_state.style} 8k image prompt. Be brief, max 50 words: {user_p}"
-                try:
-                    raw_llm = replicate.run("meta/meta-llama-3-8b-instruct", input={"prompt": prompt_instr})
-                    clean_p = nuclear_clean("".join(list(raw_llm)))
-                except: clean_p = user_p
+                flux_res = replicate.run("black-forest-labs/flux-schnell", {"prompt": expanded, "aspect_ratio": aspect.replace(":", "x")})
+                url = sanitize_url(flux_res)
                 
-                st.session_state.process_log.append(f"› [{datetime.now().strftime('%H:%M:%S')}] PROMPT OPTIMIZED.")
-                console_area.markdown(f'<div class="neural-console">{"<br>".join(st.session_state.process_log)}</div>', unsafe_allow_html=True)
-                
-                # Step 2: Flux Render med try-except
-                status.update(label="FLUX.1 genererar pixlar...")
-                try:
-                    flux_res = replicate.run("black-forest-labs/flux-schnell", input={
-                        "prompt": clean_p, 
-                        "aspect_ratio": aspect.replace(":", "x")
-                    })
-                    if flux_res:
-                        url = str(flux_res) if not isinstance(flux_res, list) else str(flux_res[0])
-                        st.session_state.last_img = url
-                        st.session_state.library.append({"url": url, "prompt": user_p, "ts": datetime.now().strftime("%H:%M")})
-                        save_data()
-                        status.update(label="Pipeline Successful!", state="complete")
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"NEURAL ERROR: {str(e)[:100]}. Försök med en enklare prompt.")
-        else: st.error("Skriv in din vision först.")
-
+                if url:
+                    st.session_state.last_img = url
+                    st.session_state.library.append({"url": url, "prompt": user_p, "ts": datetime.now().strftime("%H:%M")})
+                    st.rerun()
+    
     if st.session_state.last_img:
         st.divider()
         st.image(st.session_state.last_img, use_column_width=True)
         if st.button("🖼 SÄTT SOM BAKGRUND"): 
             st.session_state.wallpaper = st.session_state.last_img
-            save_data(); st.rerun()
+            st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# (ARKIV MODUL)
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    if not st.session_state.library: st.info("Archive empty.")
-    else:
-        grid = st.columns(3)
-        for i, item in enumerate(reversed(st.session_state.library)):
-            with grid[i % 3]:
-                st.image(item['url'], use_column_width=True)
-                if st.button("VÄLJ", key=f"ark_{i}"):
-                    st.session_state.last_img = item['url']
-                    st.session_state.wallpaper = item['url']
-                    save_data(); st.rerun()
+    st.subheader("📚 SYSTEM ARCHIVE")
+    grid = st.columns(3)
+    for i, item in enumerate(reversed(st.session_state.library)):
+        with grid[i % 3]:
+            st.image(item['url'], use_column_width=True)
+            if st.button("VÄLJ", key=f"ark_{i}"):
+                st.session_state.last_img = item['url']
+                st.session_state.wallpaper = item['url']; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
