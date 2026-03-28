@@ -6,14 +6,14 @@ import time
 from datetime import datetime
 
 # --- 1. KÄRN-KONFIGURATION ---
-st.set_page_config(page_title="MAXIMUSIK AI OS v10.4.5", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="MAXIMUSIK AI OS v10.4.7", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
 DB_FILE = "maximusik_history.json"
 
-# --- 2. SYSTEMFUNKTIONER (Regel 19, 21) ---
+# --- 2. SYSTEMFUNKTIONER (Regel 10, 19, 21) ---
 def add_log(message, is_error=False):
     timestamp = datetime.now().strftime("%H:%M:%S")
     if "logs" not in st.session_state: st.session_state.logs = []
@@ -22,7 +22,13 @@ def add_log(message, is_error=False):
     if not st.session_state.logs or st.session_state.logs[-1][11:] != new_entry[11:]:
         st.session_state.logs.append(new_entry)
     if is_error: st.session_state.alarm = True
-    if len(st.session_state.logs) > 20: st.session_state.logs.pop(0)
+    if len(st.session_state.logs) > 30: st.session_state.logs.pop(0)
+
+def run_self_test():
+    add_log("RUNNING SYSTEM SELF-TEST...")
+    api_ok = os.environ.get("REPLICATE_API_TOKEN") is not None
+    add_log(f"DIAGNOSTICS: API={'ONLINE' if api_ok else 'OFFLINE'}")
+    return api_ok
 
 def safe_replicate_run(model_alias, input_data):
     models = {
@@ -31,7 +37,7 @@ def safe_replicate_run(model_alias, input_data):
         "VIDEO": "stability-ai/video-diffusion:3f0bd67d0246b0336ca149257e3df179c3f3f5022137090b8f6c561ec9d77583"
     }
     target = models.get(model_alias, model_alias)
-    bar = st.progress(0, text=f"Neural länk: {model_alias}...")
+    bar = st.progress(0, text=f"Neural Link: {model_alias}")
     try:
         output = replicate.run(target, input=input_data)
         bar.empty()
@@ -39,17 +45,17 @@ def safe_replicate_run(model_alias, input_data):
     except Exception as e:
         bar.empty()
         if "Invalid v" in str(e):
-            add_log(f"REPAIR: Stripping hash för {model_alias}", is_error=True)
+            add_log(f"AUTO-FIX: Version stripped for {model_alias}", is_error=True)
             return replicate.run(target.split(":"), input=input_data)
-        add_log(f"Krasch: {str(e)[:30]}", is_error=True)
+        add_log(f"ERROR: {str(e)[:40]}", is_error=True)
         return None
 
 # --- 3. INITIALISERING ---
 if "page" not in st.session_state:
     st.session_state.update({
-        "page": "DESKTOP", "library": [], "logs": ["OS v10.4.5 KERNEL ONLINE"],
+        "page": "DESKTOP", "library": [], "logs": ["OS KERNEL v10.4.7 BOOT"],
         "accent": "#00f2ff", "wallpaper": "https://images.unsplash.com",
-        "last_img": None, "alarm": False
+        "last_img": None, "alarm": False, "diagnostics_run": False
     })
 
 # --- 4. UI ENGINE (Glasmorphism) ---
@@ -60,49 +66,61 @@ st.markdown(f"""
         background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.95)), url("{st.session_state.wallpaper}"); 
         background-size: cover; background-attachment: fixed;
     }}
-    .glass {{ background: rgba(0, 5, 15, 0.8); backdrop-filter: blur(30px); border: 1px solid {accent}22; border-radius: 20px; padding: 30px; }}
-    .stButton>button {{ border: 1px solid {accent}44 !important; color: {accent} !important; background: transparent !important; border-radius: 12px; height: 3.5rem; }}
-    .stButton>button:hover {{ background: {accent}11 !important; box-shadow: 0 0 15px {accent}33; }}
+    .glass {{ background: rgba(0, 5, 15, 0.85); backdrop-filter: blur(35px); border: 1px solid {accent}22; border-radius: 20px; padding: 30px; }}
+    .stButton>button {{ border: 1px solid {accent}55 !important; color: {accent} !important; background: transparent !important; border-radius: 12px; height: 3.5rem; }}
+    .stButton>button:hover {{ background: {accent}15 !important; box-shadow: 0 0 20px {accent}44; }}
     </style>
 """, unsafe_allow_html=True)
 
 # --- 5. NAVIGATION ---
-st.markdown('<div class="glass" style="padding: 10px; margin-bottom: 25px; border-radius: 15px;">', unsafe_allow_html=True)
+st.markdown('<div class="glass" style="padding: 10px; margin-bottom: 25px; border-radius: 18px;">', unsafe_allow_html=True)
 nc = st.columns(7)
 nav = [("🏠", "DESKTOP"), ("🪄", "SYNTH"), ("🎧", "AUDIO"), ("🎬", "MOVIE"), ("📚", "ARKIV"), ("🖼", "ENGINE"), ("⚙️", "SYSTEM")]
 for i, (icon, target) in enumerate(nav):
-    if nc[i].button(icon, key=f"nav_{target}"): st.session_state.page = target; st.rerun()
+    if nc[i].button(icon, key=f"nav_{target}"): 
+        st.session_state.page = target
+        if target == "SYSTEM": st.session_state.diagnostics_run = False 
+        st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
 if st.session_state.page == "DESKTOP":
-    st.markdown(f"<h1 style='text-align:center; letter-spacing:35px; padding-top:20vh; color:{accent}; font-weight:900; opacity:0.8;'>MAXIMUSIK</h1>", unsafe_allow_html=True)
-    if st.session_state.alarm: st.error("🚨 SYSTEM ALARM ACTIVE - CHECK SYSTEM LOGS")
-    
-    cmd = st.text_input("CMD >", placeholder="Enter command...")
-    if cmd == "/rules": st.info("Rules 1-22 Active. Check SYSTEM for details.")
-    elif cmd == "/clear": st.session_state.logs = []; add_log("Logs cleared."); st.rerun()
+    st.markdown(f"<h1 style='text-align:center; letter-spacing:35px; padding-top:20vh; color:{accent}; font-weight:900;'>MAXIMUSIK</h1>", unsafe_allow_html=True)
+    if st.session_state.alarm: st.error("🚨 SYSTEM ALARM ACTIVE")
+    t_cmd = st.text_input("CMD >", placeholder="Ready for commands...")
 
 elif st.session_state.page == "SYSTEM":
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.subheader("⚙️ SYSTEM CONTROL & LOGS")
+    if not st.session_state.diagnostics_run:
+        run_self_test()
+        st.session_state.diagnostics_run = True
     
-    col1, col2 = st.columns(2)
-    with col1:
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.subheader("⚙️ SYSTEM DIAGNOSTICS & EXPORT")
+    c1, c2 = st.columns(2)
+    with c1:
         st.session_state.accent = st.color_picker("UI ACCENT", st.session_state.accent)
         if st.button("RESET ALARM"): st.session_state.alarm = False; st.rerun()
-        if st.button("FORCE DIAGNOSTICS"): add_log("Manual Check: API/DB Online")
+        
+        # LOGG EXPORT (Ny funktion)
+        log_data = "\n".join(st.session_state.logs)
+        st.download_button(
+            label="📥 EXPORT KERNEL LOG (.TXT)",
+            data=log_data,
+            file_name=f"maximusik_log_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+            mime="text/plain",
+            on_click=lambda: add_log("LOG EXPORT INITIATED")
+        )
+        if st.button("FORCE DIAGNOSTICS"): run_self_test(); st.rerun()
     
-    with col2:
-        st.write("### 📜 LIVE KERNEL LOG")
-        for log in reversed(st.session_state.logs):
-            st.code(log)
+    with c2:
+        st.write("### 📜 KERNEL LOG")
+        for log in reversed(st.session_state.logs): st.code(log)
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     p = st.text_input("IMAGE PROMPT:")
-    if st.button("RENDER"):
+    if st.button("RENDER IMAGE"):
         res = safe_replicate_run("FLUX", {"prompt": p})
         if res:
             st.session_state.last_img = res
@@ -114,7 +132,7 @@ elif st.session_state.page == "SYNTH":
 elif st.session_state.page == "AUDIO":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     ap = st.text_input("MUSIC PROMPT:")
-    if st.button("COMPOSE"):
+    if st.button("COMPOSE AUDIO"):
         res = safe_replicate_run("MUSIC", {"prompt": ap, "duration": 8})
         if res:
             st.audio(res)
@@ -126,22 +144,23 @@ elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     if st.session_state.last_img:
         st.image(st.session_state.last_img, width=300)
-        if st.button("ANIMATE"):
+        if st.button("RENDER MOTION"):
             res = safe_replicate_run("VIDEO", {"input_image": st.session_state.last_img})
-            if res: st.video(res); add_log("Movie rendered.")
-    else: st.warning("No source image. Use SYNTH first.")
+            if res: st.video(res); add_log("Movie Processed")
+    else: st.warning("Need SYNTH image first.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.subheader("📚 LIBRARY")
+    st.subheader("📚 MEDIA ARCHIVE")
     for i, item in enumerate(reversed(st.session_state.library)):
         with st.expander(f"{item['type']} | {item['prompt'][:30]}"):
             if item['type'] == "IMG": 
                 st.image(item['url'])
-                if st.button("SET WALLPAPER", key=f"w_{i}"): st.session_state.wallpaper = item['url']; st.rerun()
+                if st.button("INJECT WALLPAPER", key=f"wall_{i}"): st.session_state.wallpaper = item['url']; st.rerun()
             elif item['type'] == "AUDIO": st.audio(item['url'])
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
