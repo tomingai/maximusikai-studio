@@ -24,7 +24,7 @@ def get_safe_filename(text):
 def sanitize_url(output):
     if not output: return None
     url = ""
-    if isinstance(output, list) and len(output) > 0: url = str(output)
+    if isinstance(output, list) and len(output) > 0: url = str(output[0])
     elif hasattr(output, 'url'): url = str(output.url)
     else: url = str(output)
     url = url.replace("['", "").replace("']", "").replace("[", "").replace("]", "").replace("'", "").replace('"', "").strip()
@@ -87,16 +87,21 @@ if st.session_state.page == "SYNTH":
     user_p = st.text_input("VAD SKALL VI SKAPA?", placeholder="Beskriv visionen...")
     if st.button("🚀 GENERERA BILD"):
         if user_p:
-            with st.status("Neural kedja aktiv..."):
+            with st.status("Neural kedja aktiv...", expanded=True) as status:
                 st.session_state.last_prompt = user_p
+                # Använder Flux Schnell
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 if url:
-                    resp = requests.get(url, timeout=15)
+                    status.update(label="Bild klar! Laddar ner data...", state="running")
+                    resp = requests.get(url, timeout=20)
                     if resp.status_code == 200:
                         st.session_state.last_img = resp.content
                         st.session_state.library.append({"id": time.time(), "data": resp.content, "url": url, "prompt": user_p})
+                        status.update(label="Klar!", state="complete")
                         st.rerun()
+                else:
+                    st.error("Kunde inte hämta bild-URL.")
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -146,14 +151,9 @@ elif st.session_state.page == "ARKIV":
                     if st.button("🗑️", key=f"del_{item['id']}"):
                         st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]; st.rerun()
     with t_vid:
-        if not st.session_state.video_library: st.info("Videoarkivet är tomt.")
-        else:
-            for v in reversed(st.session_state.video_library):
-                st.video(v['url'])
-                # NYTT: Direktlänk för nedladdning av video
-                st.markdown(f"[📥 LADDA NER VIDEO]({v['url']})", unsafe_allow_html=True)
-                if st.button("🗑️", key=f"del_v_{v['id']}"):
-                    st.session_state.video_library = [vid for vid in st.session_state.video_library if vid['id'] != v['id']]; st.rerun()
+        for v in reversed(st.session_state.video_library):
+            st.video(v['url'])
+            st.markdown(f"[📥 LADDA NER VIDEO]({v['url']})", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
