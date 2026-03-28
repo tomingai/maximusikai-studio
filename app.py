@@ -6,23 +6,49 @@ import time
 from datetime import datetime
 
 # --- 1. KÄRN-KONFIGURATION ---
-st.set_page_config(page_title="MAXIMUSIK AI OS v10.4.7", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="MAXIMUSIK AI OS v10.4.8", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
 DB_FILE = "maximusik_history.json"
 
-# --- 2. SYSTEMFUNKTIONER (Regel 10, 19, 21) ---
+# --- 2. SYSTEMFUNKTIONER (Regel 8, 19, 21) ---
 def add_log(message, is_error=False):
     timestamp = datetime.now().strftime("%H:%M:%S")
     if "logs" not in st.session_state: st.session_state.logs = []
     icon = "⚠️" if is_error else "🤖"
     new_entry = f"[{timestamp}] {icon} {message}"
+    
+    # Regel 18: Loop Protector
     if not st.session_state.logs or st.session_state.logs[-1][11:] != new_entry[11:]:
         st.session_state.logs.append(new_entry)
+        # Regel 8: Auto-save loggen vid varje ny post
+        save_system_state()
+        
     if is_error: st.session_state.alarm = True
-    if len(st.session_state.logs) > 30: st.session_state.logs.pop(0)
+    if len(st.session_state.logs) > 35: st.session_state.logs.pop(0)
+
+def save_system_state():
+    """Regel 8: Bakgrunds-save av Bibliotek och Loggar."""
+    state_data = {
+        "library": st.session_state.get("library", []),
+        "logs": st.session_state.get("logs", []),
+        "accent": st.session_state.get("accent", "#00f2ff"),
+        "wallpaper": st.session_state.get("wallpaper", "")
+    }
+    try:
+        with open(DB_FILE, "w") as f:
+            json.dump(state_data, f)
+    except: pass
+
+def load_system_state():
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r") as f:
+                return json.load(f)
+        except: return None
+    return None
 
 def run_self_test():
     add_log("RUNNING SYSTEM SELF-TEST...")
@@ -41,6 +67,7 @@ def safe_replicate_run(model_alias, input_data):
     try:
         output = replicate.run(target, input=input_data)
         bar.empty()
+        save_system_state()
         return output
     except Exception as e:
         bar.empty()
@@ -52,21 +79,30 @@ def safe_replicate_run(model_alias, input_data):
 
 # --- 3. INITIALISERING ---
 if "page" not in st.session_state:
-    st.session_state.update({
-        "page": "DESKTOP", "library": [], "logs": ["OS KERNEL v10.4.7 BOOT"],
-        "accent": "#00f2ff", "wallpaper": "https://images.unsplash.com",
-        "last_img": None, "alarm": False, "diagnostics_run": False
-    })
+    saved = load_system_state()
+    if saved:
+        st.session_state.update({
+            "page": "DESKTOP", "library": saved.get("library", []), 
+            "logs": saved.get("logs", []), "accent": saved.get("accent", "#00f2ff"),
+            "wallpaper": saved.get("wallpaper", "https://images.unsplash.com"),
+            "last_img": None, "alarm": False, "diagnostics_run": False
+        })
+    else:
+        st.session_state.update({
+            "page": "DESKTOP", "library": [], "logs": ["OS KERNEL v10.4.8 BOOT"],
+            "accent": "#00f2ff", "wallpaper": "https://images.unsplash.com",
+            "last_img": None, "alarm": False, "diagnostics_run": False
+        })
 
-# --- 4. UI ENGINE (Glasmorphism) ---
+# --- 4. UI ENGINE ---
 accent = st.session_state.accent
 st.markdown(f"""
     <style>
     [data-testid="stAppViewContainer"] {{ 
-        background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.95)), url("{st.session_state.wallpaper}"); 
+        background: linear-gradient(rgba(0,0,0,0.88), rgba(0,0,0,0.96)), url("{st.session_state.wallpaper}"); 
         background-size: cover; background-attachment: fixed;
     }}
-    .glass {{ background: rgba(0, 5, 15, 0.85); backdrop-filter: blur(35px); border: 1px solid {accent}22; border-radius: 20px; padding: 30px; }}
+    .glass {{ background: rgba(0, 5, 15, 0.88); backdrop-filter: blur(40px); border: 1px solid {accent}22; border-radius: 20px; padding: 30px; }}
     .stButton>button {{ border: 1px solid {accent}55 !important; color: {accent} !important; background: transparent !important; border-radius: 12px; height: 3.5rem; }}
     .stButton>button:hover {{ background: {accent}15 !important; box-shadow: 0 0 20px {accent}44; }}
     </style>
@@ -87,7 +123,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 if st.session_state.page == "DESKTOP":
     st.markdown(f"<h1 style='text-align:center; letter-spacing:35px; padding-top:20vh; color:{accent}; font-weight:900;'>MAXIMUSIK</h1>", unsafe_allow_html=True)
     if st.session_state.alarm: st.error("🚨 SYSTEM ALARM ACTIVE")
-    t_cmd = st.text_input("CMD >", placeholder="Ready for commands...")
+    st.text_input("CMD >", placeholder="Ready for commands...")
 
 elif st.session_state.page == "SYSTEM":
     if not st.session_state.diagnostics_run:
@@ -95,22 +131,15 @@ elif st.session_state.page == "SYSTEM":
         st.session_state.diagnostics_run = True
     
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.subheader("⚙️ SYSTEM DIAGNOSTICS & EXPORT")
+    st.subheader("⚙️ SYSTEM CONTROL")
     c1, c2 = st.columns(2)
     with c1:
         st.session_state.accent = st.color_picker("UI ACCENT", st.session_state.accent)
         if st.button("RESET ALARM"): st.session_state.alarm = False; st.rerun()
         
-        # LOGG EXPORT (Ny funktion)
         log_data = "\n".join(st.session_state.logs)
-        st.download_button(
-            label="📥 EXPORT KERNEL LOG (.TXT)",
-            data=log_data,
-            file_name=f"maximusik_log_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-            mime="text/plain",
-            on_click=lambda: add_log("LOG EXPORT INITIATED")
-        )
-        if st.button("FORCE DIAGNOSTICS"): run_self_test(); st.rerun()
+        st.download_button("📥 DOWNLOAD KERNEL LOG", data=log_data, file_name="maximusik_kernel.txt", mime="text/plain")
+        if st.button("CLEAR LOG HISTORY"): st.session_state.logs = []; save_system_state(); st.rerun()
     
     with c2:
         st.write("### 📜 KERNEL LOG")
