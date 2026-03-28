@@ -6,14 +6,14 @@ import time
 from datetime import datetime
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "11.6.0-PRECISION"
+VERSION = "11.6.1-STABLE"
 DB_FILE = "maximusik_history.json"
 st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# --- 2. DATA SHIELD (Spara/Ladda allt) ---
+# --- 2. DATA SHIELD FUNCTIONS ---
 def save_data():
     try:
         data = {
@@ -34,14 +34,15 @@ def load_data():
         except: return None
     return None
 
-# --- 3. MOTORER & CLEANER ---
+# --- 3. MOTORER & NUCLEAR CLEANER (v2) ---
 def nuclear_clean(text):
-    if not text: return ""
-    clean = str(text).replace('"', '').replace("'", "").replace('\n', ' ')
-    prefixes = ["Here is", "Prompt:", "Expanded:", "Sure", "The prompt is"]
+    if not text: return "A beautiful artistic vision"
+    # Ta bort allt utom ren text och siffror
+    clean = "".join(c for c in str(text) if c.isalnum() or c in " ,.-")
+    prefixes = ["Here is", "Prompt", "Expanded", "Sure", "The prompt"]
     for p in prefixes:
         if p in clean: clean = clean.split(p)[-1]
-    return clean.strip()
+    return clean.strip()[:400] # Hård gräns på 400 tecken för FLUX-stabilitet
 
 # --- 4. INITIALISERING ---
 if "page" not in st.session_state:
@@ -70,7 +71,7 @@ st.markdown(f"""
     h1, h2, h3, label, p {{ color: #FFFFFF !important; text-shadow: 0px 0px 15px rgba(0,0,0,1), 2px 2px 5px rgba(0,0,0,1) !important; font-weight: 800 !important; }}
     .glass {{ background: rgba(0, 8, 20, 0.92); backdrop-filter: blur(55px); border: 1.5px solid {accent}55; border-radius: 20px; padding: 25px; }}
     .neural-console {{ background: rgba(0,0,0,0.7); border: 1px solid {accent}33; padding: 12px; border-radius: 10px; font-family: monospace; color: {accent}; font-size: 0.8rem; }}
-    .stButton>button {{ border: 2px solid {accent}aa !important; background: {accent}22 !important; color: white !important; font-weight: 900 !important; height: 3.5rem; }}
+    .stButton>button {{ border: 2px solid {accent}aa !important; background: {accent}22 !important; color: white !important; font-weight: 900 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -94,44 +95,50 @@ st.markdown('</div>', unsafe_allow_html=True)
 # --- 7. MODUL: SYNTH PRECISION ---
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent};'>🪄 PRECISION SYNTH STATION</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:{accent};'>🪄 SYNTH STATION</h2>", unsafe_allow_html=True)
     
     user_p = st.text_input("VISION PROMPT:", placeholder="Banan-lejon...")
     
-    # DETALJ-TRIMMARE
     t1, t2, t3 = st.columns(3)
     st.session_state.style = t1.selectbox("STIL:", ["Photorealistic", "Cinematic", "Cyberpunk", "Digital Art"], index=0)
-    st.session_state.enhance_lvl = t2.slider("AI DEPTH (Kreativitet)", 0.0, 1.0, st.session_state.enhance_lvl)
+    st.session_state.enhance_lvl = t2.slider("AI DEPTH", 0.0, 1.0, st.session_state.enhance_lvl)
     aspect = t3.selectbox("FORMAT:", ["1:1", "16:9", "9:16"], index=1)
 
-    if st.button("🚀 EXEKVERA NEURAL PIPELINE", use_container_width=True):
+    if st.button("🚀 EXEKVERA NEURAL KEDJA", use_container_width=True):
         if user_p:
             console_area = st.empty()
             with st.status("Neural Connection Established...") as status:
                 st.session_state.process_log = [f"› [{datetime.now().strftime('%H:%M:%S')}] ANALYZING INPUT..."]
                 console_area.markdown(f'<div class="neural-console">{"<br>".join(st.session_state.process_log)}</div>', unsafe_allow_html=True)
                 
-                # Step 1: Llama Expansion (Nu med Stil & Depth)
+                # Step 1: Llama Expansion
                 status.update(label="Llama-3 expanderar visionen...")
-                prompt_instr = f"Act as a professional cinematographer. Expand to a {st.session_state.style} 8k prompt. Focus on sharp textures and cinematic lighting. Depth level {st.session_state.enhance_lvl}: {user_p}"
-                raw_llm = replicate.run("meta/meta-llama-3-8b-instruct", input={"prompt": prompt_instr})
-                clean_p = nuclear_clean("".join(list(raw_llm)))
+                prompt_instr = f"Expand this to a {st.session_state.style} 8k image prompt. Be brief, max 50 words: {user_p}"
+                try:
+                    raw_llm = replicate.run("meta/meta-llama-3-8b-instruct", input={"prompt": prompt_instr})
+                    clean_p = nuclear_clean("".join(list(raw_llm)))
+                except: clean_p = user_p
                 
-                st.session_state.process_log.append(f"› [{datetime.now().strftime('%H:%M:%S')}] PROMPT OPTIMIZED (Style: {st.session_state.style}).")
+                st.session_state.process_log.append(f"› [{datetime.now().strftime('%H:%M:%S')}] PROMPT OPTIMIZED.")
                 console_area.markdown(f'<div class="neural-console">{"<br>".join(st.session_state.process_log)}</div>', unsafe_allow_html=True)
                 
-                # Step 2: Flux Render
+                # Step 2: Flux Render med try-except
                 status.update(label="FLUX.1 genererar pixlar...")
-                flux_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": clean_p, "aspect_ratio": aspect.replace(":", "x")})
-                
-                if flux_res:
-                    url = str(flux_res) if not isinstance(flux_res, list) else str(flux_res[0])
-                    st.session_state.last_img = url
-                    st.session_state.library.append({"url": url, "prompt": user_p, "ts": datetime.now().strftime("%H:%M")})
-                    save_data()
-                    status.update(label="Pipeline Successful!", state="complete")
-                    st.rerun()
-        else: st.error("Prompt missing.")
+                try:
+                    flux_res = replicate.run("black-forest-labs/flux-schnell", input={
+                        "prompt": clean_p, 
+                        "aspect_ratio": aspect.replace(":", "x")
+                    })
+                    if flux_res:
+                        url = str(flux_res) if not isinstance(flux_res, list) else str(flux_res[0])
+                        st.session_state.last_img = url
+                        st.session_state.library.append({"url": url, "prompt": user_p, "ts": datetime.now().strftime("%H:%M")})
+                        save_data()
+                        status.update(label="Pipeline Successful!", state="complete")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"NEURAL ERROR: {str(e)[:100]}. Försök med en enklare prompt.")
+        else: st.error("Skriv in din vision först.")
 
     if st.session_state.last_img:
         st.divider()
@@ -141,7 +148,7 @@ if st.session_state.page == "SYNTH":
             save_data(); st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ARKIV-MODUL ---
+# (ARKIV MODUL)
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     if not st.session_state.library: st.info("Archive empty.")
@@ -155,6 +162,7 @@ elif st.session_state.page == "ARKIV":
                     st.session_state.wallpaper = item['url']
                     save_data(); st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
