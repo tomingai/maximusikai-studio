@@ -58,7 +58,6 @@ st.markdown(f"""
         background: rgba(0, 10, 30, 0.75); backdrop-filter: blur(40px); 
         border: 1px solid {accent}33; border-radius: 20px; padding: 25px; margin-bottom: 20px;
     }}
-    /* CSS för att begränsa maxbredd på bilder och videos */
     .stImage, .stVideo {{
         max-width: 80% !important;
         margin: auto !important;
@@ -92,25 +91,36 @@ if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 NEURAL SYNTH STATION</h2>", unsafe_allow_html=True)
     user_p = st.text_input("VAD SKALL VI SKAPA?", placeholder="Beskriv visionen...")
+    
     if st.button("🚀 GENERERA BILD"):
         if user_p:
-            with st.status("Neural kedja aktiv...", expanded=True) as status:
-                st.session_state.last_prompt = user_p
-                res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
-                url = sanitize_url(res)
-                if url:
-                    status.update(label="Bild klar! Laddar ner...", state="running")
+            bar = st.progress(0)
+            timer_text = st.empty()
+            start = time.time()
+            try:
+                prediction = replicate.predictions.create(
+                    model="black-forest-labs/flux-schnell",
+                    input={"prompt": user_p, "aspect_ratio": "16:9"}
+                )
+                while prediction.status not in ["succeeded", "failed", "canceled"]:
+                    elapsed = int(time.time() - start)
+                    bar.progress(min(elapsed * 20, 99))
+                    timer_text.markdown(f"**Syntetiserar:** {prediction.status}... ({elapsed}s)")
+                    time.sleep(0.5)
+                    prediction.reload()
+                
+                if prediction.status == "succeeded":
+                    url = sanitize_url(prediction.output)
                     resp = requests.get(url, timeout=20)
                     if resp.status_code == 200:
                         st.session_state.last_img = resp.content
                         st.session_state.library.append({"id": time.time(), "data": resp.content, "url": url, "prompt": user_p})
                         st.rerun()
-    
+            except Exception as e: st.error(f"Synth Error: {e}")
+                
     if st.session_state.last_img:
-        # Centrerad vy för bilden
-        _, mid, _ = st.columns([0.15, 0.7, 0.15])
-        with mid:
-            st.image(st.session_state.last_img, use_container_width=True)
+        _, mid, _ = st.columns([0.1, 0.8, 0.1])
+        with mid: st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "MOVIE":
@@ -118,59 +128,54 @@ elif st.session_state.page == "MOVIE":
     st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SVD)</h2>", unsafe_allow_html=True)
     if st.session_state.last_img:
         _, mid_pre, _ = st.columns([0.3, 0.4, 0.3])
-        with mid_pre:
-            st.image(st.session_state.last_img, caption="Redo för animation", use_container_width=True)
+        with mid_pre: st.image(st.session_state.last_img, caption="Startpunkt", use_container_width=True)
         
         motion = st.slider("RÖRELSE:", 1, 255, 127)
         if st.button("🎬 ANIMERA"):
-            progress_bar = st.progress(0)
+            bar = st.progress(0)
+            timer_text = st.empty()
+            start = time.time()
             try:
                 img_stream = io.BytesIO(st.session_state.last_img)
-                model = replicate.models.get("stability-ai/stable-video-diffusion")
-                prediction = replicate.predictions.create(version=model.latest_version.id, input={"input_image": img_stream, "motion_bucket_id": motion})
-                start_time = time.time()
+                prediction = replicate.predictions.create(
+                    model="stability-ai/stable-video-diffusion",
+                    input={"input_image": img_stream, "motion_bucket_id": motion}
+                )
                 while prediction.status not in ["succeeded", "failed", "canceled"]:
-                    elapsed = int(time.time() - start_time)
-                    progress_bar.progress(min(elapsed * 2, 99))
-                    time.sleep(4)
+                    elapsed = int(time.time() - start)
+                    bar.progress(min(elapsed * 2, 99))
+                    timer_text.markdown(f"**Renderar film:** {prediction.status}... ({elapsed}s)")
+                    time.sleep(3)
                     prediction.reload()
                 if prediction.status == "succeeded":
                     st.session_state.last_vid = sanitize_url(prediction.output)
                     st.session_state.video_library.append({"id": time.time(), "url": st.session_state.last_vid, "prompt": "Animation"})
                     st.rerun()
-            except Exception as e: st.error(f"Error: {e}")
+            except Exception as e: st.error(f"Movie Error: {e}")
     
     if st.session_state.last_vid:
         _, mid_vid, _ = st.columns([0.1, 0.8, 0.1])
-        with mid_vid:
-            st.video(st.session_state.last_vid)
+        with mid_vid: st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     t_img, t_vid = st.tabs(["🖼️ BILDER", "🎬 FILMER"])
     with t_img:
-        if not st.session_state.library: st.info("Bildarkivet är tomt.")
-        else:
-            grid = st.columns(4) # Fler kolumner = mindre bilder
-            for i, item in enumerate(list(reversed(st.session_state.library))):
-                with grid[i % 4]:
-                    st.image(item['data'], use_container_width=True)
-                    c1, c2 = st.columns(2)
-                    if c1.button("🖼️", key=f"bg_{item['id']}"):
-                        st.session_state.wallpaper = item['url']; st.rerun()
-                    if c2.button("🗑️", key=f"del_{item['id']}"):
-                        st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]; st.rerun()
+        grid = st.columns(4)
+        for i, item in enumerate(list(reversed(st.session_state.library))):
+            with grid[i % 4]:
+                st.image(item['data'], use_container_width=True)
+                c1, c2 = st.columns(2)
+                if c1.button("🖼️", key=f"bg_{item['id']}"): st.session_state.wallpaper = item['url']; st.rerun()
+                if c2.button("🗑️", key=f"del_{item['id']}"): 
+                    st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]; st.rerun()
     with t_vid:
-        if not st.session_state.video_library: st.info("Videoarkivet är tomt.")
-        else:
-            for v in reversed(st.session_state.video_library):
-                _, mid_v, _ = st.columns([0.2, 0.6, 0.2])
-                with mid_v:
-                    st.video(v['url'])
-                    st.markdown(f"[📥 HÄMTA VIDEO]({v['url']})", unsafe_allow_html=True)
-                    if st.button("RADERA", key=f"del_v_{v['id']}"):
-                        st.session_state.video_library = [vid for vid in st.session_state.video_library if vid['id'] != v['id']]; st.rerun()
+        for v in reversed(st.session_state.video_library):
+            _, mid_v, _ = st.columns([0.2, 0.6, 0.2])
+            with mid_v:
+                st.video(v['url'])
+                st.markdown(f"[📥 HÄMTA VIDEO]({v['url']})", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
