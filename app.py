@@ -8,13 +8,13 @@ import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "11.4.4-STABLE"
+VERSION = "11.4.4-GLOW-STABLE"
 st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# --- 2. MOTOR & CLEANER (Frysta enligt Regel 2) ---
+# --- 2. MOTOR & CLEANER ---
 def get_safe_filename(text):
     if not text: return "genererad_bild"
     clean = re.sub(r'[^a-zA-Z0-9åäöÅÄÖ]', '_', text)
@@ -126,4 +126,3 @@ elif st.session_state.page == "ARKIV":
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
-
