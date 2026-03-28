@@ -2,6 +2,7 @@ import replicate
 import os
 import json
 import time
+import re
 from datetime import datetime
 import streamlit as st
 import requests
@@ -13,17 +14,18 @@ st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", init
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# --- 2. MOTOR & CLEANER (Frysta enligt Regel 2 & 3) ---
+# --- 2. MOTOR & CLEANER (Regel 3: Förstärkt URL-extrahering) ---
 def clean_prompt(text):
     if not text: return ""
     return str(text).replace('"', '').replace('Prompt:', '').strip()
 
 def sanitize_url(output):
-    # REGEL 3: Rensa URL aggressivt för att undvika MediaFileStorageError
-    url = str(output)
-    for char in ["[", "]", "'", '"']:
-        url = url.replace(char, "")
-    return url.strip()
+    # Använder Regex för att extrahera endast den rena URL:en från Replicate-svaret
+    if not output: return ""
+    url_match = re.search(r'https?://[^\s\'"\]]+', str(output))
+    if url_match:
+        return url_match.group(0)
+    return str(output)
 
 def safe_replicate_run(model, input_data):
     if not os.environ.get("REPLICATE_API_TOKEN"):
@@ -32,7 +34,6 @@ def safe_replicate_run(model, input_data):
     try:
         res = replicate.run(model, input=input_data)
         if "llama" in model or "moondream" in model: return res
-        # Om det är en bild eller audio, tvätta URL direkt
         return sanitize_url(res)
     except Exception as e:
         st.error(f"Neural Error: {e}")
@@ -110,6 +111,7 @@ if st.session_state.page == "SYNTH":
                     st.session_state.last_img = url
                     st.session_state.library.append({"id": str(time.time()), "url": url, "prompt": user_p, "expanded_prompt": final_p, "ts": datetime.now().strftime("%H:%M")})
                     st.rerun()
+    
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -168,8 +170,6 @@ elif st.session_state.page == "ARKIV":
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
-
-
 
 
 
