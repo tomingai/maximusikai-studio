@@ -5,31 +5,29 @@ import streamlit.components.v1 as components
 from PIL import Image
 
 # VERSIONSHANTERING
-VERSION = "1.4.6" 
+VERSION = "1.4.7" 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-def handle_replicate_output(output):
-    if not output: return None, None
-    try:
-        if hasattr(output, '__iter__') and not isinstance(output, (str, bytes)):
-            output = list(output)
-        if isinstance(output, str) and output.startswith("http"):
-            resp = requests.get(output)
-            return resp.content, output
-        if isinstance(output, bytes):
-            return output, None
-    except: pass
-    return None, None
-
-def ai_call(prompt, system_prompt="You are a helpful assistant."):
-    try:
-        output = replicate.run("meta/meta-llama-3-70b-instruct", 
-            input={"prompt": prompt, "system_prompt": system_prompt})
-        return "".join(output).strip()
-    except Exception as e: return f"Error: {e}"
+def get_url_from_output(output):
+    """Extraherar en fungerande URL från Replicates olika format."""
+    if not output: return None
+    # Om det är en lista (vanligt för Flux), ta första strängen som ser ut som en URL
+    if isinstance(output, list):
+        for item in output:
+            if isinstance(item, str) and item.startswith("http"):
+                return item
+    # Om det är en sträng direkt
+    if isinstance(output, str) and output.startswith("http"):
+        return output
+    # Om det är en generator
+    if hasattr(output, '__iter__'):
+        for item in output:
+            if isinstance(item, str) and item.startswith("http"):
+                return item
+    return None
 
 # INITIALISERING
 if "page" not in st.session_state:
@@ -62,28 +60,34 @@ with c_dim:
     st.session_state.bg_opacity = st.slider("DIM", 0.0, 1.0, st.session_state.bg_opacity, 0.05)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# MODUL: SYNTH
+# MODUL: SYNTH (FIXAD BILD-LOGIK)
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.subheader("BILD-SYNTHESIZER")
     st.session_state.synth_p = st.text_input("PROMPT:", value=st.session_state.synth_p)
     if st.button("🚀 GENERERA BILD"):
-        with st.spinner("Bearbetar neurala nätverk...", show_time=True):
+        with st.spinner("Ansluter till Flux Schnell...", show_time=True):
             try:
-                res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": st.session_state.synth_p})
-                img_data, img_url = handle_replicate_output(res)
-                if img_data:
-                    st.session_state.last_img, st.session_state.last_img_url = img_data, img_url
-                    st.session_state.library.append({"id": time.time(), "data": img_data, "url": img_url})
+                output = replicate.run("black-forest-labs/flux-schnell", input={"prompt": st.session_state.synth_p})
+                url = get_url_from_output(output)
+                
+                if url:
+                    resp = requests.get(url)
+                    st.session_state.last_img = resp.content
+                    st.session_state.last_img_url = url
+                    st.session_state.library.append({"id": time.time(), "data": resp.content, "url": url})
                     st.rerun()
+                else:
+                    st.error("Kunde inte hitta en bild-URL i svaret.")
             except Exception as e: st.error(f"Flux Error: {e}")
+            
     if st.session_state.last_img: 
         st.image(io.BytesIO(st.session_state.last_img), width=600)
-        if st.session_state.last_img_url and st.button("✂️ EXTRAHERA LOGOTYP"):
-            with st.spinner("Frilägger objekt...", show_time=True):
-                output = replicate.run("lucatidbury/remove-bg:af3ab35653788916c803875082bc780d60c6d7a46587425114704044ee78996e", input={"image": st.session_state.last_img_url})
-                st.session_state.last_logo_url = str(output).strip()
-                st.success("Logo redo!")
+        if st.button("✂️ EXTRAHERA LOGOTYP"):
+            with st.spinner("Frilägger...", show_time=True):
+                res = replicate.run("lucatidbury/remove-bg:af3ab35653788916c803875082bc780d60c6d7a46587425114704044ee78996e", input={"image": st.session_state.last_img_url})
+                st.session_state.last_logo_url = get_url_from_output(res)
+                st.success("Logo klar!")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # MODUL: WEB-GEN
@@ -91,60 +95,35 @@ elif st.session_state.page == "APP-GEN":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.subheader("WEB ARCHITECT")
     st.session_state.web_p = st.text_area("Beskrivning:", value=st.session_state.web_p)
-    r1 = st.columns(5)
-    if r1[0].button("🛠 BYGG"):
+    r = st.columns(5)
+    if r[0].button("🛠 BYGG"):
         with st.spinner("Kodar...", show_time=True):
-            st.session_state.last_html = ai_call(f"Full HTML/CSS for: {st.session_state.web_p}", "Output ONLY raw HTML/CSS. Use [TITLE], [CONTENT].")
+            res = replicate.run("meta/meta-llama-3-70b-instruct", input={"prompt": f"Full HTML/CSS for: {st.session_state.web_p}", "system_prompt": "Output only raw HTML."})
+            st.session_state.last_html = "".join(res).strip()
             st.rerun()
-    if r1[1].button("✍️ TEXT"):
-        with st.spinner("Skriver...", show_time=True):
-            txt = ai_call(f"JSON: TITLE, CONTENT for {st.session_state.web_p}", "Output ONLY raw JSON.")
-            try:
-                d = json.loads(txt)
-                st.session_state.last_html = st.session_state.last_html.replace("[TITLE]", d['TITLE']).replace("[CONTENT]", d['CONTENT'])
-                st.rerun()
-            except: st.error("Text Error")
-    if r1[2].button("🖼️ BKG"):
-        if st.session_state.last_img_url:
-            st.session_state.last_html = st.session_state.last_html.replace("</head>", f"<style>body {{ background: url('{st.session_state.last_img_url}') center/cover fixed !important; }}</style></head>")
-            st.rerun()
-    if r1[3].button("🔖 LOGO"):
-        if st.session_state.last_logo_url:
-            st.session_state.last_html = st.session_state.last_html.replace("<body>", f"<body><img src='{st.session_state.last_logo_url}' style='width:80px; position:fixed; top:20px; left:20px; z-index:999;'>")
-            st.rerun()
-    if r1[4].button("🎵 LJUD"):
-        with st.spinner("Komponerar...", show_time=True):
-            try:
-                out = replicate.run("facebookresearch/musicgen:7a76a8258b299f66db539ea97151b69f31745739ef35147814457bb2212b20f0", input={"prompt": st.session_state.web_p[:100], "duration": 8})
-                st.session_state.last_audio_url = str(out).strip()
-                st.session_state.last_html = st.session_state.last_html.replace("<body>", f"<body><audio autoplay loop><source src='{st.session_state.last_audio_url}' type='audio/mpeg'></audio>")
-                st.rerun()
-            except Exception as e: st.error(f"MusicGen Error: {e}")
-
+    if r[1].button("🖼️ BKG") and st.session_state.last_img_url:
+        st.session_state.last_html = st.session_state.last_html.replace("</head>", f"<style>body {{ background: url('{st.session_state.last_img_url}') center/cover fixed !important; }}</style></head>")
+        st.rerun()
+    
     if st.session_state.last_html:
-        st.session_state.last_html = st.text_area("🔧 KOD-EDITOR (Live):", value=st.session_state.last_html, height=250)
+        st.session_state.last_html = st.text_area("KOD:", value=st.session_state.last_html, height=200)
         components.html(st.session_state.last_html, height=500, scrolling=True)
-        st.download_button("🚀 EXPORT index.html", st.session_state.last_html, "index.html")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODUL: MOVIE & ARKIV
+# MODULER: MOVIE & ARKIV
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    if st.session_state.last_img:
-        if st.button("🎬 ANIMERA"):
-            with st.spinner("SVD Render...", show_time=True):
-                img_in = st.session_state.last_img_url if st.session_state.last_img_url else io.BytesIO(st.session_state.last_img)
-                output = replicate.run("stability-ai/svd:3f7790f5403028243f6ed291775796f600473ef7116975591d1e433f443b740e", input={"input_image": img_in})
-                st.session_state.last_vid = requests.get(str(output).strip()).content
-                st.rerun()
+    if st.session_state.last_img_url and st.button("🎬 ANIMERA"):
+        with st.spinner("Animerar...", show_time=True):
+            out = replicate.run("stability-ai/svd:3f7790f5403028243f6ed291775796f600473ef7116975591d1e433f443b740e", input={"input_image": st.session_state.last_img_url})
+            st.session_state.last_vid = requests.get(get_url_from_output(out)).content
+            st.rerun()
     if st.session_state.last_vid: st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    grid = st.columns(4)
-    for i, item in enumerate(reversed(st.session_state.library)): grid[i % 4].image(io.BytesIO(item['data']))
+    for i in reversed(st.session_state.library): st.image(io.BytesIO(i['data']), width=200)
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
-
