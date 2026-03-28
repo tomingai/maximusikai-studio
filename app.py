@@ -6,7 +6,7 @@ from datetime import datetime
 import streamlit as st
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "11.3.6-GLOW"
+VERSION = "11.3.6-GLOW-LUMINA"
 st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -18,22 +18,13 @@ def clean_prompt(text):
     return str(text).replace('"', '').replace('Prompt:', '').strip()
 
 def sanitize_url(output):
-    # Fixar MediaFileStorageError genom att hantera både listor och FileOutput-objekt
     if not output: return None
-    
-    # Om Replicate skickar ett FileOutput-objekt, hämta dess URL
-    if hasattr(output, 'url'):
-        return str(output.url)
-    
-    # Om det är en lista, ta första elementet
+    if hasattr(output, 'url'): return str(output.url)
     if isinstance(output, list) and len(output) > 0:
-        output = output[0]
-        if hasattr(output, 'url'): return str(output.url)
-    
-    # Rensa bort skräptecken om det är en sträng-representation av en lista
+        val = output[0]
+        return str(val.url) if hasattr(val, 'url') else str(val)
     url = str(output)
-    for char in ["['", "']", "[", "]", "'", '"']:
-        url = url.replace(char, "")
+    for char in ["['", "']", "[", "]", "'", '"']: url = url.replace(char, "")
     return url.strip()
 
 def safe_replicate_run(model, input_data):
@@ -90,7 +81,6 @@ with c_dim:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
-
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 SYNTH STATION</h2>", unsafe_allow_html=True)
@@ -129,19 +119,19 @@ elif st.session_state.page == "ARKIV":
     t1, t2 = st.tabs(["🖼️ BILDER", "🎵 LJUD"])
     with t1:
         grid = st.columns(3)
-        for i, item in enumerate(reversed(st.session_state.library)):
+        for i, img in enumerate(reversed(st.session_state.library)):
             with grid[i % 3]:
-                st.image(item['url'], use_container_width=True)
-                if st.button("VÄLJ", key=f"set_{item['id']}"):
-                    st.session_state.wallpaper = item['url']; st.rerun()
-                if st.button("SLÄNG", key=f"del_{item['id']}"):
-                    st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]
+                st.image(img['url'], use_container_width=True)
+                if st.button("VÄLJ", key=f"set_{img['id']}"):
+                    st.session_state.wallpaper = img['url']; st.rerun()
+                if st.button("SLÄNG", key=f"del_{img['id']}"):
+                    st.session_state.library = [x for x in st.session_state.library if x['id'] != img['id']]
                     st.rerun()
     with t2:
-        for item in reversed(st.session_state.audio_library):
-            st.audio(item['url'])
-            if st.button("RADERA", key=f"del_aud_{item['id']}"):
-                st.session_state.audio_library = [a for a in st.session_state.audio_library if a['id'] != item['id']]
+        for audio in reversed(st.session_state.audio_library):
+            st.audio(audio['url'])
+            if st.button("RADERA", key=f"del_aud_{audio['id']}"):
+                st.session_state.audio_library = [x for x in st.session_state.audio_library if x['id'] != audio['id']]
                 st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
