@@ -5,7 +5,7 @@ import random
 import requests
 
 # --- 1. SYSTEM-KONFIGURATION ---
-st.set_page_config(page_title="MAXIMUSIK AI OS v8.9 IGNITION", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="MAXIMUSIK AI OS v9.0 AUTO-SONIFY", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
@@ -28,42 +28,54 @@ for key, val in states.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-# --- 2. UTÖKAD SLUMP-MOTOR (Regel 2 & Inspirations-knapp) ---
-def get_random_prompt(mode="IMAGE", genre=None):
-    if genre is None:
-        genre = random.choice(["CYBERPUNK", "SPACE", "NATURE", "RETRO"])
-        st.session_state.slump_genre = genre
-    
-    prompts = {
-        "CYBERPUNK": {
-            "IMAGE": ["Neon Tokyo skyline 2099 rain", "Cybernetic DJ with glowing wires", "Futuristic hover-car in dark alley"],
-            "AUDIO": ["Dark industrial techno 128bpm", "Glitchy synthwave with heavy bass", "Cyberpunk ambient drone"],
-            "ENV": ["Cyberpunk apartment interior", "Night city harbor with neon signs"]
-        },
-        "SPACE": {
-            "IMAGE": ["Deep space nebula with purple stars", "Astronaut looking at a black hole", "Alien crystal planet landscape"],
-            "AUDIO": ["Ethereal space ambient pads", "Orchestral sci-fi theme", "Deep pulsar rhythmic pulses"],
-            "ENV": ["Mars base observation deck", "Inside a wormhole tunnel"]
-        },
-        "NATURE": {
-            "IMAGE": ["Bioluminescent ancient forest", "Golden hour waterfall in mountains", "Magic garden with floating flowers"],
-            "AUDIO": ["Nature zen flute with birds", "Healing water ambient", "Forest spirit rhythmic drums"],
-            "ENV": ["Hidden jungle temple", "Icelandic aurora over lake"]
-        },
-        "RETRO": {
-            "IMAGE": ["80s synthwave sunset grid", "Retro robot holding a cassette", "Vintage pixel art arcade"],
-            "AUDIO": ["80s retro synth-pop beat", "Lo-fi hip hop cassette tape", "Classic 8bit chiptune"],
-            "ENV": ["Retro-futuristic living room", "Neon arcade hall 1984"]
-        }
-    }
-    return random.choice(prompts[genre][mode])
-
+# --- 2. HJÄLPFUNKTIONER (Inkl. Auto-Sonify Logik) ---
 def get_url(res):
     try:
         if isinstance(res, list) and len(res) > 0: return str(res[0])
         if hasattr(res, 'url'): return str(res.url)
         return str(res)
     except: return str(res)
+
+def get_random_prompt(mode="IMAGE", genre=None):
+    if genre is None:
+        genre = random.choice(["CYBERPUNK", "SPACE", "NATURE", "RETRO"])
+        st.session_state.slump_genre = genre
+    prompts = {
+        "CYBERPUNK": {
+            "IMAGE": ["Neon Tokyo skyline 2099 rain", "Cybernetic DJ glowing wires", "Futuristic hover-car"],
+            "AUDIO": ["Dark industrial techno 128bpm", "Glitchy synthwave", "Cyberpunk drone"],
+            "ENV": ["Cyberpunk apartment interior", "Night city harbor neon"]
+        },
+        "SPACE": {
+            "IMAGE": ["Purple nebula stars", "Astronaut black hole", "Alien crystal planet"],
+            "AUDIO": ["Ethereal space pads", "Sci-fi theme", "Deep pulsar pulses"],
+            "ENV": ["Mars base observation", "Wormhole tunnel"]
+        },
+        "NATURE": {
+            "IMAGE": ["Bioluminescent forest", "Waterfall mountains", "Magic garden flowers"],
+            "AUDIO": ["Nature zen flute", "Healing water ambient", "Forest spirit drums"],
+            "ENV": ["Hidden jungle temple", "Icelandic aurora lake"]
+        },
+        "RETRO": {
+            "IMAGE": ["80s synthwave sunset", "Retro robot cassette", "Pixel art arcade"],
+            "AUDIO": ["80s synth-pop beat", "Lo-fi hip hop tape", "8bit chiptune"],
+            "ENV": ["Retro-futuristic room", "Neon arcade 1984"]
+        }
+    }
+    return random.choice(prompts[genre][mode])
+
+def sonify_logic(image_url, prompt_context):
+    """Automatiserad Sonify-process"""
+    try:
+        # Steg 1: Analys (Moondream)
+        descr = replicate.run("lucataco/moondream2:610746815820698144-8848-436e-b76e-07a829a7386d", 
+                             input={"image": image_url, "prompt": "Describe the musical mood in 5 words."})
+        # Steg 2: Musik (MusicGen)
+        res = replicate.run("meta/musicgen", input={"prompt": f"{descr}, inspired by {prompt_context}", "duration": 10})
+        url = get_url(res)
+        st.session_state.library.append({"type": "audio", "url": url, "prompt": f"Auto-Sonify: {str(descr)[:15]}"})
+        return url
+    except: return None
 
 # --- 3. UI ENGINE ---
 def apply_ui():
@@ -77,11 +89,10 @@ def apply_ui():
             background: linear-gradient(rgba(0,0,0,{overlay}), rgba(0,0,0,{overlay + 0.1})), 
                         url("{st.session_state.wallpaper}") !important;
             background-size: cover !important; background-attachment: fixed !important;
-            background-position: center !important;
         }}
         .window-box {{ background: rgba(0, 5, 15, 0.94); backdrop-filter: blur(40px); border: 1px solid {accent}33; border-radius: 30px; padding: 30px; margin-top: 10px; }}
         .nav-bar {{ display: flex; justify-content: space-around; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 15px; margin-bottom: 20px; border: 1px solid {accent}22; }}
-        h1, h2, h3, p, label, .stCaption {{ color: {accent} !important; font-family: 'Courier New', monospace !important; text-shadow: 0 0 10px {accent}44; }}
+        h1, h2, h3, p, label {{ color: {accent} !important; font-family: 'Courier New', monospace !important; }}
         .stButton > button {{ background: rgba(0,0,0,0.4) !important; border: 1px solid {accent}33 !important; color: {accent} !important; border-radius: 10px !important; }}
         audio, video {{ filter: sepia(1) saturate(5) hue-rotate(160deg); width: 100%; border-radius: 15px; }}
         </style>
@@ -117,58 +128,41 @@ else:
 
         st.markdown('<div class="window-box">', unsafe_allow_html=True)
 
-        # SYNTH
+        # SYNTH (Med AUTO-SONIFY)
         if st.session_state.page == "SYNTH":
             col_g, col_i = st.columns([0.7, 0.3])
             genre = col_g.selectbox("GENRE:", ["CYBERPUNK", "SPACE", "NATURE", "RETRO"], index=["CYBERPUNK", "SPACE", "NATURE", "RETRO"].index(st.session_state.slump_genre))
             if col_i.button("🚀 NEURAL IGNITION", use_container_width=True):
                 st.session_state.last_synth_p = get_random_prompt("IMAGE", None); st.rerun()
             
-            t1, t2 = st.tabs(["GENERATE", "UPLOAD"])
-            with t1:
-                if st.button("🎲 RANDOM PROMPT"): 
-                    st.session_state.last_synth_p = get_random_prompt("IMAGE", genre); st.rerun()
-                p = st.text_area("PROMPT:", value=st.session_state.last_synth_p)
-                if st.button("CREATE IMAGE", use_container_width=True):
-                    res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
-                    st.session_state.last_image_res = get_url(res)
-                    st.session_state.library.append({"type": "image", "url": st.session_state.last_image_res, "prompt": p}); st.rerun()
-            with t2:
-                up = st.file_uploader("UPLOAD:", type=["jpg", "png"])
-                if up: st.session_state.last_image_res = up
+            p = st.text_area("PROMPT:", value=st.session_state.last_synth_p)
+            if st.button("CREATE IMAGE & AUTO-SONIFY", use_container_width=True):
+                with st.spinner("Visualizing..."):
+                    img_res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
+                    st.session_state.last_image_res = get_url(img_res)
+                    st.session_state.library.append({"type": "image", "url": st.session_state.last_image_res, "prompt": p})
+                with st.spinner("Auto-Sonifying..."):
+                    st.session_state.last_audio_res = sonify_logic(st.session_state.last_image_res, p)
+                st.rerun()
+
             if st.session_state.last_image_res:
                 st.image(st.session_state.last_image_res, width=300)
-                c1, c2 = st.columns(2)
-                if c1.button("🎬 ANIMATE"): st.session_state.page = "MOVIE"; st.rerun()
-                if c2.button("🎵 SONIFY"): 
-                    res = replicate.run("meta/musicgen", input={"prompt": f"Soundtrack for {st.session_state.last_synth_p}", "duration": 15})
-                    st.session_state.library.append({"type": "audio", "url": get_url(res), "prompt": "Sonify"}); st.rerun()
+                if st.session_state.last_audio_res: st.audio(st.session_state.last_audio_res)
+                if st.button("🎬 ANIMATE"): st.session_state.page = "MOVIE"; st.rerun()
 
         # AUDIO
         elif st.session_state.page == "AUDIO":
-            col_ga, col_ia = st.columns([0.7, 0.3])
-            genre_a = col_ga.selectbox("GENRE:", ["CYBERPUNK", "SPACE", "NATURE", "RETRO"], key="aud_genre")
-            if col_ia.button("🚀 NEURAL IGNITION", use_container_width=True, key="ign_aud"):
-                st.session_state.last_synth_p = get_random_prompt("AUDIO", None); st.rerun()
-            
-            t_a1, t_a2 = st.tabs(["MUSIC", "VOICE"])
-            with t_a1:
-                if st.button("🎲 RANDOM BEAT"): 
-                    st.session_state.last_synth_p = get_random_prompt("AUDIO", genre_a); st.rerun()
-                ap = st.text_input("SONIC PROMPT:", value=st.session_state.last_synth_p)
-                if st.button("GENERATE MUSIC", use_container_width=True):
-                    res = replicate.run("meta/musicgen", input={"prompt": ap, "duration": 15})
-                    st.session_state.last_audio_res = get_url(res)
-                    st.session_state.library.append({"type": "audio", "url": st.session_state.last_audio_res, "prompt": ap}); st.rerun()
-            with t_a2:
-                v_text = st.text_area("SCRIPT:")
-                if st.button("GENERATE VOICE", use_container_width=True):
-                    res = replicate.run("elevenlabs/elevenlabs-tts", input={"text": v_text, "voice_id": "antoni"})
-                    st.session_state.last_audio_res = get_url(res)
-                    st.session_state.library.append({"type": "audio", "url": st.session_state.last_audio_res, "prompt": f"Voice: {v_text[:10]}"}); st.rerun()
+            st.session_state.slump_genre = st.selectbox("GENRE:", ["CYBERPUNK", "SPACE", "NATURE", "RETRO"], key="aud_genre")
+            if st.button("🎲 RANDOM BEAT"): 
+                st.session_state.last_synth_p = get_random_prompt("AUDIO", st.session_state.slump_genre); st.rerun()
+            ap = st.text_input("SONIC PROMPT:", value=st.session_state.last_synth_p)
+            if st.button("GENERATE MUSIC", use_container_width=True):
+                res = replicate.run("meta/musicgen", input={"prompt": ap, "duration": 15})
+                st.session_state.last_audio_res = get_url(res)
+                st.session_state.library.append({"type": "audio", "url": st.session_state.last_audio_res, "prompt": ap}); st.rerun()
             if st.session_state.last_audio_res: st.audio(st.session_state.last_audio_res)
 
-        # MOVIE
+        # MOVIE (MERGE VIDEO + AUDIO)
         elif st.session_state.page == "MOVIE":
             if st.session_state.last_image_res:
                 if st.button("ANIMATE IMAGE"):
@@ -185,8 +179,7 @@ else:
 
         # LIBRARY
         elif st.session_state.page == "LIBRARY":
-            st.session_state.lib_filter = st.radio("FILTER:", ["BILDER", "LJUD", "FILM"], horizontal=True)
-            f_lib = [i for i in st.session_state.library if (st.session_state.lib_filter == "BILDER" and i['type'] == "image") or (st.session_state.lib_filter == "LJUD" and i['type'] == "audio") or (st.session_state.lib_filter == "FILM" and i['type'] == "video")]
+            f_lib = st.session_state.library
             l_cols = st.columns(3)
             for idx, item in enumerate(reversed(f_lib)):
                 with l_cols[idx % 3]:
@@ -202,7 +195,7 @@ else:
                     except: pass
                     st.markdown("---")
 
-        # ENGINE
+        # ENGINE & SYSTEM
         elif st.session_state.page == "ENGINE":
             st.session_state.brightness = st.slider("LIGHT", 0.0, 1.0, st.session_state.brightness)
             if st.button("🚀 NEURAL IGNITION"): st.session_state.last_synth_p = get_random_prompt("ENV", None); st.rerun()
@@ -211,7 +204,6 @@ else:
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": ep, "aspect_ratio": "16:9"})
                 st.session_state.wallpaper = get_url(res); st.rerun()
 
-        # SYSTEM
         elif st.session_state.page == "SYSTEM":
             st.session_state.accent_color = st.color_picker("COLOR", st.session_state.accent_color)
             st.session_state.brightness = st.slider("BRIGHTNESS", 0.0, 1.0, st.session_state.brightness)
@@ -219,6 +211,7 @@ else:
             if st.button("HARD RESET"): st.session_state.clear(); st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
