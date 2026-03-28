@@ -18,18 +18,13 @@ def clean_prompt(text):
     if not text: return ""
     return str(text).replace('"', '').replace('Prompt:', '').strip()
 
-def sanitize_url(output):
-    if isinstance(output, list) and len(output) > 0: return str(output[0])
-    return str(output)
-
 def safe_replicate_run(model, input_data):
     if not os.environ.get("REPLICATE_API_TOKEN"):
         st.error("🔑 API-nyckel saknas i Secrets!")
         return None
     try:
         res = replicate.run(model, input=input_data)
-        if "llama" in model or "moondream" in model: return res
-        return sanitize_url(res)
+        return str(res) if isinstance(res, list) else str(res)
     except Exception as e:
         st.error(f"Neural Error: {e}")
         return None
@@ -81,7 +76,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
 
-# --- SYNTH ---
+# --- SYNTH STATION ---
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 SYNTH STATION</h2>", unsafe_allow_html=True)
@@ -94,51 +89,50 @@ if st.session_state.page == "SYNTH":
 
     if st.button("🚀 GENERERA BILD"):
         if user_p:
-            with st.status("Skapar...", expanded=True) as status:
+            with st.status("Skapar vision...", expanded=True) as status:
                 final_p = user_p
                 try:
                     raw = ""
-                    for ev in replicate.stream("meta/meta-llama-3-8b-instruct", input={"prompt": f"Expand: {user_p} ({st.session_state.style})"}):
+                    for ev in replicate.stream("meta/meta-llama-3-8b-instruct", input={"prompt": f"Expand image prompt: {user_p} ({st.session_state.style}). Max 50 words."}):
                         raw += str(ev)
                     final_p = clean_prompt(raw)
                 except: pass
                 url = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": final_p, "aspect_ratio": aspect})
                 if url:
                     st.session_state.last_img = url
-                    st.session_state.library.append({"id": time.time(), "url": url, "prompt": user_p, "ts": datetime.now().strftime("%H:%M")})
+                    # VIKTIGT: Vi sparar den expanderade prompten (final_p) för AUDIO-modulen
+                    st.session_state.library.append({"id": time.time(), "url": url, "prompt": user_p, "expanded_prompt": final_p, "ts": datetime.now().strftime("%H:%M")})
                     st.rerun()
     if st.session_state.last_img: st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- AUDIO ---
+# --- AUDIO STATION (Bildbeskrivning -> Musik) ---
 elif st.session_state.page == "AUDIO":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎧 AUDIO GENERATOR</h2>", unsafe_allow_html=True)
     
-    source = st.radio("METOD:", ["Manuellt", "Neural Sync (Från Arkiv)"], horizontal=True)
+    source = st.radio("METOD:", ["Manuellt", "Från Arkiv (Använd bildens beskrivning)"], horizontal=True)
     audio_prompt = ""
     selected_img = None
 
-    if source == "Neural Sync (Från Arkiv)":
-        if not st.session_state.library: st.warning("Arkivet är tomt.")
+    if source == "Från Arkiv (Använd bildens beskrivning)":
+        if not st.session_state.library: st.warning("Arkivet är tomt. Skapa en bild först.")
         else:
             img_map = {f"Bild {i+1}: {img['prompt'][:25]}...": img for i, img in enumerate(reversed(st.session_state.library))}
-            selected_img = img_map[st.selectbox("VÄLJ BILD:", list(img_map.keys()))]
+            selected_img = img_map[st.selectbox("VÄLJ BILD ATT TONSÄTTA:", list(img_map.keys()))]
             st.image(selected_img['url'], width=300)
+            # Här hämtar vi den expanderade beskrivningen
+            audio_prompt = selected_img.get('expanded_prompt', selected_img['prompt'])
+            st.info(f"**Musik-prompt:** {audio_prompt}")
     else:
-        audio_prompt = st.text_input("PROMPT:", placeholder="Cinematic drums, ambient synth...")
+        audio_prompt = st.text_input("BESKRIV LJUDET:", placeholder="80s synthwave, melodic techno...")
 
-    duration = st.slider("LÄNGD (SEK):", 5, 20, 8)
+    duration = st.slider("LÄNGD (SEKUNDER):", 5, 20, 8)
 
-    if st.button("🎵 GENERERA"):
-        with st.status(" Neural Kedja Aktiverad...", expanded=True) as status:
-            if source == "Neural Sync (Från Arkiv)" and selected_img:
-                st.write("Tolkar bild...")
-                audio_prompt = safe_replicate_run("lucataco/moondream2", {"image": selected_img['url'], "prompt": "Describe the musical mood of this image in 5 words."})
-            
-            if audio_prompt:
-                st.write(f"Komponerar: {audio_prompt}")
-                # Korrigerad referens till MusicGen
+    if st.button("🎵 KOMPONERA MUSIK"):
+        if audio_prompt:
+            with st.status("Neural audio-kedja aktiv...", expanded=True) as status:
+                st.write("Genererar musik baserat på beskrivningen...")
                 res = safe_replicate_run("facebookresearch/musicgen", {
                     "prompt": audio_prompt, "duration": duration, "model_version": "stereo-small"
                 })
@@ -179,9 +173,6 @@ elif st.session_state.page == "ARKIV":
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
-
-
-
 
 
 
