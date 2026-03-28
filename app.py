@@ -5,42 +5,40 @@ import json
 import time
 from datetime import datetime
 
-# --- 1. KÄRN-KONFIGURATION (KERNEL FREEZE v11.3.7) ---
-VERSION = "11.3.7-GOLDEN"
+# --- 1. KÄRN-KONFIGURATION ---
+VERSION = "11.3.8-STABLE"
 st.set_page_config(page_title=f"MAXIMUSIK AI OS {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
+# Säkerställ API-Token
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
+elif "REPLICATE_API_TOKEN" in os.environ:
+    pass # Redan satt i miljö
+else:
+    st.error("API-TOKEN SAKNAS I SECRETS")
 
-# --- 2. FRYSTA FUNKTIONER ---
-def clean_prompt(text):
-    return str(text).replace('"', '').replace('Prompt:', '').strip() if text else ""
-
-def sanitize_url(output):
-    return str(output) if not isinstance(output, list) else str(output[0])
-
+# --- 2. SÄKRA MOTORER ---
 def safe_replicate_run(model, input_data):
     try:
-        res = replicate.run(model, input=input_data)
-        return res if "moondream" in model or "llama" in model else sanitize_url(res)
-    except: return None
+        # Använd Replicate direkt med felhantering
+        return replicate.run(model, input=input_data)
+    except Exception as e:
+        st.error(f"NEURAL ERROR: {str(e)}")
+        return None
 
-# --- 3. STATE LOCKDOWN ---
+# --- 3. INITIALISERING ---
 if "page" not in st.session_state:
     st.session_state.update({
         "page": "SYNTH", "library": [], "accent": "#00f2ff", "last_img": None,
-        "wallpaper": "https://images.unsplash.com",
-        "style": "Photorealistic", "analysis": ""
+        "wallpaper": "https://images.unsplash.com"
     })
 
 # --- 4. UI ENGINE ---
 accent = st.session_state.accent
 st.markdown(f"""
     <style>
-    @keyframes pulse-green {{ 0% {{ border-color: {accent}44; }} 50% {{ border-color: #00ff88; }} 100% {{ border-color: {accent}44; }} }}
-    [data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(0,0,0,0.95), rgba(0,0,0,0.98)), url("{st.session_state.wallpaper}"); background-size: cover; background-attachment: fixed; }}
+    [data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(0,0,0,0.95), rgba(0,0,0,0.98)), url("{st.session_state.wallpaper}"); background-size: cover; }}
     .glass {{ background: rgba(0, 5, 20, 0.92); backdrop-filter: blur(50px); border: 1px solid {accent}33; border-radius: 20px; padding: 25px; }}
-    .success-box {{ border: 2px solid #00ff88; animation: pulse-green 2s infinite; border-radius: 12px; padding: 15px; text-align: center; color: #00ff88; font-family: monospace; font-weight: bold; }}
     .stButton>button {{ border: 1px solid {accent}55 !important; color: white !important; background: {accent}11 !important; border-radius: 12px; height: 3.5rem; font-weight: bold; width: 100%; }}
     </style>
 """, unsafe_allow_html=True)
@@ -60,41 +58,46 @@ st.markdown('</div>', unsafe_allow_html=True)
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 SYNTH STATION</h2>", unsafe_allow_html=True)
-    user_p = st.text_input("VISION PROMPT:", placeholder="Banan-lejon...")
-    c1, c2 = st.columns([0.7, 0.3])
-    st.session_state.style = c1.selectbox("STIL:", ["Photorealistic", "Cinematic", "Cyberpunk"], index=0)
-    aspect = c2.selectbox("FORMAT:", ["1:1", "16:9", "9:16"], index=1)
-
+    
+    user_p = st.text_input("VISION PROMPT:", placeholder="Bananer som förvandlas till ett lejon...")
+    
     if st.button("🚀 EXEKVERA"):
         if user_p:
-            prog = st.progress(0)
-            with st.status("Neural Pipeline...") as status:
-                expanded = "".join(list(replicate.run("meta/meta-llama-3-8b-instruct", input={"prompt": f"Expand to 8k {st.session_state.style} prompt: {user_p}"})))
-                url = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": clean_prompt(expanded), "aspect_ratio": aspect.replace(":", "x")})
-                if url:
+            with st.status("Neural motor startar...") as status:
+                # Steg 1: LLM expansion
+                status.update(label="Ansluter till Llama-3...")
+                prompt_res = safe_replicate_run("meta/meta-llama-3-8b-instruct", {"prompt": f"Expand this to a cinematic 8k prompt: {user_p}"})
+                final_p = "".join(list(prompt_res)) if prompt_res else user_p
+                
+                # Steg 2: FLUX rendering
+                status.update(label="Flux genererar pixlar...")
+                flux_res = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": final_p})
+                
+                if flux_res:
+                    url = str(flux_res[0]) if isinstance(flux_res, list) else str(flux_res)
                     st.session_state.last_img = url
-                    st.session_state.library.append({"url": url, "prompt": user_p, "ts": datetime.now().strftime("%H:%M")})
-                    st.markdown('<div class="success-box">✅ READY</div>', unsafe_allow_html=True)
-                    time.sleep(1); st.rerun()
+                    st.session_state.library.append({"url": url, "prompt": user_p})
+                    status.update(label="Klar!", state="complete")
+                    st.rerun()
+        else: st.error("Skriv något i prompt-rutan.")
+        
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_column_width=True)
+        if st.button("🖼 ANVÄND BAKGRUND"):
+            st.session_state.wallpaper = st.session_state.last_img; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "ENGINE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent};'>🖼️ VISION ENGINE</h2>", unsafe_allow_html=True)
-    
-    # Auto-Load från Arkiv om sessionen är tom
     if not st.session_state.last_img and st.session_state.library:
         st.session_state.last_img = st.session_state.library[-1]['url']
         
     if st.session_state.last_img:
         st.image(st.session_state.last_img, width=400)
-        if st.button("🔍 ANALYSERA BILD"):
-            res = safe_replicate_run("lucataco/moondream2", {"image": st.session_state.last_img, "prompt": "Describe textures and quality."})
-            st.session_state.analysis = res
-        if st.session_state.analysis: st.info(st.session_state.analysis)
-    else: st.info("Skapa en bild först för att aktivera analysen.")
+        if st.button("🔍 ANALYSERA"):
+            res = safe_replicate_run("lucataco/moondream2", {"image": st.session_state.last_img, "prompt": "Describe this image."})
+            st.info(res)
+    else: st.info("Skapa en bild först.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "ARKIV":
@@ -105,7 +108,7 @@ elif st.session_state.page == "ARKIV":
         grid = st.columns(3)
         for i, item in enumerate(reversed(st.session_state.library)):
             with grid[i % 3]:
-                st.image(item['url'], use_column_width=True)
+                st.image(item['url'])
                 if st.button("VÄLJ", key=f"ark_{i}"):
                     st.session_state.last_img = item['url']
                     st.session_state.wallpaper = item['url']; st.rerun()
