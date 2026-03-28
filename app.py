@@ -4,13 +4,13 @@ import os
 import random
 import requests
 
-# --- 1. SYSTEM-KONFIGURATION (Regel 8, 9) ---
-st.set_page_config(page_title="MAXIMUSIK AI OS v9.1 FLOW-MASTER", layout="wide", initial_sidebar_state="collapsed")
+# --- 1. SYSTEM-KONFIGURATION ---
+st.set_page_config(page_title="MAXIMUSIK AI OS v9.1.1", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# LÅSTA SYSTEM-STATES (Regel 8)
+# LÅSTA SYSTEM-STATES (Regel 10)
 states = {
     "page": "DESKTOP",
     "wallpaper": "https://images.unsplash.com",
@@ -28,7 +28,7 @@ for key, val in states.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-# --- 2. HJÄLPFUNKTIONER (Regel 4, 10 + Auto-Sonify) ---
+# --- 2. HJÄLPFUNKTIONER (Regel 4) ---
 def get_url(res):
     try:
         if isinstance(res, list) and len(res) > 0: return str(res[0])
@@ -56,7 +56,7 @@ def sonify_logic(image_url, prompt_context):
         return url
     except: return None
 
-# --- 3. UI ENGINE ---
+# --- 3. UI ENGINE (Regel 9) ---
 def apply_ui():
     accent = st.session_state.accent_color
     bright = st.session_state.brightness
@@ -93,7 +93,7 @@ if st.session_state.page == "DESKTOP":
 else:
     _, win_col, _ = st.columns([0.02, 0.96, 0.02])
     with win_col:
-        # GLOBAL NAVIGATION (Regel: FLOW)
+        # NAVIGATION SNABBMENY
         st.markdown('<div class="nav-bar">', unsafe_allow_html=True)
         nc = st.columns(7)
         nav_items = [("🏠", "DESKTOP"), ("🪄", "SYNTH"), ("🎧", "AUDIO"), ("🎬", "MOVIE"), ("📚", "LIBRARY"), ("🖼", "ENGINE"), ("⚙️", "SYSTEM")]
@@ -104,41 +104,45 @@ else:
 
         st.markdown('<div class="window-box">', unsafe_allow_html=True)
 
-        # SYNTH (AUTO-SONIFY)
+        # SYNTH (Regel 1 & 4)
         if st.session_state.page == "SYNTH":
             col_g, col_i = st.columns([0.7, 0.3])
             genre = col_g.selectbox("GENRE:", ["CYBERPUNK", "SPACE", "NATURE", "RETRO"], index=0)
-            if col_i.button("🚀 IGNITION", use_container_width=True):
+            if col_i.button("🚀 IGNITION"):
                 st.session_state.last_synth_p = get_random_prompt("IMAGE", genre); st.rerun()
             
-            p = st.text_area("IMAGE PROMPT:", value=st.session_state.last_synth_p)
-            if st.button("CREATE IMAGE + AUDIO", use_container_width=True):
-                with st.spinner("Rendering..."):
-                    img = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
-                    st.session_state.last_image_res = get_url(img)
-                    st.session_state.library.append({"type": "image", "url": st.session_state.last_image_res, "prompt": p})
-                with st.spinner("Sonifying..."):
-                    st.session_state.last_audio_res = sonify_logic(st.session_state.last_image_res, p)
-                st.rerun()
+            t1, t2 = st.tabs(["GENERATE", "UPLOAD"])
+            with t1:
+                p = st.text_area("IMAGE PROMPT:", value=st.session_state.last_synth_p)
+                if st.button("CREATE IMAGE + AUDIO", use_container_width=True):
+                    with st.spinner("Rendering..."):
+                        img = replicate.run("black-forest-labs/flux-schnell", input={"prompt": p})
+                        st.session_state.last_image_res = get_url(img)
+                        st.session_state.library.append({"type": "image", "url": st.session_state.last_image_res, "prompt": p})
+                        st.session_state.last_audio_res = sonify_logic(st.session_state.last_image_res, p)
+                        st.rerun()
+            with t2:
+                up = st.file_uploader("UPLOAD:", type=["jpg", "png"])
+                if up: st.session_state.last_image_res = up
             
             if st.session_state.last_image_res:
-                st.image(st.session_state.last_image_res, width=350)
-                if st.button("🎬 ANIMERA DENNA BILD", use_container_width=True):
-                    st.session_state.page = "MOVIE"; st.rerun()
+                st.image(st.session_state.last_image_res, width=300)
+                if st.button("🎬 ANIMERA DENNA BILD"): st.session_state.page = "MOVIE"; st.rerun()
 
-        # AUDIO
+        # AUDIO (Regel 2)
         elif st.session_state.page == "AUDIO":
-            ap = st.text_input("MANUAL AUDIO PROMPT:")
+            st.write("### MANUAL AUDIO")
+            ap = st.text_input("PROMPT:")
             if st.button("GENERATE 15S", use_container_width=True):
                 res = replicate.run("meta/musicgen", input={"prompt": ap, "duration": 15})
                 st.session_state.last_audio_res = get_url(res)
                 st.session_state.library.append({"type": "audio", "url": st.session_state.last_audio_res, "prompt": ap}); st.rerun()
             if st.session_state.last_audio_res: st.audio(st.session_state.last_audio_res)
 
-        # MOVIE (MERGE VIDEO + AUDIO)
+        # MOVIE (Regel 3 & MERGE)
         elif st.session_state.page == "MOVIE":
             if st.session_state.last_image_res:
-                if st.button("RENDER MOVIE FROM IMAGE", use_container_width=True):
+                if st.button("RENDER MOVIE FROM IMAGE"):
                     with st.spinner("Animating..."):
                         res = replicate.run("stability-ai/video-diffusion:3f0457148a1aa577d638be204a4002c1d58ce1bd57b7f7c4d328b3d24883990c", input={"input_image": st.session_state.last_image_res})
                         st.session_state.last_video_res = get_url(res)
@@ -146,15 +150,20 @@ else:
             
             if st.session_state.last_video_res:
                 st.video(st.session_state.last_video_res)
-                if st.session_state.last_audio_res:
-                    if st.button("🔊 MERGE VIDEO + MUSIC", use_container_width=True):
-                        with st.spinner("Merging..."):
+                mv1, mv2 = st.tabs(["SUBTITLES", "MERGE AUDIO"])
+                with mv1:
+                    txt = st.text_input("SUBTITLE TEXT:")
+                    if st.button("BURN TEXT"):
+                        res = replicate.run("chenxwh/video-subtitle:c7457788", input={"video": st.session_state.last_video_res, "text": txt})
+                        st.session_state.last_video_res = get_url(res); st.rerun()
+                with mv2:
+                    if st.session_state.last_audio_res:
+                        if st.button("🔊 MERGE VIDEO + MUSIC"):
                             res = replicate.run("nateraw/ffmpeg-video-audio-mix:676f44d", input={"video": st.session_state.last_video_res, "audio": st.session_state.last_audio_res})
-                            st.session_state.last_video_res = get_url(res)
-                            st.session_state.library.append({"type": "video", "url": st.session_state.last_video_res, "prompt": "Final Master"}); st.rerun()
-            else: st.info("Skapa en bild i SYNTH först.")
+                            st.session_state.last_video_res = get_url(res); st.rerun()
+            else: st.info("Create image in SYNTH first.")
 
-        # ARKIV (Regel 5)
+        # ARKIV (Regel 5 & 6)
         elif st.session_state.page == "LIBRARY":
             f_lib = st.session_state.library
             l_cols = st.columns(3)
@@ -169,15 +178,15 @@ else:
                     if c1.button("🗑", key=f"d_{idx}"): st.session_state.library.remove(item); st.rerun()
                     try:
                         resp = requests.get(item['url'])
-                        c2.download_button("💾", resp.content, f"file_{idx}.png", key=f"dl_{idx}")
+                        c2.download_button("💾", resp.content, f"f_{idx}.png", key=f"dl_{idx}")
                     except: pass
                     st.markdown("---")
 
-        # ENGINE & SYSTEM
+        # ENGINE & SYSTEM (Regel 7)
         elif st.session_state.page == "ENGINE":
             st.session_state.brightness = st.slider("LIGHT", 0.0, 1.0, st.session_state.brightness)
             ep = st.text_area("ENV PROMPT (16:9):")
-            if st.button("UPDATE"):
+            if st.button("UPDATE ENGINE"):
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": ep, "aspect_ratio": "16:9"})
                 st.session_state.wallpaper = get_url(res); st.rerun()
 
