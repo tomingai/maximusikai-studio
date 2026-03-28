@@ -77,7 +77,7 @@ st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True
 c_nav, c_dim = st.columns([0.75, 0.25])
 
 with c_nav:
-    nc = st.columns(6) # Ändrat till 6 då ENGINE är borta
+    nc = st.columns(6)
     nav = [("🏠","HOME",True), ("🪄","SYNTH",False), ("🎧","AUDIO",True), ("🎬","MOVIE",True), ("📚","ARKIV",False), ("⚙️","SYSTEM",True)]
     for i, (icon, target, locked) in enumerate(nav):
         if not locked:
@@ -92,6 +92,8 @@ with c_dim:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
+
+# --- SYNTH STATION ---
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 NEURAL SYNTH STATION</h2>", unsafe_allow_html=True)
@@ -134,30 +136,29 @@ if st.session_state.page == "SYNTH":
     if st.session_state.last_img:
         st.divider()
         st.image(st.session_state.last_img, use_container_width=True)
-        if st.button("🖼 TILLÄMPA SOM OS-BAKGRUND"): 
-            st.session_state.wallpaper = st.session_state.last_img
-            st.rerun()
+        st.caption("Bilden har sparats i ARKIV.")
     st.markdown('</div>', unsafe_allow_html=True)
 
+# --- ARKIV (Välj bakgrund här) ---
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.subheader("📚 SYSTEM ARCHIVE")
+    st.markdown(f"<h2 style='color:{accent};'>📚 SYSTEM ARCHIVE</h2>", unsafe_allow_html=True)
+    st.write("Klicka på en bild för att använda den som bakgrund.")
+    
     if not st.session_state.library: 
-        st.info("Arkivet är tomt.")
+        st.info("Arkivet är tomt. Skapa bilder i SYNTH först.")
     else:
         grid = st.columns(3)
         for i, item in enumerate(reversed(st.session_state.library)):
             with grid[i % 3]:
                 st.image(item['url'], use_container_width=True)
-                if st.button("LADDA", key=f"ark_{i}"):
-                    st.session_state.last_img = item['url']
+                if st.button("SÄTT SOM BAKGRUND", key=f"ark_{i}"):
                     st.session_state.wallpaper = item['url']
+                    st.toast("Bakgrund uppdaterad!", icon="🖼️")
                     st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
-
-
 
 
 
