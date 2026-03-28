@@ -9,7 +9,7 @@ import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "NR 1.1.7" 
+VERSION = "NR 1.1.8" 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -23,9 +23,11 @@ def get_safe_filename(text):
 
 def sanitize_url(output):
     if not output: return None
-    # Replicate Video returnerar ofta en sträng direkt eller ett FileOutput-objekt
-    if hasattr(output, 'url'): return str(output.url)
-    url = str(output)
+    if isinstance(output, list): target = output[0]
+    elif hasattr(output, 'url'): target = str(output.url)
+    else: target = str(output)
+    
+    url = str(target)
     for char in ["['", "']", "[", "]", "'", '"']:
         url = url.replace(char, "")
     return url.strip()
@@ -103,26 +105,33 @@ if st.session_state.page == "SYNTH":
 
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SUB-APP)</h2>", unsafe_allow_html=True)
-    vid_p = st.text_input("BESKRIV DIN SCEN:", placeholder="Klistra in Samuraj-prompten här...")
+    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SVD-XT ENGINE)</h2>", unsafe_allow_html=True)
+    st.info("SVD-XT kräver en startbild. Generera en bild i SYNTH först.")
     
-    if st.button("🎬 GENERERA 5S VIDEO"):
-        if vid_p:
-            with st.status("Kontaktar Cinema-server...") as status:
+    if st.session_state.last_img:
+        st.image(st.session_state.last_img, caption="Startpunkt för animation", width=300)
+        if st.button("🎬 ANIMERA BILD"):
+            with st.status("Bearbetar neural rörelse (SVD-XT)..."):
                 try:
-                    # Direktanrop till Luma - Detta fixar 404-felet
+                    # Spara bytes till temporär fil för uppladdning
+                    with open("temp_anim.png", "wb") as f:
+                        f.write(st.session_state.last_img)
+                    
+                    # Kör Stable Video Diffusion
                     output = replicate.run(
-                        "luma/dream-machine",
-                        input={"prompt": vid_p}
+                        "stability-ai/stable-video-diffusion:ac7327c20fcb035902adbf7705d59611f6921055b51481855a2983a2d8d0030c",
+                        input={"input_image": open("temp_anim.png", "rb"), "video_length": "25_frames_fps_6"}
                     )
                     vid_url = sanitize_url(output)
                     if vid_url:
                         st.session_state.last_vid = vid_url
-                        st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": vid_p, "ts": datetime.now().strftime("%H:%M")})
+                        st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": "Animation"})
                         st.rerun()
                 except Exception as e:
                     st.error(f"Cinema Error: {e}")
-    
+    else:
+        st.warning("Gå till SYNTH och skapa en bild först!")
+
     if st.session_state.last_vid:
         st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
