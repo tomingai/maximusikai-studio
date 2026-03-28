@@ -9,8 +9,8 @@ import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "11.3.6-GLOW-STABLE"
-st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
+VERSION = "NR 1" # Uppdaterat från 11.3.6-GLOW-STABLE till NR 1 enligt önskemål
+st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
@@ -177,7 +177,6 @@ elif st.session_state.page == "ARKIV":
                         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# (AUDIO-modulen lämnas som original)
 elif st.session_state.page == "AUDIO":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎧 AUDIO GENERATOR</h2>", unsafe_allow_html=True)
@@ -193,4 +192,4 @@ elif st.session_state.page == "AUDIO":
         st.audio(item['url'])
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
