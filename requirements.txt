@@ -1,6 +1,7 @@
-streamlit-lottie
 replicate
+streamlit
 requests
+Pillow
 
 
 
