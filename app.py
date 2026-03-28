@@ -24,12 +24,9 @@ def get_safe_filename(text):
 def sanitize_url(output):
     if not output: return None
     url = ""
-    if isinstance(output, list) and len(output) > 0:
-        url = str(output)
-    elif hasattr(output, 'url'):
-        url = str(output.url)
-    else:
-        url = str(output)
+    if isinstance(output, list) and len(output) > 0: url = str(output)
+    elif hasattr(output, 'url'): url = str(output.url)
+    else: url = str(output)
     url = url.replace("['", "").replace("']", "").replace("[", "").replace("]", "").replace("'", "").replace('"', "").strip()
     return url if url.startswith("http") else None
 
@@ -61,7 +58,7 @@ st.markdown(f"""
         background: rgba(0, 10, 30, 0.75); backdrop-filter: blur(40px); 
         border: 1px solid {accent}33; border-radius: 20px; padding: 25px; margin-bottom: 20px;
     }}
-    .stButton>button {{ 
+    .stButton>button, .stDownloadButton>button {{ 
         border: 1px solid {accent}66 !important; background: {accent}11 !important; 
         color: white !important; border-radius: 12px; font-weight: bold; width: 100%;
     }}
@@ -75,6 +72,7 @@ with c_nav:
     nc = st.columns(6)
     if nc[0].button("🏠"): st.session_state.page = "SYNTH"; st.rerun()
     if nc[1].button("🪄"): st.session_state.page = "SYNTH"; st.rerun()
+    if nc[2].button("🎧"): st.session_state.page = "AUDIO"; st.rerun()
     if nc[3].button("🎬"): st.session_state.page = "MOVIE"; st.rerun()
     if nc[4].button("📚"): st.session_state.page = "ARKIV"; st.rerun()
 with c_dim:
@@ -94,18 +92,11 @@ if st.session_state.page == "SYNTH":
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 if url:
-                    try:
-                        resp = requests.get(url, timeout=15)
-                        if resp.status_code == 200:
-                            st.session_state.last_img = resp.content
-                            st.session_state.library.append({
-                                "id": time.time(), 
-                                "data": resp.content, 
-                                "url": url, # Sparar URL för bakgrunds-funktion
-                                "prompt": user_p
-                            })
-                            st.rerun()
-                    except: st.error("Kunde inte hämta bilden.")
+                    resp = requests.get(url, timeout=15)
+                    if resp.status_code == 200:
+                        st.session_state.last_img = resp.content
+                        st.session_state.library.append({"id": time.time(), "data": resp.content, "url": url, "prompt": user_p})
+                        st.rerun()
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -121,10 +112,7 @@ elif st.session_state.page == "MOVIE":
             try:
                 img_stream = io.BytesIO(st.session_state.last_img)
                 model = replicate.models.get("stability-ai/stable-video-diffusion")
-                prediction = replicate.predictions.create(
-                    version=model.latest_version.id,
-                    input={"input_image": img_stream, "motion_bucket_id": motion}
-                )
+                prediction = replicate.predictions.create(version=model.latest_version.id, input={"input_image": img_stream, "motion_bucket_id": motion})
                 start_time = time.time()
                 while prediction.status not in ["succeeded", "failed", "canceled"]:
                     elapsed = int(time.time() - start_time)
@@ -153,16 +141,19 @@ elif st.session_state.page == "ARKIV":
             for i, item in enumerate(list(reversed(st.session_state.library))):
                 with grid[i % 3]:
                     st.image(item['data'], use_container_width=True)
-                    # NYTT: Sätt som bakgrund
-                    if st.button("🖼️ BAKGRUND", key=f"bg_{item['id']}"):
-                        st.session_state.wallpaper = item['url']
-                        st.rerun()
-                    if st.button("SLÄNG", key=f"del_{item['id']}"):
-                        st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]
-                        st.rerun()
+                    if st.button("🖼️", key=f"bg_{item['id']}"):
+                        st.session_state.wallpaper = item['url']; st.rerun()
+                    if st.button("🗑️", key=f"del_{item['id']}"):
+                        st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]; st.rerun()
     with t_vid:
-        for v in reversed(st.session_state.video_library):
-            st.video(v['url'])
+        if not st.session_state.video_library: st.info("Videoarkivet är tomt.")
+        else:
+            for v in reversed(st.session_state.video_library):
+                st.video(v['url'])
+                # NYTT: Direktlänk för nedladdning av video
+                st.markdown(f"[📥 LADDA NER VIDEO]({v['url']})", unsafe_allow_html=True)
+                if st.button("🗑️", key=f"del_v_{v['id']}"):
+                    st.session_state.video_library = [vid for vid in st.session_state.video_library if vid['id'] != v['id']]; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
