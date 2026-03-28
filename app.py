@@ -7,7 +7,7 @@ import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "11.3.8-GLOW-STABLE"
+VERSION = "11.3.9-GLOW-STABLE"
 st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -135,6 +135,13 @@ if st.session_state.page == "SYNTH":
     
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_container_width=True)
+        # --- NEDLADDNING SYNTH (JPEG) ---
+        st.download_button(
+            label="💾 LADDA NER JPEG",
+            data=st.session_state.last_img,
+            file_name=f"maximusik_{int(time.time())}.jpg",
+            mime="image/jpeg"
+        )
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "AUDIO":
@@ -164,13 +171,13 @@ elif st.session_state.page == "ARKIV":
                     display_img = item.get('data') if item.get('data') else item.get('url')
                     st.image(display_img, use_container_width=True)
                     
-                    # --- NYTT: NEDLADDNING I ARKIVET ---
+                    # --- NEDLADDNING ARKIV (JPEG) ---
                     st.download_button(
-                        label="💾 HÄMTA", 
+                        label="💾 JPEG", 
                         data=display_img, 
-                        file_name=f"maximusik_{item['id']}.png", 
-                        mime="image/png", 
-                        key=f"dl_arkiv_{item['id']}"
+                        file_name=f"maximusik_arkiv_{item['id']}.jpg", 
+                        mime="image/jpeg", 
+                        key=f"dl_ark_jpg_{item['id']}"
                     )
                     
                     if st.button("SLÄNG", key=f"del_{item['id']}"):
@@ -185,3 +192,4 @@ elif st.session_state.page == "ARKIV":
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
+
