@@ -9,7 +9,7 @@ import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "NR 1.1.8" 
+VERSION = "NR 1.1.9" 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -23,7 +23,8 @@ def get_safe_filename(text):
 
 def sanitize_url(output):
     if not output: return None
-    if isinstance(output, list): target = output[0]
+    # Hanterar olika typer av returdata (listor, objekt, strängar)
+    if isinstance(output, list) and len(output) > 0: target = output[0]
     elif hasattr(output, 'url'): target = str(output.url)
     else: target = str(output)
     
@@ -105,32 +106,37 @@ if st.session_state.page == "SYNTH":
 
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SVD-XT ENGINE)</h2>", unsafe_allow_html=True)
-    st.info("SVD-XT kräver en startbild. Generera en bild i SYNTH först.")
+    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (DYNAMIC ENGINE)</h2>", unsafe_allow_html=True)
     
     if st.session_state.last_img:
-        st.image(st.session_state.last_img, caption="Startpunkt för animation", width=300)
+        st.image(st.session_state.last_img, caption="Redo för animation", width=300)
+        motion = st.slider("RÖRELSESTYRKA (Motion Bucket):", 1, 255, 127)
+        
         if st.button("🎬 ANIMERA BILD"):
-            with st.status("Bearbetar neural rörelse (SVD-XT)..."):
+            with st.status("Bearbetar neural rörelse..."):
                 try:
-                    # Spara bytes till temporär fil för uppladdning
-                    with open("temp_anim.png", "wb") as f:
-                        f.write(st.session_state.last_img)
+                    # Konvertera bytes till en stream som Replicate kan läsa
+                    img_stream = io.BytesIO(st.session_state.last_img)
                     
-                    # Kör Stable Video Diffusion
+                    # Kör dynamisk version av SVD
                     output = replicate.run(
-                        "stability-ai/stable-video-diffusion:ac7327c20fcb035902adbf7705d59611f6921055b51481855a2983a2d8d0030c",
-                        input={"input_image": open("temp_anim.png", "rb"), "video_length": "25_frames_fps_6"}
+                        "stability-ai/stable-video-diffusion",
+                        input={
+                            "input_image": img_stream,
+                            "motion_bucket_id": motion,
+                            "video_length": "14_frames_with_svd",
+                            "frames_per_second": 6
+                        }
                     )
                     vid_url = sanitize_url(output)
                     if vid_url:
                         st.session_state.last_vid = vid_url
-                        st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": "Animation"})
+                        st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": "Dynamic Animation"})
                         st.rerun()
                 except Exception as e:
                     st.error(f"Cinema Error: {e}")
     else:
-        st.warning("Gå till SYNTH och skapa en bild först!")
+        st.warning("Skapa en bild i SYNTH först!")
 
     if st.session_state.last_vid:
         st.video(st.session_state.last_vid)
