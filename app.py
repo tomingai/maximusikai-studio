@@ -13,16 +13,18 @@ st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", init
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-# --- 2. MOTOR & CLEANER (Frysta enligt Regel 2) ---
+# --- 2. MOTOR & CLEANER ---
 def clean_prompt(text):
     if not text: return ""
     return str(text).replace('"', '').replace('Prompt:', '').strip()
 
 def sanitize_url(output):
-    # REGEL 3: Fixar MediaFileStorageError genom att rensa bort [' '] från URL-strängen
+    # REGEL: Fixar MediaFileStorageError genom att rensa bort [' '] från URL-strängen
     if not output: return None
-    if hasattr(output, 'url'): return str(output.url)
-    url = str(output)
+    if isinstance(output, list): url = str(output[0])
+    elif hasattr(output, 'url'): url = str(output.url)
+    else: url = str(output)
+    
     for char in ["['", "']", "[", "]", "'", '"']:
         url = url.replace(char, "")
     return url.strip()
@@ -54,11 +56,13 @@ if "page" not in st.session_state:
 
 # --- 4. UI ENGINE ---
 accent = st.session_state.accent
+# Hantera bakgrund oavsett om det är URL eller Bytes (för arkiv-val)
+bg_source = st.session_state.wallpaper
 st.markdown(f"""
     <style>
     [data-testid="stAppViewContainer"] {{ 
         background: linear-gradient(rgba(0,0,0,{st.session_state.bg_opacity}), rgba(0,0,0,{st.session_state.bg_opacity})), 
-                    url("{st.session_state.wallpaper}"); 
+                    url("{bg_source if isinstance(bg_source, str) else ""}"); 
         background-size: cover !important; background-position: center !important;
         background-repeat: no-repeat !important; background-attachment: fixed !important;
     }}
@@ -113,12 +117,27 @@ if st.session_state.page == "SYNTH":
                         raw_exp += str(event)
                     if raw_exp: final_prompt = clean_prompt(raw_exp)
                 except: pass
+                
                 url = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": final_prompt, "aspect_ratio": aspect})
+                
                 if url:
-                    st.session_state.last_img = url
-                    st.session_state.library.append({"id": time.time(), "url": url, "prompt": user_p, "ts": datetime.now().strftime("%H:%M")})
-                    st.rerun()
+                    try:
+                        # IMPACT ANALYSIS FIX: Ladda ner bilden för att undvika MediaFileStorageError
+                        resp = requests.get(url, timeout=15)
+                        if resp.status_code == 200:
+                            img_data = resp.content
+                            st.session_state.last_img = img_data
+                            st.session_state.library.append({
+                                "id": time.time(), 
+                                "data": img_data, 
+                                "prompt": user_p, 
+                                "ts": datetime.now().strftime("%H:%M")
+                            })
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Sync Error: {e}")
         else: st.error("Skriv något först.")
+    
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -147,10 +166,14 @@ elif st.session_state.page == "ARKIV":
             grid = st.columns(3)
             for i, item in enumerate(list(reversed(st.session_state.library))):
                 with grid[i % 3]:
-                    st.image(item['url'], use_container_width=True)
+                    # Visa antingen rådata eller URL om det är en gammal post
+                    display_img = item.get('data') if item.get('data') else item.get('url')
+                    st.image(display_img, use_container_width=True)
                     b1, b2 = st.columns(2)
                     if b1.button("VÄLJ", key=f"set_{item['id']}"):
-                        st.session_state.wallpaper = item['url']; st.rerun()
+                        # Bakgrund fungerar bäst med URL, så vi sparar referensen
+                        st.session_state.wallpaper = item.get('url') if item.get('url') else "https://images.unsplash.com"
+                        st.rerun()
                     if b2.button("SLÄNG", key=f"del_{item['id']}"):
                         st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]
                         st.rerun()
@@ -163,10 +186,6 @@ elif st.session_state.page == "ARKIV":
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
-
-
-
-
 
 
 
