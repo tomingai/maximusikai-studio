@@ -25,7 +25,7 @@ def sanitize_url(output):
     if not output: return None
     url = ""
     if isinstance(output, list) and len(output) > 0:
-        url = str(output[0])
+        url = str(output)
     elif hasattr(output, 'url'):
         url = str(output.url)
     else:
@@ -55,6 +55,7 @@ st.markdown(f"""
         background: linear-gradient(rgba(0,0,0,{st.session_state.bg_opacity}), rgba(0,0,0,{st.session_state.bg_opacity})), 
                     url("{st.session_state.wallpaper}"); 
         background-size: cover !important; background-attachment: fixed !important;
+        background-position: center !important;
     }}
     .glass {{ 
         background: rgba(0, 10, 30, 0.75); backdrop-filter: blur(40px); 
@@ -73,8 +74,9 @@ c_nav, c_dim = st.columns([0.8, 0.2])
 with c_nav:
     nc = st.columns(6)
     if nc[0].button("🏠"): st.session_state.page = "SYNTH"; st.rerun()
-    if nc[1].button("🎬"): st.session_state.page = "MOVIE"; st.rerun()
-    if nc[2].button("📚"): st.session_state.page = "ARKIV"; st.rerun()
+    if nc[1].button("🪄"): st.session_state.page = "SYNTH"; st.rerun()
+    if nc[3].button("🎬"): st.session_state.page = "MOVIE"; st.rerun()
+    if nc[4].button("📚"): st.session_state.page = "ARKIV"; st.rerun()
 with c_dim:
     st.session_state.bg_opacity = st.slider("DIM", 0.0, 1.0, st.session_state.bg_opacity, 0.05)
 st.markdown('</div>', unsafe_allow_html=True)
@@ -96,7 +98,12 @@ if st.session_state.page == "SYNTH":
                         resp = requests.get(url, timeout=15)
                         if resp.status_code == 200:
                             st.session_state.last_img = resp.content
-                            st.session_state.library.append({"id": time.time(), "data": resp.content, "prompt": user_p})
+                            st.session_state.library.append({
+                                "id": time.time(), 
+                                "data": resp.content, 
+                                "url": url, # Sparar URL för bakgrunds-funktion
+                                "prompt": user_p
+                            })
                             st.rerun()
                     except: st.error("Kunde inte hämta bilden.")
     if st.session_state.last_img:
@@ -113,7 +120,6 @@ elif st.session_state.page == "MOVIE":
             progress_bar = st.progress(0)
             try:
                 img_stream = io.BytesIO(st.session_state.last_img)
-                # Stabil metod: Hämta modellen dynamiskt
                 model = replicate.models.get("stability-ai/stable-video-diffusion")
                 prediction = replicate.predictions.create(
                     version=model.latest_version.id,
@@ -137,5 +143,26 @@ elif st.session_state.page == "MOVIE":
         st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- FOOTER ---
+elif st.session_state.page == "ARKIV":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    t_img, t_vid = st.tabs(["🖼️ BILDER", "🎬 FILMER"])
+    with t_img:
+        if not st.session_state.library: st.info("Bildarkivet är tomt.")
+        else:
+            grid = st.columns(3)
+            for i, item in enumerate(list(reversed(st.session_state.library))):
+                with grid[i % 3]:
+                    st.image(item['data'], use_container_width=True)
+                    # NYTT: Sätt som bakgrund
+                    if st.button("🖼️ BAKGRUND", key=f"bg_{item['id']}"):
+                        st.session_state.wallpaper = item['url']
+                        st.rerun()
+                    if st.button("SLÄNG", key=f"del_{item['id']}"):
+                        st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]
+                        st.rerun()
+    with t_vid:
+        for v in reversed(st.session_state.video_library):
+            st.video(v['url'])
+    st.markdown('</div>', unsafe_allow_html=True)
+
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
