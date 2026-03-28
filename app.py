@@ -9,8 +9,8 @@ import time
 from datetime import datetime
 
 # --- 1. SYSTEM-KONFIGURATION ---
-# VERSION: 9.9.5 | STATUS: REFRESHED & SECURED | REGLER 1-18
-st.set_page_config(page_title="MAXIMUSIK AI OS v9.9.5", layout="wide", initial_sidebar_state="collapsed")
+# VERSION: 9.9.7 | STATUS: SELF-TEST ENGINE ACTIVE | REGLER 1-19
+st.set_page_config(page_title="MAXIMUSIK AI OS v9.9.7", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
@@ -18,7 +18,28 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 DB_FILE = "maximusik_history.json"
 ERROR_LOG_FILE = "system_errors.log"
 
-# --- 2. DIAGNOSTIK & PERSISTENCE ---
+# --- 2. DIAGNOSTIK & SJÄLVTEST (Regel 19) ---
+def run_self_test():
+    """Testar systemets alla vitala organ."""
+    results = {}
+    
+    # Test 1: API Token
+    results["API_TOKEN"] = "REPLICATE_API_TOKEN" in st.secrets or os.environ.get("REPLICATE_API_TOKEN") is not None
+    
+    # Test 2: Databas/Fil-åtkomst
+    try:
+        with open(DB_FILE, "a"): pass
+        results["FILESYSTEM"] = True
+    except: results["FILESYSTEM"] = False
+    
+    # Test 3: Replicate Connectivity
+    try:
+        replicate.models.get("black-forest-labs/flux-schnell")
+        results["REPLICATE_API"] = True
+    except: results["REPLICATE_API"] = False
+    
+    return results
+
 def add_log(message, is_error=False):
     timestamp = datetime.now().strftime("%H:%M:%S")
     if "logs" not in st.session_state: st.session_state.logs = []
@@ -30,9 +51,9 @@ def safe_replicate_run(model, input_data, context="GENERAL"):
     for attempt in range(3):
         try:
             return replicate.run(model, input=input_data)
-        except:
+        except Exception as e:
             if attempt == 2:
-                report_error(context)
+                report_error(f"{context}: {str(e)[:50]}")
                 return None
             time.sleep(1)
 
@@ -63,20 +84,23 @@ def clean_url(res):
         return str(res)
     except: return None
 
-# --- 3. CORE AI LOGIC ---
+# --- 3. CORE AI LOGIC (Med Fallback) ---
 def sonify_logic(image_url, prompt_context, progress_bar):
     progress_bar.progress(70, text="SONIFY: Analyserar...")
     descr = safe_replicate_run("lucataco/moondream2:610746815820698144-8848-436e-b76e-07a829a7386d", 
-                              {"image": image_url, "prompt": "Music mood in 5 words."}, "SONIFY_ANALYSIS")
-    progress_bar.progress(85, text="SONIFY: Skapar ljud...")
-    snd = safe_replicate_run("meta/musicgen:671ac645", {"prompt": f"{descr}, {prompt_context}", "duration": 8}, "SONIFY_GEN")
+                              {"image": image_url, "prompt": "Describe mood in 5 words."}, "SONIFY_ANALYSIS")
+    
+    mood_p = f"{descr}, {prompt_context}" if descr else prompt_context
+    progress_bar.progress(85, text="SONIFY: Skapar musik...")
+    snd = safe_replicate_run("meta/musicgen:671ac645", {"prompt": mood_p, "duration": 8}, "SONIFY_GEN")
+    
     url = clean_url(snd)
     if url:
-        st.session_state.library.append({"type": "audio", "url": url, "prompt": f"Mood: {descr}"})
+        st.session_state.library.append({"type": "audio", "url": url, "prompt": f"Mood: {descr if descr else 'Auto'}"})
         return url
     return None
 
-# --- 4. UI ENGINE (Transparency Fix) ---
+# --- 4. UI ENGINE ---
 def apply_ui():
     accent = st.session_state.accent_color
     bright = st.session_state.brightness
@@ -93,25 +117,16 @@ def apply_ui():
         .window-box {{ background: rgba(0, 5, 15, 0.9); backdrop-filter: blur(30px); border: 1px solid {accent}33; border-radius: 20px; padding: 25px; min-height: 80vh; }}
         .nav-bar {{ display: flex; justify-content: space-around; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 15px; margin-bottom: 20px; border: 1px solid {accent}11; }}
         h1, h2, h3, p, label {{ color: {accent} !important; font-family: 'Courier New', monospace !important; }}
-        
-        /* FIX: TRANSPARENTA KNAPPAR UTAN SVART RUTA */
         div[data-testid="stButton"] button {{
             background: transparent !important;
-            background-color: transparent !important;
             color: {accent} !important;
             border: 1px solid {accent}55 !important;
             width: 100%;
             border-radius: 10px !important;
-            box-shadow: none !important;
-            height: 3rem;
         }}
-        div[data-testid="stButton"] button:hover {{
-            background: {accent}11 !important;
-            border-color: {accent} !important;
-        }}
-        
+        div[data-testid="stButton"] button:hover {{ background: {accent}11 !important; border-color: {accent} !important; }}
         .status-dot {{ height: 10px; width: 10px; background-color: {alert_c}; border-radius: 50%; box-shadow: 0 0 10px {alert_c}; display: inline-block; }}
-        .log-box {{ background: #000; color: #0f0; font-family: 'Courier New', monospace; padding: 10px; border-radius: 10px; font-size: 0.75rem; height: 120px; border: 1px solid #0f02; overflow-y: scroll; }}
+        .log-box {{ background: #000; color: #0f0; font-family: 'Courier New', monospace; padding: 10px; border-radius: 10px; font-size: 0.75rem; height: 150px; border: 1px solid #0f02; overflow-y: scroll; }}
         audio, video {{ filter: sepia(1) saturate(5) hue-rotate(160deg); border-radius: 10px; width: 100%; }}
         </style>
     """, unsafe_allow_html=True)
@@ -124,7 +139,7 @@ if "page" not in st.session_state:
         "accent_color": "#00f2ff",
         "brightness": 0.5,
         "library": load_history(),
-        "logs": ["OS v9.9.5 REFRESHED"],
+        "logs": ["OS v9.9.7 SELF-TESTER READY"],
         "system_alert": False,
         "last_image_res": None, "last_audio_res": None, "last_video_res": None,
         "last_synth_p": ""
@@ -152,8 +167,8 @@ else:
         st.write("### 🪄 NEURAL SYNTH")
         p = st.text_area("PROMPT:", value=st.session_state.last_synth_p)
         if st.button("🔥 GENERERA KEDJA"):
-            prog = st.progress(0, text="Renderar...")
-            img = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": p})
+            prog = st.progress(0, text="Renderar bild...")
+            img = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": p}, "SYNTH_IMAGE")
             url = clean_url(img)
             if url:
                 st.session_state.last_image_res = url
@@ -163,56 +178,36 @@ else:
                 save_history(); st.rerun()
         if st.session_state.last_image_res: st.image(st.session_state.last_image_res, width=400)
 
-    elif st.session_state.page == "AUDIO":
-        st.write("### 🎧 AUDIO SYNTH")
-        ap = st.text_input("VAD VILL DU HÖRA?")
-        if st.button("🔊 SKAPA LJUD"):
-            res = safe_replicate_run("meta/musicgen:671ac645", {"prompt": ap, "duration": 10})
-            url = clean_url(res)
-            if url:
-                st.session_state.last_audio_res = url
-                st.session_state.library.append({"type": "audio", "url": url, "prompt": ap})
-                save_history(); st.rerun()
-        if st.session_state.last_audio_res: st.audio(st.session_state.last_audio_res)
-
-    elif st.session_state.page == "MOVIE":
-        st.write("### 🎬 MOVIE ENGINE")
-        if st.session_state.last_image_res:
-            if st.button("🎞 ANIMERA BILD"):
-                res = safe_replicate_run("stability-ai/video-diffusion:3f0457148a1aa577d638be204a4002c1d58ce1bd57b7f7c4d328b3d24883990c", {"input_image": st.session_state.last_image_res})
-                url = clean_url(res)
-                if url:
-                    st.session_state.last_video_res = url
-                    st.session_state.library.append({"type": "video", "url": url, "prompt": "Motion"})
-                    save_history(); st.rerun()
-        if st.session_state.last_video_res: st.video(st.session_state.last_video_res)
-
-    elif st.session_state.page == "ENGINE":
-        st.write("### 🖼 WALLPAPER ENGINE")
-        wp = st.text_input("NY OS-STIL:")
-        if st.button("🎨 UPPDATERA"):
-            img = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": wp})
-            url = clean_url(img)
-            if url: st.session_state.wallpaper = url; st.rerun()
+    elif st.session_state.page == "SYSTEM":
+        st.write("### ⚙️ SYSTEM & SJÄLVTEST")
+        col_test, col_log = st.columns(2)
+        
+        with col_test:
+            if st.button("🔍 KÖR FULLSTÄNDIGT SJÄLVTEST"):
+                tests = run_self_test()
+                for k, v in tests.items():
+                    color = "green" if v else "red"
+                    st.markdown(f"**{k}:** <span style='color:{color}'>{'OK' if v else 'FAIL'}</span>", unsafe_allow_html=True)
+            
+            st.session_state.accent_color = st.color_picker("ACCENT", st.session_state.accent_color)
+            if st.button("🟢 RESET ALERT"): st.session_state.system_alert = False; st.rerun()
+            
+        with col_log:
+            st.write("### 📜 LIVE LOG")
+            log_text = "<br>".join(st.session_state.logs[::-1])
+            st.markdown(f'<div class="log-box">{log_text}</div>', unsafe_allow_html=True)
 
     elif st.session_state.page == "LIBRARY":
-        st.write("### 📚 ARKIV")
         for i, item in enumerate(reversed(st.session_state.library)):
             with st.expander(f"{item['type'].upper()} - {item['prompt'][:20]}"):
                 if item['type'] == "image": st.image(item['url'])
                 elif item['type'] == "audio": st.audio(item['url'])
-                elif item['type'] == "video": st.video(item['url'])
                 if st.button("🗑 RADERA", key=f"del_{i}"):
                     st.session_state.library.pop(len(st.session_state.library)-1-i)
                     save_history(); st.rerun()
 
-    elif st.session_state.page == "SYSTEM":
-        st.session_state.accent_color = st.color_picker("FÄRG", st.session_state.accent_color)
-        st.session_state.brightness = st.slider("LJUS", 0.1, 1.0, st.session_state.brightness)
-        if st.button("🟢 RESET ALERT"): st.session_state.system_alert = False; st.rerun()
-        st.markdown(f'<div class="log-box">{"<br>".join(st.session_state.logs[::-1])}</div>', unsafe_allow_html=True)
-
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
