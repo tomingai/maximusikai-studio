@@ -2,12 +2,13 @@ import replicate
 import os
 import json
 import time
+import re
 from datetime import datetime
 import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "11.3.9-GLOW-STABLE"
+VERSION = "11.4.1-GLOW-STABLE"
 st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -18,11 +19,25 @@ def clean_prompt(text):
     if not text: return ""
     return str(text).replace('"', '').replace('Prompt:', '').strip()
 
+def get_safe_filename(text):
+    if not text: return "genererad_bild"
+    # Rensa bort ogiltiga tecken för filnamn
+    clean = re.sub(r'[^a-zA-Z0-9åäöÅÄÖ]', '_', text)
+    return f"MAX_{clean[:30]}"
+
 def sanitize_url(output):
+    # IMPACT ANALYSIS FIX: Hanterar både gamla sträng-URL:er och nya FileOutput-objekt
     if not output: return None
-    if isinstance(output, list): url = str(output)
-    elif hasattr(output, 'url'): url = str(output.url)
-    else: url = str(output)
+    
+    # Om det är en lista (vanligt från Flux), ta första elementet
+    target = output[0] if isinstance(output, list) else output
+    
+    # Om det är ett Replicate FileOutput-objekt, hämta dess .url
+    if hasattr(target, 'url'):
+        return str(target.url)
+    
+    # Annars, städa strängen som förut
+    url = str(target)
     for char in ["['", "']", "[", "]", "'", '"']:
         url = url.replace(char, "")
     return url.strip()
@@ -47,6 +62,7 @@ if "page" not in st.session_state:
         "audio_library": [],
         "accent": "#00f2ff", 
         "last_img": None,
+        "last_prompt": "bild",
         "wallpaper": "https://images.unsplash.com",
         "style": "Cinematic", 
         "bg_opacity": 0.80
@@ -106,6 +122,7 @@ if st.session_state.page == "SYNTH":
     if st.button("🚀 GENERERA"):
         if user_p:
             with st.status("Neural kedja aktiv...", expanded=True) as status:
+                st.session_state.last_prompt = user_p
                 final_prompt = user_p
                 try:
                     raw_exp = ""
@@ -118,7 +135,8 @@ if st.session_state.page == "SYNTH":
                 
                 if url:
                     try:
-                        resp = requests.get(url, timeout=15)
+                        # Nu är url garanterat en sträng tack vare sanitize_url-fixen
+                        resp = requests.get(url, timeout=20)
                         if resp.status_code == 200:
                             img_data = resp.content
                             st.session_state.last_img = img_data
@@ -135,11 +153,11 @@ if st.session_state.page == "SYNTH":
     
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_container_width=True)
-        # --- NEDLADDNING SYNTH (JPEG) ---
+        fname = get_safe_filename(st.session_state.last_prompt)
         st.download_button(
-            label="💾 LADDA NER JPEG",
+            label=f"💾 SPARA: {fname}.jpg",
             data=st.session_state.last_img,
-            file_name=f"maximusik_{int(time.time())}.jpg",
+            file_name=f"{fname}.jpg",
             mime="image/jpeg"
         )
     st.markdown('</div>', unsafe_allow_html=True)
@@ -153,6 +171,7 @@ elif st.session_state.page == "AUDIO":
         if audio_prompt:
             res = safe_replicate_run("facebookresearch/musicgen", {"prompt": audio_prompt, "duration": duration})
             if res:
+                # MusicGen returnerar också FileOutput nu, sanitize_url fixar det
                 st.session_state.audio_library.append({"id": time.time(), "url": res, "prompt": audio_prompt})
                 st.rerun()
     for item in reversed(st.session_state.audio_library):
@@ -168,18 +187,16 @@ elif st.session_state.page == "ARKIV":
             grid = st.columns(3)
             for i, item in enumerate(list(reversed(st.session_state.library))):
                 with grid[i % 3]:
-                    display_img = item.get('data') if item.get('data') else item.get('url')
+                    display_img = item.get('data')
                     st.image(display_img, use_container_width=True)
-                    
-                    # --- NEDLADDNING ARKIV (JPEG) ---
+                    fname_arkiv = get_safe_filename(item['prompt'])
                     st.download_button(
-                        label="💾 JPEG", 
+                        label="💾 JPG", 
                         data=display_img, 
-                        file_name=f"maximusik_arkiv_{item['id']}.jpg", 
+                        file_name=f"{fname_arkiv}.jpg", 
                         mime="image/jpeg", 
-                        key=f"dl_ark_jpg_{item['id']}"
+                        key=f"dl_ark_{item['id']}"
                     )
-                    
                     if st.button("SLÄNG", key=f"del_{item['id']}"):
                         st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]
                         st.rerun()
