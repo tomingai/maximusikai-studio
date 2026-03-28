@@ -24,14 +24,12 @@ def get_safe_filename(text):
 def sanitize_url(output):
     if not output: return None
     url = ""
-    # Hanterar både listor, objekt och råa strängar från olika modeller
     if isinstance(output, list) and len(output) > 0:
         url = str(output[0])
     elif hasattr(output, 'url'):
         url = str(output.url)
     else:
         url = str(output)
-    
     url = url.replace("['", "").replace("']", "").replace("[", "").replace("]", "").replace("'", "").replace('"', "").strip()
     return url if url.startswith("http") else None
 
@@ -91,7 +89,6 @@ if st.session_state.page == "SYNTH":
         if user_p:
             with st.status("Neural kedja aktiv..."):
                 st.session_state.last_prompt = user_p
-                # Använder Flux Schnell för snabb bildgenerering
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 if url:
@@ -108,49 +105,37 @@ if st.session_state.page == "SYNTH":
 
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (STABLE VIDEO)</h2>", unsafe_allow_html=True)
-    
+    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SVD)</h2>", unsafe_allow_html=True)
     if st.session_state.last_img:
-        st.image(st.session_state.last_img, caption="Redo för animation", width=300)
-        motion = st.slider("RÖRELSESTYRKA:", 1, 255, 127)
-        
-        if st.button("🎬 ANIMERA BILD"):
+        st.image(st.session_state.last_img, caption="Startbild klar", width=300)
+        motion = st.slider("RÖRELSE:", 1, 255, 127)
+        if st.button("🎬 ANIMERA"):
             progress_bar = st.progress(0)
-            status_text = st.empty()
             try:
                 img_stream = io.BytesIO(st.session_state.last_img)
-                # FIX: Använder det officiella modellnamnet för att undvika 404
+                # Stabil metod: Hämta modellen dynamiskt
                 model = replicate.models.get("stability-ai/stable-video-diffusion")
                 prediction = replicate.predictions.create(
-                    version=model.latest_version,
-                    input={
-                        "input_image": img_stream,
-                        "motion_bucket_id": motion,
-                        "video_length": "14_frames_with_svd"
-                    }
+                    version=model.latest_version.id,
+                    input={"input_image": img_stream, "motion_bucket_id": motion}
                 )
                 start_time = time.time()
                 while prediction.status not in ["succeeded", "failed", "canceled"]:
                     elapsed = int(time.time() - start_time)
                     progress_bar.progress(min(elapsed * 2, 99))
-                    status_text.write(f"Bearbetar... {elapsed}s")
                     time.sleep(4)
                     prediction.reload()
-                
                 if prediction.status == "succeeded":
                     progress_bar.progress(100)
                     vid_url = sanitize_url(prediction.output)
                     st.session_state.last_vid = vid_url
                     st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": "Animation"})
                     st.rerun()
-                else: st.error(f"Fel: {prediction.error}")
-            except Exception as e: st.error(f"Cinema Error: {e}")
-    else:
-        st.warning("Skapa en bild i SYNTH först!")
-
+            except Exception as e: st.error(f"Error: {e}")
+    else: st.warning("Skapa bild i SYNTH först.")
     if st.session_state.last_vid:
         st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
 
+# --- FOOTER ---
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
-city:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
