@@ -1,148 +1,96 @@
 import streamlit as st
 import replicate
 import os
-import json
 from datetime import datetime
 
-# --- 1. KÄRN-KONFIGURATION ---
-VERSION = "10.8.3"
+# --- 1. SYSTEM-KONFIGURATION ---
+VERSION = "10.9.0"
 st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
-DB_FILE = "maximusik_history.json"
-
-# --- 2. SYSTEMFUNKTIONER ---
-def get_url(res):
-    try:
-        if isinstance(res, list) and len(res) > 0: return str(res[0])
-        return str(res.url) if hasattr(res, 'url') else str(res)
-    except: return str(res)
-
-def save_system_state():
-    state_data = {
-        "library": st.session_state.get("library", []),
-        "accent": st.session_state.get("accent", "#00f2ff"),
-        "wallpaper": st.session_state.get("wallpaper", ""),
-        "lang": st.session_state.get("lang", "SV")
-    }
-    try:
-        with open(DB_FILE, "w") as f: json.dump(state_data, f)
-    except: pass
-
-def load_system_state():
-    if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "r") as f: return json.load(f)
-        except: return None
-    return None
-
-def safe_replicate_run(model_alias, input_data):
-    models = {
-        "FLUX": "black-forest-labs/flux-schnell",
-        "LLM": "meta/meta-llama-3-8b-instruct"
-    }
-    target = models.get(model_alias, model_alias)
-    try: return replicate.run(target, input=input_data)
-    except: return None
-
-# --- 3. INITIALISERING (SÄKERHETSKONTROLL) ---
-# Vi sätter default-värden direkt om de saknas
+# --- 2. INITIALISERING (Säkrad med alla trimmare) ---
 if "page" not in st.session_state:
-    saved = load_system_state()
-    st.session_state.page = "SYNTH"
-    st.session_state.library = saved.get("library", []) if saved else []
-    st.session_state.accent = saved.get("accent", "#00f2ff") if saved else "#00f2ff"
-    st.session_state.wallpaper = saved.get("wallpaper", "https://images.unsplash.com") if saved else "https://images.unsplash.com"
-    st.session_state.last_img = None
-    st.session_state.enhance = True # För-initierad
-    st.session_state.lang = "SV"
+    st.session_state.update({
+        "page": "SYNTH",
+        "library": [],
+        "accent": "#00f2ff",
+        "wallpaper": "https://images.unsplash.com",
+        "last_img": None,
+        "enhance_level": 0.7, # Hur mycket AI ska brodera ut texten
+        "style_preset": "Cinematic",
+        "seed": -1 # -1 betyder slumpmässig
+    })
 
-# EXTRA FAIL-SAFE: Dubbelkoll så 'enhance' aldrig är None
-if "enhance" not in st.session_state:
-    st.session_state.enhance = True
-
-# --- 4. UI ENGINE ---
+# --- 3. UI ENGINE (Glasmorphism) ---
 accent = st.session_state.accent
 st.markdown(f"""
     <style>
     [data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(0,0,0,0.9), rgba(0,0,0,0.95)), url("{st.session_state.wallpaper}"); background-size: cover; }}
-    .glass {{ background: rgba(0, 8, 25, 0.88); backdrop-filter: blur(45px); border: 1px solid {accent}44; border-radius: 25px; padding: 30px; margin-bottom: 20px; }}
-    .stButton>button {{ border: 1px solid {accent}66 !important; color: white !important; background: {accent}22 !important; border-radius: 15px; height: 3.5rem; width: 100%; transition: 0.4s; }}
-    .stButton>button:hover {{ background: {accent}44 !important; box-shadow: 0 0 20px {accent}66; }}
-    .locked-btn button {{ opacity: 0.1 !important; cursor: not-allowed !important; filter: grayscale(1); }}
+    .glass {{ background: rgba(0, 8, 25, 0.9); backdrop-filter: blur(45px); border: 1px solid {accent}44; border-radius: 25px; padding: 25px; margin-bottom: 20px; }}
+    .stButton>button {{ border: 1px solid {accent}66 !important; color: white !important; background: {accent}22 !important; border-radius: 12px; transition: 0.3s; width: 100%; }}
+    .stButton>button:hover {{ background: {accent}44 !important; box-shadow: 0 0 15px {accent}77; }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. NAVIGATION ---
-st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True)
-nav_cols = st.columns(7)
-nav_config = [("🏠", "DESKTOP", True), ("🪄", "SYNTH", False), ("🎧", "AUDIO", True), ("🎬", "MOVIE", True), ("📚", "ARKIV", False), ("🖼", "ENGINE", True), ("⚙️", "SYSTEM", True)]
-for i, (icon, target, is_locked) in enumerate(nav_config):
-    if is_locked:
-        nav_cols[i].markdown('<div class="locked-btn">', unsafe_allow_html=True)
-        nav_cols[i].button(icon, key=f"lock_{i}")
-        nav_cols[i].markdown('</div>', unsafe_allow_html=True)
-    else:
-        if nav_cols[i].button(icon, key=f"active_{target}"):
-            st.session_state.page = target
-            st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 6. MODULER ---
+# --- 4. SYNTH: PRECISION CONTROL ---
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent}; letter-spacing:2px;'>🪄 HYPER-SYNTH STATION</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:{accent}; letter-spacing:3px;'>🪄 SYNTH PRECISION ENGINE</h2>", unsafe_allow_html=True)
     
-    c1, c2, c3 = st.columns([0.5, 0.25, 0.25])
-    user_p = c1.text_input("VISION PROMPT (SV/EN):", placeholder="Skriv din idé...")
-    aspect = c2.selectbox("FORMAT:", ["1:1", "16:9", "9:16"], index=1)
-    
-    # Här används värdet säkert efter fail-safe checken
-    st.session_state.enhance = c3.toggle("AI ENHANCE", value=st.session_state.enhance)
+    # RAD 1: Prompt & Stil
+    c1, c2 = st.columns([0.7, 0.3])
+    user_p = c1.text_input("VISION PROMPT (SV/EN):", placeholder="Beskriv din scen...")
+    st.session_state.style_preset = c2.selectbox("STIL:", ["Cinematic", "Photorealistic", "Cyberpunk", "Oil Painting", "Vector Art"])
 
-    if st.button("🚀 KÖR NEURAL SYNTES"):
-        if user_p:
-            with st.status("Neural motor arbetar...") as status:
-                final_p = user_p
-                if st.session_state.enhance:
-                    status.update(label="Llama-3 expanderar din vision...")
-                    instr = f"Expand this to a professional cinematic 8k image prompt in English. Be very detailed: {user_p}"
-                    trans = safe_replicate_run("LLM", {"prompt": instr, "max_new_tokens": 200})
-                    if trans: final_p = "".join(list(trans))
-                
-                status.update(label="FLUX genererar bilden...")
-                res = safe_replicate_run("FLUX", {"prompt": final_p, "aspect_ratio": aspect.replace(":", "x")})
-                if res:
-                    url = get_url(res)
-                    st.session_state.last_img = url
-                    st.session_state.library.append({"type": "IMG", "url": url, "prompt": user_p, "enhanced": final_p, "ts": datetime.now().strftime("%H:%M")})
-                    save_system_state()
-                    st.rerun()
+    # RAD 2: Finjustering (Trimmare)
+    st.markdown("---")
+    t1, t2, t3 = st.columns(3)
     
+    with t1:
+        st.session_state.enhance_level = st.slider("AI KREATIVITET (LLM)", 0.0, 1.0, 0.7, help="Högre värde ger mer detaljerade beskrivningar.")
+    with t2:
+        aspect = st.selectbox("FORMAT:", ["1:1", "16:9", "9:16", "3:2"], index=1)
+    with t3:
+        st.session_state.seed = st.number_input("SEED (Frö)", value=-1, step=1, help="-1 ger unik bild varje gång. Lås för att behålla karaktär.")
+
+    if st.button("🚀 KÖR PRECISIONS-SYNTES"):
+        if user_p:
+            with st.status("Neural trimning pågår...") as status:
+                # Steg 1: Dynamisk Prompt-Expansion
+                final_p = user_p
+                if st.session_state.enhance_level > 0.1:
+                    status.update(label="Llama-3 optimerar beskrivningen...")
+                    instr = f"Act as a professional prompt engineer. Expand this to a {st.session_state.style_preset} 8k prompt. Creativity level {st.session_state.enhance_level}: {user_p}"
+                    trans = replicate.run("meta/meta-llama-3-8b-instruct", input={"prompt": instr, "max_new_tokens": 200})
+                    final_p = "".join(list(trans))
+                
+                # Steg 2: FLUX med Trimmade Parametrar
+                status.update(label=f"FLUX genererar {st.session_state.style_preset}...")
+                flux_input = {
+                    "prompt": final_p,
+                    "aspect_ratio": aspect.replace(":", "x")
+                }
+                if st.session_state.seed != -1:
+                    flux_input["seed"] = st.session_state.seed
+                
+                res = replicate.run("black-forest-labs/flux-schnell", input=flux_input)
+                
+                if res:
+                    url = str(res[0]) if isinstance(res, list) else str(res)
+                    st.session_state.last_img = url
+                    st.session_state.library.append({"type": "IMG", "url": url, "prompt": user_p, "ts": datetime.now().strftime("%H:%M")})
+                    st.rerun()
+        else:
+            st.error("Ange en vision.")
+
     if st.session_state.last_img:
         st.divider()
-        st.image(st.session_state.last_img)
-        if st.button("🖼 ANVÄND SOM BAKGRUND"):
+        st.image(st.session_state.last_img, caption=f"Resultat: {st.session_state.style_preset}")
+        if st.button("🖼 SÄTT SOM BAKGRUND"):
             st.session_state.wallpaper = st.session_state.last_img
-            save_system_state(); st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-elif st.session_state.page == "ARKIV":
-    st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.subheader("📚 DITT ARKIV")
-    if not st.session_state.library:
-        st.info("Arkivet är tomt.")
-    else:
-        cols = st.columns(3)
-        for i, item in enumerate(reversed(st.session_state.library)):
-            with cols[i % 3]:
-                st.image(item['url'], use_column_width=True)
-                st.caption(f"{item['ts']} | {item['prompt'][:25]}...")
-                if st.button(f"Välj bakgrund", key=f"ark_bg_{i}"):
-                    st.session_state.wallpaper = item['url']
-                    save_system_state(); st.rerun()
+            st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 
