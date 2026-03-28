@@ -3,19 +3,19 @@ import replicate
 import os
 import json
 import time
+import traceback
 from datetime import datetime, timedelta
 
 # --- 1. KÄRN-KONFIGURATION ---
-st.set_page_config(page_title="MAXIMUSIK AI OS v10.5.0", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="MAXIMUSIK AI OS v10.5.5", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
 DB_FILE = "maximusik_history.json"
 
-# --- 2. SYSTEMFUNKTIONER (Regel 8, 19, 21 & KVOT) ---
+# --- 2. SYSTEMFUNKTIONER (Regel 8, 11, 19, 21) ---
 def get_db_size():
-    """Beräknar storleken på JSON-filen i KB."""
     if os.path.exists(DB_FILE):
         return round(os.path.getsize(DB_FILE) / 1024, 2)
     return 0
@@ -53,10 +53,12 @@ def load_system_state():
 def safe_replicate_run(model_alias, input_data):
     models = {
         "FLUX": "black-forest-labs/flux-schnell",
-        "MUSIC": "facebookresearch/musicgen:7a76a825701904677340e68d71563f69dba84f3353a16134a413d70f0322d7ad"
+        "MUSIC": "facebookresearch/musicgen:7a76a825701904677340e68d71563f69dba84f3353a16134a413d70f0322d7ad",
+        "VIDEO": "stability-ai/video-diffusion:3f0bd67d0246b0336ca149257e3df179c3f3f5022137090b8f6c561ec9d77583",
+        "VISION": "lucataco/moondream2"
     }
     target = models.get(model_alias, model_alias)
-    bar = st.progress(0, text=f"Neural Link: {model_alias}")
+    bar = st.progress(0, text=f"Neural länk: {model_alias}...")
     try:
         output = replicate.run(target, input=input_data)
         bar.empty()
@@ -64,9 +66,9 @@ def safe_replicate_run(model_alias, input_data):
     except Exception as e:
         bar.empty()
         if "Invalid v" in str(e):
-            add_log(f"AUTO-FIX: Version stripped for {model_alias}", is_error=True)
+            add_log(f"AUTO-FIX: Stripping version för {model_alias}", is_error=True)
             return replicate.run(target.split(":"), input=input_data)
-        add_log(f"ERROR: {str(e)[:40]}", is_error=True)
+        add_log(f"Krasch: {str(e)[:40]}", is_error=True)
         return None
 
 # --- 3. INITIALISERING ---
@@ -75,7 +77,7 @@ if "page" not in st.session_state:
     st.session_state.update({
         "page": "DESKTOP", 
         "library": saved.get("library", []) if saved else [],
-        "logs": saved.get("logs", ["OS KERNEL v10.5.0 BOOT"]) if saved else ["OS KERNEL v10.5.0 BOOT"],
+        "logs": saved.get("logs", ["KERNEL v10.5.5 RESTORED"]) if saved else ["KERNEL v10.5.5 BOOT"],
         "accent": saved.get("accent", "#00f2ff") if saved else "#00f2ff",
         "wallpaper": saved.get("wallpaper", "https://images.unsplash.com") if saved else "https://images.unsplash.com",
         "last_img": None, "alarm": False
@@ -87,7 +89,8 @@ st.markdown(f"""
     <style>
     [data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(0,0,0,0.9), rgba(0,0,0,0.95)), url("{st.session_state.wallpaper}"); background-size: cover; background-attachment: fixed; }}
     .glass {{ background: rgba(0, 5, 15, 0.92); backdrop-filter: blur(45px); border: 1px solid {accent}22; border-radius: 20px; padding: 30px; }}
-    .stButton>button {{ border: 1px solid {accent}55 !important; color: {accent} !important; background: transparent !important; border-radius: 12px; height: 3.5rem; }}
+    .stButton>button {{ border: 1px solid {accent}55 !important; color: {accent} !important; background: transparent !important; border-radius: 12px; height: 3.5rem; transition: 0.3s; }}
+    .stButton>button:hover {{ background: {accent}22 !important; box-shadow: 0 0 15px {accent}44; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -104,7 +107,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # --- 6. MODULER ---
 if st.session_state.page == "DESKTOP":
     st.markdown(f"<h1 style='text-align:center; letter-spacing:35px; padding-top:20vh; color:{accent}; font-weight:900;'>MAXIMUSIK</h1>", unsafe_allow_html=True)
-    if st.session_state.alarm: st.error("🚨 SYSTEM ALARM ACTIVE")
+    if st.session_state.alarm: st.error("🚨 SYSTEMVARNING: Anomalier detekterade i SYSTEM-modulen.")
 
 elif st.session_state.page == "SYSTEM":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
@@ -112,9 +115,9 @@ elif st.session_state.page == "SYSTEM":
     c1, c2 = st.columns(2)
     with c1:
         st.session_state.accent = st.color_picker("UI ACCENT", st.session_state.accent)
-        st.metric("DATABASE STORAGE", f"{get_db_size()} KB") # KVOT-INDIKATOR
+        st.metric("DB STORAGE", f"{get_db_size()} KB")
         if st.button("RESET ALARM"): st.session_state.alarm = False; st.rerun()
-        if st.button("DOWNLOAD LOG"): st.download_button("📥 CONFIRM", data="\n".join(st.session_state.logs), file_name="kernel.txt")
+        st.download_button("📥 EXPORT LOG", data="\n".join(st.session_state.logs), file_name="kernel.txt")
     with c2:
         st.write("### 📜 KERNEL LOG")
         for log in reversed(st.session_state.logs): st.code(log)
@@ -122,29 +125,55 @@ elif st.session_state.page == "SYSTEM":
 
 elif st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    p = st.text_input("IMAGE PROMPT:")
-    if st.button("RENDER"):
+    p = st.text_input("BILD PROMPT:")
+    if st.button("RENDER IMAGE"):
         res = safe_replicate_run("FLUX", {"prompt": p})
         if res:
             st.session_state.last_img = res
             st.image(res)
             st.session_state.library.append({"type": "IMG", "url": res, "prompt": p, "ts": str(datetime.now())})
             add_log(f"Synth: {p[:15]}")
-            save_system_state()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+elif st.session_state.page == "AUDIO":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    ap = st.text_input("MUSIK PROMPT:")
+    if st.button("KOMPONERA"):
+        res = safe_replicate_run("MUSIC", {"prompt": ap, "duration": 8})
+        if res:
+            st.audio(res)
+            st.session_state.library.append({"type": "AUDIO", "url": res, "prompt": ap, "ts": str(datetime.now())})
+            add_log(f"Audio: {ap[:15]}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+elif st.session_state.page == "MOVIE":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    if st.session_state.last_img:
+        st.image(st.session_state.last_img, width=300)
+        if st.button("ANIMERA"):
+            res = safe_replicate_run("VIDEO", {"input_image": st.session_state.last_img})
+            if res: st.video(res); add_log("Movie rendered.")
+    else: st.warning("Skapa en bild i SYNTH först.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.subheader("📚 ARCHIVE")
+    st.subheader("📚 ARKIV")
     for i, item in enumerate(reversed(st.session_state.library)):
         with st.expander(f"{item['type']} | {item['prompt'][:30]}"):
             if item['type'] == "IMG": 
                 st.image(item['url'])
                 if st.button("SET WALLPAPER", key=f"wall_{i}"): 
-                    st.session_state.wallpaper = item['url']
-                    add_log("SYSTEM: Wallpaper Injected.")
-                    st.rerun()
+                    st.session_state.wallpaper = item['url']; st.rerun()
             elif item['type'] == "AUDIO": st.audio(item['url'])
+    st.markdown('</div>', unsafe_allow_html=True)
+
+elif st.session_state.page == "ENGINE":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    url = st.text_input("BILD URL FÖR ANALYS:", value=st.session_state.last_img if st.session_state.last_img else "")
+    if st.button("KÖR VISION ANALYS"):
+        res = safe_replicate_run("VISION", {"image": url, "prompt": "Describe this image in detail."})
+        if res: st.info(res); add_log("Vision analysis complete.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 
