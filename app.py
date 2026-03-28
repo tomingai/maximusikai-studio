@@ -3,10 +3,9 @@ import replicate
 import os
 import random
 import requests
-from io import BytesIO
 
 # --- 1. SYSTEM-KONFIGURATION ---
-st.set_page_config(page_title="MAXIMUSIK AI OS v7.7 MOVIE", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="MAXIMUSIK AI OS v7.8 FIXED", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
@@ -40,23 +39,30 @@ def get_url(res):
 def sonify_image(image_input):
     with st.spinner("Analyzing visuals for audio..."):
         try:
-            descr = replicate.run("lucataco/moondream2:610746815820698144-8848-436e-b76e-07a829a7386d", 
-                                 input={"image": image_input, "prompt": "Describe the musical style and mood in 8 words."})
-            res = replicate.run("meta/musicgen", input={"prompt": f"Music: {descr}", "duration": 30})
+            descr = replicate.run(
+                "lucataco/moondream2:610746815820698144-8848-436e-b76e-07a829a7386d", 
+                input={"image": image_input, "prompt": "Describe the musical style and mood in 8 words."}
+            )
+            # Låst stabil version av MusicGen
+            res = replicate.run(
+                "facebookresearch/musicgen:7a76a8258502edb298485a3666d92021614f94bb2ed02901399677334466d3a8", 
+                input={"prompt": f"Music: {descr}", "duration": 15}
+            )
             st.session_state.library.append({"type": "audio", "url": res, "prompt": f"Sonify: {descr[:15]}"})
             return res
-        except Exception as e: st.error(e); return None
+        except Exception as e: st.error(f"Audio Error: {e}"); return None
 
 def animate_image(image_url):
     with st.spinner("Rendering Cinematic Motion..."):
         try:
-            # Använder Stable Video Diffusion för 4-sekunders klipp
-            res = replicate.run("stability-ai/video-diffusion:3f0457148a1aa577d638be204a4002c1d58ce1bd57b7f7c4d328b3d24883990c", 
-                               input={"input_image": image_url, "video_length": "14_frames_with_svd"})
+            res = replicate.run(
+                "stability-ai/video-diffusion:3f0457148a1aa577d638be204a4002c1d58ce1bd57b7f7c4d328b3d24883990c", 
+                input={"input_image": image_url}
+            )
             video_url = get_url(res)
             st.session_state.library.append({"type": "video", "url": video_url, "prompt": "Motion Render"})
             return video_url
-        except Exception as e: st.error(e); return None
+        except Exception as e: st.error(f"Video Error: {e}"); return None
 
 # --- 3. UI ENGINE ---
 def apply_ui():
@@ -87,7 +93,7 @@ apply_ui()
 # --- 4. DESKTOP ---
 if st.session_state.page == "DESKTOP":
     st.markdown(f"<h1 style='text-align:center; letter-spacing:25px; padding-top:15vh; font-size:4.5rem; font-weight:900;'>MAXIMUSIK</h1>", unsafe_allow_html=True)
-    cols = st.columns(6) # 6 kolumner för nya Movie-appen
+    cols = st.columns(6)
     apps = [("🪄 SYNTH", "SYNTH"), ("🎧 AUDIO", "AUDIO"), ("🎬 MOVIE", "MOVIE"), ("📚 ARKIV", "LIBRARY"), ("🖼 ENGINE", "ENGINE"), ("⚙️ SYSTEM", "SYSTEM")]
     for i, (label, target) in enumerate(apps):
         with cols[i]:
@@ -119,22 +125,26 @@ else:
                 if st.button("🎬 ANIMATE (MAKE MOVIE)"): 
                     st.session_state.last_video_res = animate_image(st.session_state.last_image_res); st.rerun()
 
+        elif st.session_state.page == "AUDIO":
+            ap = st.text_input("SONIC PROMPT:")
+            dur = st.slider("DURATION (SEC):", 5, 30, 15)
+            if st.button("GENERATE"):
+                with st.spinner("Generating stable audio..."):
+                    res = replicate.run(
+                        "facebookresearch/musicgen:7a76a8258502edb298485a3666d92021614f94bb2ed02901399677334466d3a8", 
+                        input={"prompt": ap, "duration": dur}
+                    )
+                    st.session_state.last_audio_res = res
+                    st.session_state.library.append({"type": "audio", "url": res, "prompt": ap}); st.rerun()
+            if st.session_state.last_audio_res: st.audio(st.session_state.last_audio_res)
+
         elif st.session_state.page == "MOVIE":
-            st.write("### VIDEO RENDERER")
             if st.session_state.last_video_res:
                 st.video(st.session_state.last_video_res)
                 if st.button("🎵 SONIFY VIDEO"):
                     st.session_state.last_audio_res = sonify_image(st.session_state.last_video_res); st.rerun()
             else:
-                st.info("Skapa en bild i SYNTH och tryck på ANIMATE för att se den här.")
-
-        elif st.session_state.page == "AUDIO":
-            ap = st.text_input("SONIC PROMPT (Now up to 30s):")
-            if st.button("GENERATE"):
-                res = replicate.run("meta/musicgen", input={"prompt": ap, "duration": 30})
-                st.session_state.last_audio_res = res
-                st.session_state.library.append({"type": "audio", "url": res, "prompt": ap}); st.rerun()
-            if st.session_state.last_audio_res: st.audio(st.session_state.last_audio_res)
+                st.info("Skapa en bild i SYNTH först och välj ANIMATE.")
 
         elif st.session_state.page == "LIBRARY":
             st.session_state.lib_filter = st.radio("FILTER:", ["BILDER", "LJUD", "FILM"], horizontal=True)
@@ -154,6 +164,7 @@ else:
             if st.button("RESET"): st.session_state.clear(); st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
