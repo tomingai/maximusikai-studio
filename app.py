@@ -1,25 +1,20 @@
 import replicate
 import os
-import json
 import time
 import re
-import io # NY: För stabilare nedladdning
+import io
 from datetime import datetime
 import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "11.4.2-GLOW-STABLE"
+VERSION = "11.4.3-GLOW-STABLE"
 st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
 
 # --- 2. MOTOR & CLEANER ---
-def clean_prompt(text):
-    if not text: return ""
-    return str(text).replace('"', '').replace('Prompt:', '').strip()
-
 def get_safe_filename(text):
     if not text: return "genererad_bild"
     clean = re.sub(r'[^a-zA-Z0-9åäöÅÄÖ]', '_', text)
@@ -34,18 +29,6 @@ def sanitize_url(output):
         url = url.replace(char, "")
     return url.strip()
 
-def safe_replicate_run(model, input_data):
-    if not os.environ.get("REPLICATE_API_TOKEN"):
-        st.error("🔑 API-nyckel saknas i Secrets!")
-        return None
-    try:
-        res = replicate.run(model, input=input_data)
-        if "llama" in model: return res
-        return sanitize_url(res)
-    except Exception as e:
-        st.error(f"Neural Error: {e}")
-        return None
-
 # --- 3. INITIALISERING ---
 if "page" not in st.session_state:
     st.session_state.update({
@@ -56,7 +39,6 @@ if "page" not in st.session_state:
         "last_img": None,
         "last_prompt": "bild",
         "wallpaper": "https://images.unsplash.com",
-        "style": "Cinematic", 
         "bg_opacity": 0.80
     })
 
@@ -65,69 +47,53 @@ accent = st.session_state.accent
 st.markdown(f"""
     <style>
     [data-testid="stAppViewContainer"] {{ 
-        background: linear-gradient(rgba(0,0,0,{st.session_state.bg_opacity}), rgba(0,0,0,{st.session_state.bg_opacity})), 
-                    url("{st.session_state.wallpaper}"); 
-        background-size: cover !important; background-position: center !important;
-        background-repeat: no-repeat !important; background-attachment: fixed !important;
+        background: linear-gradient(rgba(0,0,0,{st.session_state.bg_opacity}), rgba(0,0,0,{st.session_state.bg_opacity})), url("{st.session_state.wallpaper}"); 
+        background-size: cover; background-attachment: fixed;
     }}
-    .glass {{ 
-        background: rgba(0, 10, 30, 0.75); backdrop-filter: blur(40px); 
-        border: 1px solid {accent}33; border-radius: 20px; padding: 25px; margin-bottom: 20px;
-    }}
-    .stButton>button, .stDownloadButton>button {{ 
-        border: 1px solid {accent}66 !important; background: {accent}11 !important; 
-        color: white !important; border-radius: 12px; font-weight: bold; width: 100%;
-    }}
+    .glass {{ background: rgba(0, 10, 30, 0.75); backdrop-filter: blur(40px); border: 1px solid {accent}33; border-radius: 20px; padding: 25px; margin-bottom: 20px; }}
+    .stButton>button, .stDownloadButton>button {{ border: 1px solid {accent}66 !important; background: {accent}11 !important; color: white !important; border-radius: 12px; font-weight: bold; width: 100%; }}
     </style>
 """, unsafe_allow_html=True)
 
 # --- 5. NAVIGATION ---
 st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True)
-c_nav, c_dim = st.columns([0.75, 0.25])
+c_nav, c_dim = st.columns([0.8, 0.2])
 with c_nav:
     nc = st.columns(6)
-    nav = [("🏠","HOME",True), ("🪄","SYNTH",False), ("🎧","AUDIO",False), ("🎬","MOVIE",False), ("📚","ARKIV",False), ("⚙️","SYSTEM",True)]
-    for i, (icon, target, locked) in enumerate(nav):
-        if not locked:
-            if nc[i].button(icon, key=f"nav_{target}"): 
-                st.session_state.page = target
-                st.rerun()
+    if nc[1].button("🪄 SYNTH"): st.session_state.page = "SYNTH"; st.rerun()
+    if nc[4].button("📚 ARKIV"): st.session_state.page = "ARKIV"; st.rerun()
 with c_dim:
     st.session_state.bg_opacity = st.slider("DIM", 0.0, 1.0, st.session_state.bg_opacity, 0.05)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
-
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 NEURAL SYNTH STATION</h2>", unsafe_allow_html=True)
     user_p = st.text_input("VAD SKALL VI SKAPA?", placeholder="Beskriv din vision...")
-    c1, c2 = st.columns([0.7, 0.3])
-    with c1:
-        st.session_state.style = st.selectbox("STIL:", ["Photorealistic", "Cinematic", "Cyberpunk", "Digital Art", "Oil Painting"])
-    with c2:
-        aspect = st.selectbox("FORMAT:", ["1:1", "16:9", "9:16", "3:2", "4:3", "21:9"], index=1)
-
+    
     if st.button("🚀 GENERERA"):
         if user_p:
-            with st.status("Neural kedja aktiv...", expanded=True):
+            with st.status("Neural kedja aktiv..."):
                 st.session_state.last_prompt = user_p
-                url = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": user_p, "aspect_ratio": aspect})
+                res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
+                url = sanitize_url(res)
                 if url:
                     resp = requests.get(url, timeout=20)
                     if resp.status_code == 200:
                         st.session_state.last_img = resp.content
                         st.session_state.library.append({"id": time.time(), "data": resp.content, "prompt": user_p})
                         st.rerun()
-    
+
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_container_width=True)
-        # IMPACT ANALYSIS FIX: Stabiliserad nedladdning via BytesIO
+        # --- PERMANENT FIX FÖR NEDLADDNING ---
         fname = get_safe_filename(st.session_state.last_prompt)
-        img_buffer = io.BytesIO(st.session_state.last_img)
+        buf = io.BytesIO(st.session_state.last_img)
+        buf.seek(0) # CRITICAL: Nollställer läsaren för webbläsaren
         st.download_button(
-            label=f"💾 SPARA: {fname}.jpg",
-            data=img_buffer,
+            label=f"💾 SPARA SOM: {fname}.jpg",
+            data=buf,
             file_name=f"{fname}.jpg",
             mime="image/jpeg"
         )
@@ -141,15 +107,14 @@ elif st.session_state.page == "ARKIV":
         for i, item in enumerate(list(reversed(st.session_state.library))):
             with grid[i % 3]:
                 st.image(item['data'], use_container_width=True)
-                fname_arkiv = get_safe_filename(item['prompt'])
-                # Stabiliserad nedladdning även här
-                arkiv_buffer = io.BytesIO(item['data'])
-                st.download_button(label="💾 JPG", data=arkiv_buffer, file_name=f"{fname_arkiv}.jpg", mime="image/jpeg", key=f"dl_{item['id']}")
+                # Fix för arkiv-nedladdning
+                a_buf = io.BytesIO(item['data'])
+                a_buf.seek(0)
+                st.download_button("💾 JPG", data=a_buf, file_name=f"{get_safe_filename(item['prompt'])}.jpg", mime="image/jpeg", key=f"dl_{item['id']}")
                 if st.button("SLÄNG", key=f"del_{item['id']}"):
                     st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]
                     st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# (Ljudmodulen lämnas oförändrad för stabilitet)
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
 
