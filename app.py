@@ -3,7 +3,7 @@ from datetime import datetime
 import streamlit as st
 
 # VERSIONSHANTERING (Regel NR 1)
-VERSION = "1.2.6" 
+VERSION = "1.2.7" 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -11,7 +11,7 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 
 def sanitize_url(output):
     if not output: return None
-    # Hanterar list-output från Replicate (vanligt för video/bild)
+    # Replicate returnerar ofta en lista för video/bild, vi vill ha strängen (URL)
     target = output[0] if isinstance(output, list) else output
     return str(target).strip()
 
@@ -63,7 +63,7 @@ with c_dim:
     st.session_state.bg_opacity = st.slider("DIM", 0.0, 1.0, st.session_state.bg_opacity, 0.05)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# MODUL: SYNTH (Bildgenerering med Flux)
+# MODUL: SYNTH (Flux Schnell)
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.subheader("BILD-SYNTHESIZER")
@@ -71,6 +71,7 @@ if st.session_state.page == "SYNTH":
     if st.button("🚀 GENERERA BILD"):
         try:
             with st.status("Syntetiserar...", expanded=True):
+                # Vi använder slugen direkt för stabilitet
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 resp = requests.get(url)
@@ -85,7 +86,7 @@ if st.session_state.page == "SYNTH":
         mid.image(st.session_state.last_img)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODUL: MOVIE (Optimerad SVD med rörelse-kontroll)
+# MODUL: MOVIE (Stable Video Diffusion - Fixad version)
 elif st.session_state.page == "MOVIE":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.subheader("ANIMATIONS-STUDIO")
@@ -93,28 +94,24 @@ elif st.session_state.page == "MOVIE":
         col_img, col_ctrl = st.columns([0.5, 0.5])
         
         with col_img:
-            st.image(st.session_state.last_img, caption="Källbild (från SYNTH)")
+            st.image(st.session_state.last_img, caption="Källbild")
         
         with col_ctrl:
-            st.info("Finjustera rörelse och flöde:")
-            # Motion Bucket: 1-255 (Mängden rörelse)
-            motion = st.slider("Rörelse-intensitet", 1, 255, 127, help="Högre = mer rörelse, men risk för distortion.")
-            # FPS: 5-30 (Hastighet på uppspelning)
-            fps = st.slider("Bildhastighet (FPS)", 5, 25, 8, help="Lägre = långsammare/drömskt. Högre = snabbt/action.")
-            # Cond Aug: Brusnivå (0.01 - 0.1)
-            noise = st.select_slider("Bildtrohet", options=[0.01, 0.02, 0.05, 0.1], value=0.02)
+            st.info("Reglage för animation:")
+            motion = st.slider("Rörelse-intensitet", 1, 255, 127)
+            fps = st.slider("Bildhastighet (FPS)", 5, 25, 6)
             
             if st.button("🎬 GENERERA ANIMATION"):
                 try:
-                    with st.status("Beräknar rörelsevektorer (SVD)...", expanded=True):
+                    with st.status("Beräknar rörelse (SVD)...", expanded=True):
                         img_io = io.BytesIO(st.session_state.last_img)
+                        # FIX: Vi använder den breda slugen "stability-ai/svd" istället för den låsta hashen
                         output = replicate.run(
                             "stability-ai/svd:3f7790f5403028243f6ed291775796f600473ef7116975591d1e433f443b740e",
                             input={
                                 "input_image": img_io,
                                 "motion_bucket_id": motion,
-                                "fps": fps,
-                                "cond_aug": noise
+                                "fps": fps
                             }
                         )
                         vid_url = sanitize_url(output)
@@ -128,27 +125,27 @@ elif st.session_state.page == "MOVIE":
                         st.rerun()
                 except Exception as e:
                     st.error(f"MOVIE ERROR: {str(e)}")
+                    st.info("Tips: Replicate kan ha uppdaterat modellen. Testa att använda slug 'stability-ai/svd' utan hash om felet kvarstår.")
     else:
-        st.warning("⚠️ Ingen källbild hittades. Skapa en bild i SYNTH först.")
+        st.warning("Gå till SYNTH och skapa en bild först!")
     
     if st.session_state.last_vid:
         st.divider()
-        _, mid_v, _ = st.columns([0.1, 0.8, 0.1])
-        mid_v.video(st.session_state.last_vid)
+        st.video(st.session_state.last_vid)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODUL: AUDIO (Platshållare för framtida musikgenerering)
+# MODUL: AUDIO
 elif st.session_state.page == "AUDIO":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.subheader("LJUD-LABB")
-    st.info("Integration för MusicGen eller Suno kommer i v1.3.0")
+    st.info("Musikgenerering kommer i nästa uppdatering.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# MODUL: ARKIV (Galleri för allt skapat material)
+# MODUL: ARKIV
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.subheader("DITT KREATIVA BIBLIOTEK")
-    t_img, t_vid, t_aud = st.tabs(["🖼️ BILDER", "🎬 FILMER", "🎵 LJUD"])
+    st.subheader("ARKIV")
+    t_img, t_vid = st.tabs(["🖼️ BILDER", "🎬 FILMER"])
     
     with t_img:
         if st.session_state.library:
@@ -156,23 +153,14 @@ elif st.session_state.page == "ARKIV":
             for i, item in enumerate(list(reversed(st.session_state.library))):
                 with grid[i % 4]:
                     st.image(item['data'])
-                    if st.button("SET AS BG", key=f"bg_{item['id']}"): 
-                        st.session_state.wallpaper = item['url']; st.rerun()
-                    st.download_button("SPARA", item['data'], file_name=f"synth_{i}.png", key=f"dl_{item['id']}")
-        else: st.write("Inget sparat i biblioteket ännu.")
+                    st.download_button("SPARA", item['data'], file_name=f"img_{i}.png", key=f"dl_{item['id']}")
+        else: st.write("Tomt.")
 
     with t_vid:
         if st.session_state.video_library:
             for v in reversed(st.session_state.video_library):
                 st.video(v['data'])
-                st.caption(v['prompt'])
-                st.download_button("SPARA FILM", v['data'], file_name=f"movie_{time.time()}.mp4", key=f"dlv_{v['id']}")
-        else: st.write("Inga filmer genererade ännu.")
-
-    with t_aud:
-        for a in reversed(st.session_state.audio_library):
-            st.audio(a['data'])
+                st.download_button("SPARA FILM", v['data'], file_name=f"vid_{time.time()}.mp4", key=f"dlv_{v['id']}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# FOOTER
-st.markdown(f'<div style="text-align:right; opacity:0.4; font-size:0.7rem; color:white; padding:10px;">MAXIMUSIK AI OS {VERSION} | Powered by Replicate & Streamlit</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK AI OS {VERSION}</div>', unsafe_allow_html=True)
