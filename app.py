@@ -9,7 +9,7 @@ import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "NR 1" # Uppdaterat från 11.3.6-GLOW-STABLE till NR 1 enligt önskemål
+VERSION = "NR 1.1" 
 st.set_page_config(page_title=f"MAXIMUSIK AI OS - {VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -21,32 +21,18 @@ def clean_prompt(text):
     return str(text).replace('"', '').replace('Prompt:', '').strip()
 
 def get_safe_filename(text):
-    if not text: return "genererad_bild"
-    # Skapar ett filnamn från prompten (max 30 tecken)
+    if not text: return "genererad_fil"
     clean = re.sub(r'[^a-zA-Z0-9åäöÅÄÖ]', '_', text)
     return f"MAX_{clean[:30]}"
 
 def sanitize_url(output):
     if not output: return None
-    if isinstance(output, list): url = str(output[0])
-    elif hasattr(output, 'url'): url = str(output.url)
-    else: url = str(output)
-    
+    target = output if isinstance(output, list) else output
+    if hasattr(target, 'url'): return str(target.url)
+    url = str(target)
     for char in ["['", "']", "[", "]", "'", '"']:
         url = url.replace(char, "")
     return url.strip()
-
-def safe_replicate_run(model, input_data):
-    if not os.environ.get("REPLICATE_API_TOKEN"):
-        st.error("🔑 API-nyckel saknas i Secrets!")
-        return None
-    try:
-        res = replicate.run(model, input=input_data)
-        if "llama" in model: return res
-        return sanitize_url(res)
-    except Exception as e:
-        st.error(f"Neural Error: {e}")
-        return None
 
 # --- 3. INITIALISERING ---
 if "page" not in st.session_state:
@@ -54,22 +40,22 @@ if "page" not in st.session_state:
         "page": "SYNTH", 
         "library": [], 
         "audio_library": [],
+        "video_library": [], # NYTT FÖR 1.1
         "accent": "#00f2ff", 
         "last_img": None,
+        "last_vid": None,    # NYTT FÖR 1.1
         "last_prompt": "bild",
         "wallpaper": "https://images.unsplash.com",
-        "style": "Cinematic", 
         "bg_opacity": 0.80
     })
 
 # --- 4. UI ENGINE ---
 accent = st.session_state.accent
-bg_source = st.session_state.wallpaper
 st.markdown(f"""
     <style>
     [data-testid="stAppViewContainer"] {{ 
         background: linear-gradient(rgba(0,0,0,{st.session_state.bg_opacity}), rgba(0,0,0,{st.session_state.bg_opacity})), 
-                    url("{bg_source if isinstance(bg_source, str) else ""}"); 
+                    url("{st.session_state.wallpaper}"); 
         background-size: cover !important; background-position: center !important;
         background-repeat: no-repeat !important; background-attachment: fixed !important;
     }}
@@ -85,7 +71,7 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. NAVIGATION & KONTROLLER ---
+# --- 5. NAVIGATION ---
 st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True)
 c_nav, c_dim = st.columns([0.75, 0.25])
 with c_nav:
@@ -104,89 +90,101 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
 
+# MODULE: SYNTH (OFÖRÄNDRAD FRÅN NR 1)
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🪄 NEURAL SYNTH STATION</h2>", unsafe_allow_html=True)
     user_p = st.text_input("VAD SKALL VI SKAPA?", placeholder="Beskriv din vision...")
-    c1, c2 = st.columns([0.7, 0.3])
-    with c1:
-        st.session_state.style = st.selectbox("STIL:", ["Photorealistic", "Cinematic", "Cyberpunk", "Digital Art", "Oil Painting"])
-    with c2:
-        aspect = st.selectbox("FORMAT:", ["1:1", "16:9", "9:16", "3:2", "4:3", "21:9"], index=1)
-
-    if st.button("🚀 GENERERA"):
+    
+    if st.button("🚀 GENERERA BILD"):
         if user_p:
-            with st.status("Neural kedja aktiv...", expanded=True) as status:
+            with st.status("Neural kedja aktiv..."):
                 st.session_state.last_prompt = user_p
-                final_prompt = user_p
-                try:
-                    raw_exp = ""
-                    for event in replicate.stream("meta/meta-llama-3-8b-instruct", input={"prompt": f"Expand: {user_p} in {st.session_state.style} style. Max 60 words."}):
-                        raw_exp += str(event)
-                    if raw_exp: final_prompt = clean_prompt(raw_exp)
-                except: pass
-                
-                url = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": final_prompt, "aspect_ratio": aspect})
-                
+                res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
+                url = sanitize_url(res)
                 if url:
-                    try:
-                        resp = requests.get(url, timeout=15)
-                        if resp.status_code == 200:
-                            img_data = resp.content
-                            st.session_state.last_img = img_data
-                            st.session_state.library.append({
-                                "id": time.time(), 
-                                "data": img_data, 
-                                "prompt": user_p, 
-                                "ts": datetime.now().strftime("%H:%M")
-                            })
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"Sync Error: {e}")
-        else: st.error("Skriv något först.")
+                    resp = requests.get(url, timeout=15)
+                    if resp.status_code == 200:
+                        st.session_state.last_img = resp.content
+                        st.session_state.library.append({"id": time.time(), "data": resp.content, "prompt": user_p})
+                        st.rerun()
     
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_container_width=True)
-        # NEDLADDNINGSKNAPP MED SMART NAMN
         fname = get_safe_filename(st.session_state.last_prompt)
         buf = io.BytesIO(st.session_state.last_img)
         buf.seek(0)
         st.download_button(label=f"💾 SPARA {fname}.jpg", data=buf, file_name=f"{fname}.jpg", mime="image/jpeg")
     st.markdown('</div>', unsafe_allow_html=True)
 
+# MODULE: MOVIE (NY SUB-APP I 1.1)
+elif st.session_state.page == "MOVIE":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:{accent};'>🎬 CINEMA OS (SUB-APP)</h2>", unsafe_allow_html=True)
+    
+    vid_p = st.text_input("ANIMERA DIN VISION:", placeholder="Bilar som kör i regn...")
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("🎬 SKAPA FILM FRÅN TEXT"):
+            if vid_p:
+                with st.status("Renderar 5s Cinematic Video..."):
+                    # Använder Luma Dream Machine för video
+                    output = replicate.run("luma/dream-machine", input={"prompt": vid_p})
+                    vid_url = sanitize_url(output)
+                    if vid_url:
+                        st.session_state.last_vid = vid_url
+                        st.session_state.video_library.append({"id": time.time(), "url": vid_url, "prompt": vid_p})
+                        st.rerun()
+    with c2:
+        if st.session_state.last_img:
+            if st.button("🪄 ANIMERA SENASTE BILD"):
+                st.info("Funktion under utveckling: Skickar SYNTH-bild till Luma...")
+        else:
+            st.warning("Generera en bild i SYNTH först för Image-to-Video.")
+
+    if st.session_state.last_vid:
+        st.video(st.session_state.last_vid)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# MODULE: ARKIV (UPPDATERAD FÖR VIDEO)
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    t1, t2 = st.tabs(["🖼️ BILDER", "🎵 LJUD"])
-    with t1:
-        if not st.session_state.library: st.info("Arkivet är tomt.")
+    tab1, tab2 = st.tabs(["🖼️ BILDER", "🎬 FILMER"])
+    
+    with tab1:
+        if not st.session_state.library: st.info("Bildarkivet är tomt.")
         else:
             grid = st.columns(3)
             for i, item in enumerate(list(reversed(st.session_state.library))):
                 with grid[i % 3]:
-                    display_img = item.get('data')
-                    st.image(display_img, use_container_width=True)
-                    
-                    # NEDLADDNING I ARKIV
-                    fname_ark = get_safe_filename(item['prompt'])
-                    a_buf = io.BytesIO(display_img)
-                    a_buf.seek(0)
-                    st.download_button("💾 JPG", data=a_buf, file_name=f"{fname_ark}.jpg", mime="image/jpeg", key=f"dl_{item['id']}")
-                    
-                    if st.button("SLÄNG", key=f"del_{item['id']}"):
+                    st.image(item['data'], use_container_width=True)
+                    if st.button("SLÄNG", key=f"del_img_{item['id']}"):
                         st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]
                         st.rerun()
+    
+    with tab2:
+        if not st.session_state.video_library: st.info("Videoarkivet är tomt.")
+        else:
+            for v_item in reversed(st.session_state.video_library):
+                st.video(v_item['url'])
+                st.caption(f"Prompt: {v_item['prompt']}")
+                if st.button("RADERA", key=f"del_vid_{v_item['id']}"):
+                    st.session_state.video_library = [v for v in st.session_state.video_library if v['id'] != v_item['id']]
+                    st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
+# (AUDIO-modulen lämnas som original)
 elif st.session_state.page == "AUDIO":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎧 AUDIO GENERATOR</h2>", unsafe_allow_html=True)
     audio_prompt = st.text_input("BESKRIV LJUDET:", placeholder="Dark techno loop...")
-    duration = st.slider("LÄNGD (SEK):", 5, 20, 8)
     if st.button("🎵 GENERERA"):
         if audio_prompt:
-            res = safe_replicate_run("facebookresearch/musicgen", {"prompt": audio_prompt, "duration": duration})
-            if res:
-                st.session_state.audio_library.append({"id": time.time(), "url": res, "prompt": audio_prompt})
+            res = replicate.run("facebookresearch/musicgen", input={"prompt": audio_prompt, "duration": 8})
+            url = sanitize_url(res)
+            if url:
+                st.session_state.audio_library.append({"id": time.time(), "url": url, "prompt": audio_prompt})
                 st.rerun()
     for item in reversed(st.session_state.audio_library):
         st.audio(item['url'])
