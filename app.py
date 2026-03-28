@@ -7,7 +7,7 @@ import streamlit as st
 import requests
 
 # --- 1. KÄRN-KONFIGURATION ---
-VERSION = "11.3.6-GLOW-STABLE"
+VERSION = "11.3.8-GLOW-STABLE"
 st.set_page_config(page_title=f"MAXIMUSIK AI OS v{VERSION}", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
@@ -19,12 +19,10 @@ def clean_prompt(text):
     return str(text).replace('"', '').replace('Prompt:', '').strip()
 
 def sanitize_url(output):
-    # REGEL: Fixar MediaFileStorageError genom att rensa bort [' '] från URL-strängen
     if not output: return None
-    if isinstance(output, list): url = str(output[0])
+    if isinstance(output, list): url = str(output)
     elif hasattr(output, 'url'): url = str(output.url)
     else: url = str(output)
-    
     for char in ["['", "']", "[", "]", "'", '"']:
         url = url.replace(char, "")
     return url.strip()
@@ -56,13 +54,11 @@ if "page" not in st.session_state:
 
 # --- 4. UI ENGINE ---
 accent = st.session_state.accent
-# Hantera bakgrund oavsett om det är URL eller Bytes (för arkiv-val)
-bg_source = st.session_state.wallpaper
 st.markdown(f"""
     <style>
     [data-testid="stAppViewContainer"] {{ 
         background: linear-gradient(rgba(0,0,0,{st.session_state.bg_opacity}), rgba(0,0,0,{st.session_state.bg_opacity})), 
-                    url("{bg_source if isinstance(bg_source, str) else ""}"); 
+                    url("{st.session_state.wallpaper if isinstance(st.session_state.wallpaper, str) else ""}"); 
         background-size: cover !important; background-position: center !important;
         background-repeat: no-repeat !important; background-attachment: fixed !important;
     }}
@@ -71,19 +67,19 @@ st.markdown(f"""
         border: 1px solid {accent}33; border-radius: 20px; padding: 25px; margin-bottom: 20px;
     }}
     h1, h2, h3, label, p {{ color: white !important; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); }}
-    .stButton>button {{ 
+    .stButton>button, .stDownloadButton>button {{ 
         border: 1px solid {accent}66 !important; background: {accent}11 !important; 
         color: white !important; border-radius: 12px; font-weight: bold; width: 100%;
     }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. NAVIGATION & KONTROLLER ---
+# --- 5. NAVIGATION ---
 st.markdown('<div class="glass" style="padding: 10px;">', unsafe_allow_html=True)
 c_nav, c_dim = st.columns([0.75, 0.25])
 with c_nav:
     nc = st.columns(6)
-    nav = [("🏠","HOME",True), ("🪄","SYNTH",False), ("🎧","AUDIO",False), ("🎬","MOVIE",True), ("📚","ARKIV",False), ("⚙️","SYSTEM",True)]
+    nav = [("🏠","HOME",True), ("🪄","SYNTH",False), ("🎧","AUDIO",False), ("🎬","MOVIE",False), ("📚","ARKIV",False), ("⚙️","SYSTEM",True)]
     for i, (icon, target, locked) in enumerate(nav):
         if not locked:
             if nc[i].button(icon, key=f"nav_{target}"): 
@@ -122,7 +118,6 @@ if st.session_state.page == "SYNTH":
                 
                 if url:
                     try:
-                        # IMPACT ANALYSIS FIX: Ladda ner bilden för att undvika MediaFileStorageError
                         resp = requests.get(url, timeout=15)
                         if resp.status_code == 200:
                             img_data = resp.content
@@ -166,15 +161,19 @@ elif st.session_state.page == "ARKIV":
             grid = st.columns(3)
             for i, item in enumerate(list(reversed(st.session_state.library))):
                 with grid[i % 3]:
-                    # Visa antingen rådata eller URL om det är en gammal post
                     display_img = item.get('data') if item.get('data') else item.get('url')
                     st.image(display_img, use_container_width=True)
-                    b1, b2 = st.columns(2)
-                    if b1.button("VÄLJ", key=f"set_{item['id']}"):
-                        # Bakgrund fungerar bäst med URL, så vi sparar referensen
-                        st.session_state.wallpaper = item.get('url') if item.get('url') else "https://images.unsplash.com"
-                        st.rerun()
-                    if b2.button("SLÄNG", key=f"del_{item['id']}"):
+                    
+                    # --- NYTT: NEDLADDNING I ARKIVET ---
+                    st.download_button(
+                        label="💾 HÄMTA", 
+                        data=display_img, 
+                        file_name=f"maximusik_{item['id']}.png", 
+                        mime="image/png", 
+                        key=f"dl_arkiv_{item['id']}"
+                    )
+                    
+                    if st.button("SLÄNG", key=f"del_{item['id']}"):
                         st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]
                         st.rerun()
     with t2:
@@ -186,532 +185,3 @@ elif st.session_state.page == "ARKIV":
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
