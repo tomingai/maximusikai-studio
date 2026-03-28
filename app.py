@@ -9,8 +9,8 @@ import time
 from datetime import datetime
 
 # --- 1. SYSTEM-KONFIGURATION ---
-# VERSION: 10.0.0 | STATUS: SELF-TEST RESTORED | REGLER 1-20
-st.set_page_config(page_title="MAXIMUSIK AI OS v10.0.0", layout="wide", initial_sidebar_state="collapsed")
+# VERSION: 10.1.0 | STATUS: DYNAMIC ROUTING & AUTO-FIX | REGLER 1-21
+st.set_page_config(page_title="MAXIMUSIK AI OS v10.1.0", layout="wide", initial_sidebar_state="collapsed")
 
 if "REPLICATE_API_TOKEN" in st.secrets:
     os.environ["REPLICATE_API_TOKEN"] = st.secrets["REPLICATE_API_TOKEN"]
@@ -18,24 +18,33 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 DB_FILE = "maximusik_history.json"
 ERROR_LOG_FILE = "system_errors.log"
 
-# --- 2. DIAGNOSTIK & SJÄLVTEST (Regel 19) ---
+# --- 2. DIAGNOSTIK & AUTO-FIX (Regel 19 & 21) ---
 def run_system_check():
-    """Testar alla vitala systemfunktioner."""
     status = {}
-    # Test 1: API Token
     status["API_KEY"] = "REPLICATE_API_TOKEN" in st.secrets or os.environ.get("REPLICATE_API_TOKEN") is not None
-    # Test 2: Databas/Fil-åtkomst
     try:
-        if not os.path.exists(DB_FILE):
-            with open(DB_FILE, "w") as f: json.dump([], f)
+        with open(DB_FILE, "r") as f: json.load(f)
         status["DATABASE"] = True
     except: status["DATABASE"] = False
-    # Test 3: Replicate Connectivity
     try:
+        # Testar anslutning till huvudmodellen
         replicate.models.get("black-forest-labs/flux-schnell")
         status["AI_ENGINE"] = True
     except: status["AI_ENGINE"] = False
     return status
+
+def repair_database():
+    """Regel 21: Auto-Fix för korrupt historikfil."""
+    try:
+        backup_file = f"backup_{datetime.now().strftime('%Y%m%d')}.json"
+        if os.path.exists(DB_FILE):
+            os.rename(DB_FILE, backup_file)
+        with open(DB_FILE, "w") as f:
+            json.dump([], f)
+        st.session_state.library = []
+        add_log("SYSTEM: Databas återställd och backup skapad.")
+        return True
+    except: return False
 
 def add_log(message, is_error=False):
     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -44,10 +53,20 @@ def add_log(message, is_error=False):
     st.session_state.logs.append(f"[{timestamp}] {'⚠️' if is_error else '🤖'} {message}")
     if len(st.session_state.logs) > 20: st.session_state.logs.pop(0)
 
-def safe_replicate_run(model, input_data, context="GENERAL"):
+def safe_replicate_run(model_alias, input_data, context="GENERAL"):
+    """Dynamic Routing: Använder alias istället för fasta hashar (Regel 21)."""
+    # Mappa alias till stabila sökvägar
+    models = {
+        "FLUX": "black-forest-labs/flux-schnell",
+        "MUSIC": "meta/musicgen",
+        "VISION": "lucataco/moondream2",
+        "VIDEO": "stability-ai/video-diffusion"
+    }
+    target = models.get(model_alias, model_alias)
+    
     for attempt in range(2):
         try:
-            return replicate.run(model, input=input_data)
+            return replicate.run(target, input=input_data)
         except Exception as e:
             if attempt == 1:
                 report_error(f"{context}: {str(e)[:40]}")
@@ -81,7 +100,7 @@ def clean_url(res):
         return str(res)
     except: return None
 
-# --- 3. UI ENGINE (Regel 2 & Transparency) ---
+# --- 3. UI ENGINE ---
 def apply_ui():
     accent = st.session_state.accent_color
     bright = st.session_state.brightness
@@ -97,17 +116,11 @@ def apply_ui():
         .window-box {{ background: rgba(0, 5, 15, 0.9); backdrop-filter: blur(30px); border: 1px solid {accent}33; border-radius: 20px; padding: 25px; min-height: 80vh; }}
         .nav-bar {{ display: flex; justify-content: space-around; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 15px; margin-bottom: 20px; border: 1px solid {accent}11; }}
         h1, h2, h3, p, label {{ color: {accent} !important; font-family: 'Courier New', monospace !important; }}
-        
         div[data-testid="stButton"] button {{
-            background: transparent !important;
-            color: {accent} !important;
-            border: 1px solid {accent}55 !important;
-            width: 100%;
-            border-radius: 10px !important;
-            height: 3rem;
+            background: transparent !important; color: {accent} !important;
+            border: 1px solid {accent}55 !important; width: 100%; border-radius: 10px !important; height: 3rem;
         }}
         div[data-testid="stButton"] button:hover {{ background: {accent}11 !important; border-color: {accent} !important; }}
-        
         .status-dot {{ height: 10px; width: 10px; background-color: {alert_c}; border-radius: 50%; box-shadow: 0 0 10px {alert_c}; display: inline-block; }}
         .log-box {{ background: #000; color: #0f0; font-family: 'Courier New', monospace; padding: 10px; border-radius: 10px; font-size: 0.75rem; height: 150px; border: 1px solid #0f02; overflow-y: scroll; }}
         audio, video {{ filter: sepia(1) saturate(5) hue-rotate(160deg); border-radius: 10px; width: 100%; }}
@@ -122,14 +135,14 @@ if "page" not in st.session_state:
         "accent_color": "#00f2ff",
         "brightness": 0.5,
         "library": load_history(),
-        "logs": ["OS v10.0.0 KERNEL LOADED"],
+        "logs": ["OS v10.1.0 KERNEL LOADED"],
         "system_alert": False,
         "last_image_res": None, "last_audio_res": None, "last_synth_p": ""
     })
 
 apply_ui()
 
-# --- 5. NAVIGATION ---
+# --- 5. NAVIGATION & MODULER ---
 if st.session_state.page == "DESKTOP":
     st.markdown(f"<h1 style='text-align:center; letter-spacing:25px; padding-top:20vh; font-size:4rem; font-weight:900;'>MAXIMUSIK</h1>", unsafe_allow_html=True)
     cols = st.columns(6)
@@ -145,37 +158,36 @@ else:
     with nc[-1]: st.markdown(f'<div style="text-align:center; padding-top:5px;"><span class="status-dot"></span></div>', unsafe_allow_html=True)
     st.markdown('</div><div class="window-box">', unsafe_allow_html=True)
 
-    # MODUL: SYSTEM (Återställd med Självtest)
+    # MODUL: SYSTEM (Återställd med Självtest & Auto-Fix)
     if st.session_state.page == "SYSTEM":
         st.write("### ⚙️ SYSTEM-DIAGNOSTIK")
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("🔍 KÖR SJÄLVTEST (REGEL 19)"):
-                with st.spinner("Analyserar..."):
-                    results = run_system_check()
-                    for key, val in results.items():
-                        st.write(f"{'✅' if val else '❌'} {key}")
+            if st.button("🔍 KÖR SJÄLVTEST"):
+                results = run_system_check()
+                for k, v in results.items(): st.write(f"{'✅' if v else '❌'} {k}")
+            if st.button("🛠 REPARERA DATABAS"):
+                if repair_database(): st.success("Åtgärdat!")
             st.session_state.accent_color = st.color_picker("ACCENT", st.session_state.accent_color)
-            st.session_state.brightness = st.slider("BRIGHTNESS", 0.1, 1.0, st.session_state.brightness)
-            if st.button("🟢 CLEAR ALERTS"): st.session_state.system_alert = False; st.rerun()
+            if st.button("🟢 RESET ALERT"): st.session_state.system_alert = False; st.rerun()
         with c2:
             st.write("### 📜 LIVE LOG")
             log_text = "<br>".join(st.session_state.logs[::-1])
             st.markdown(f'<div class="log-box">{log_text}</div>', unsafe_allow_html=True)
 
-    # MODUL: SYNTH (Med Fallback)
+    # MODUL: SYNTH (Med Dynamic Routing)
     elif st.session_state.page == "SYNTH":
         st.write("### 🪄 NEURAL SYNTH")
         p = st.text_area("PROMPT:", value=st.session_state.last_synth_p)
         if st.button("🔥 GENERERA"):
-            prog = st.progress(0, text="Renderar...")
-            img = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": p}, "SYNTH_IMAGE")
+            prog = st.progress(0, text="Renderar bild...")
+            img = safe_replicate_run("FLUX", {"prompt": p}, "SYNTH_IMAGE")
             url = clean_url(img)
             if url:
                 st.session_state.last_image_res = url
                 st.session_state.library.append({"type": "image", "url": url, "prompt": p})
-                prog.progress(70, text="Skapar ljud (Fallback active)...")
-                snd = safe_replicate_run("meta/musicgen:671ac645", {"prompt": p, "duration": 8}, "SYNTH_AUDIO")
+                prog.progress(70, text="Skapar ljud (Dynamic Route)...")
+                snd = safe_replicate_run("MUSIC", {"prompt": p, "duration": 8}, "SYNTH_AUDIO")
                 st.session_state.last_audio_res = clean_url(snd)
                 if st.session_state.last_audio_res:
                     st.session_state.library.append({"type": "audio", "url": st.session_state.last_audio_res, "prompt": p})
@@ -194,6 +206,7 @@ else:
                     save_history(); st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 
