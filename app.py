@@ -37,15 +37,10 @@ def safe_replicate_run(model, input_data):
 # --- 3. INITIALISERING ---
 if "page" not in st.session_state:
     st.session_state.update({
-        "page": "SYNTH", 
-        "library": [], 
-        "audio_library": [],
-        "accent": "#00f2ff", 
-        "last_img": None,
-        "last_audio": None,
+        "page": "SYNTH", "library": [], "audio_library": [],
+        "accent": "#00f2ff", "last_img": None, "last_audio": None,
         "wallpaper": "https://images.unsplash.com",
-        "style": "Cinematic", 
-        "bg_opacity": 0.80
+        "style": "Cinematic", "bg_opacity": 0.80
     })
 
 # --- 4. UI ENGINE ---
@@ -67,11 +62,6 @@ st.markdown(f"""
         border: 1px solid {accent}66 !important; background: {accent}11 !important; 
         color: white !important; border-radius: 12px; font-weight: bold; width: 100%;
     }}
-    .stButton>button[key^="del_"] {{ border: 1px solid #ff4b4b66 !important; background: #ff4b4b22 !important; }}
-    .stDownloadButton>button {{ 
-        border: 1px solid #00ff8866 !important; background: #00ff8822 !important; 
-        color: white !important; border-radius: 12px; width: 100%;
-    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -91,10 +81,10 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. MODULER ---
 
-# --- SYNTH STATION ---
+# --- SYNTH ---
 if st.session_state.page == "SYNTH":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent};'>🪄 NEURAL SYNTH STATION</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color:{accent};'>🪄 SYNTH STATION</h2>", unsafe_allow_html=True)
     user_p = st.text_input("VAD SKALL VI SKAPA?", placeholder="Beskriv din vision...")
     c1, c2 = st.columns([0.7, 0.3])
     with c1:
@@ -104,96 +94,77 @@ if st.session_state.page == "SYNTH":
 
     if st.button("🚀 GENERERA BILD"):
         if user_p:
-            with st.status("Neural kedja aktiv...", expanded=True) as status:
-                final_prompt = user_p
+            with st.status("Skapar...", expanded=True) as status:
+                final_p = user_p
                 try:
-                    raw_exp = ""
-                    for event in replicate.stream("meta/meta-llama-3-8b-instruct", input={"prompt": f"Expand: {user_p} in {st.session_state.style} style. Max 60 words."}):
-                        raw_exp += str(event)
-                    if raw_exp: final_prompt = clean_prompt(raw_exp)
+                    raw = ""
+                    for ev in replicate.stream("meta/meta-llama-3-8b-instruct", input={"prompt": f"Expand: {user_p} ({st.session_state.style})"}):
+                        raw += str(ev)
+                    final_p = clean_prompt(raw)
                 except: pass
-                url = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": final_prompt, "aspect_ratio": aspect})
+                url = safe_replicate_run("black-forest-labs/flux-schnell", {"prompt": final_p, "aspect_ratio": aspect})
                 if url:
                     st.session_state.last_img = url
                     st.session_state.library.append({"id": time.time(), "url": url, "prompt": user_p, "ts": datetime.now().strftime("%H:%M")})
                     st.rerun()
-        else: st.error("Skriv något först.")
-    if st.session_state.last_img:
-        st.image(st.session_state.last_img, use_container_width=True)
+    if st.session_state.last_img: st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- AUDIO STATION (Bild-till-Musik) ---
+# --- AUDIO ---
 elif st.session_state.page == "AUDIO":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
     st.markdown(f"<h2 style='color:{accent};'>🎧 AUDIO GENERATOR</h2>", unsafe_allow_html=True)
     
-    source = st.radio("KÄLLA:", ["Manuellt", "Från Arkiv (Neural Sync)"], horizontal=True)
-    
+    source = st.radio("METOD:", ["Manuellt", "Neural Sync (Från Arkiv)"], horizontal=True)
     audio_prompt = ""
     selected_img = None
 
-    if source == "Från Arkiv (Neural Sync)":
-        if not st.session_state.library:
-            st.warning("Arkivet är tomt. Skapa en bild i SYNTH först.")
+    if source == "Neural Sync (Från Arkiv)":
+        if not st.session_state.library: st.warning("Arkivet är tomt.")
         else:
-            img_options = {f"Bild {i+1}: {img['prompt'][:30]}...": img for i, img in enumerate(reversed(st.session_state.library))}
-            choice = st.selectbox("VÄLJ BILD ATT TONSÄTTA:", list(img_options.keys()))
-            selected_img = img_options[choice]
+            img_map = {f"Bild {i+1}: {img['prompt'][:25]}...": img for i, img in enumerate(reversed(st.session_state.library))}
+            selected_img = img_map[st.selectbox("VÄLJ BILD:", list(img_map.keys()))]
             st.image(selected_img['url'], width=300)
     else:
-        audio_prompt = st.text_input("BESKRIV MUSIKEN:", placeholder="Dark techno loop, 120 BPM...")
+        audio_prompt = st.text_input("PROMPT:", placeholder="Cinematic drums, ambient synth...")
 
-    duration = st.slider("LÄNGD (SEKUNDER):", 5, 20, 10)
+    duration = st.slider("LÄNGD (SEK):", 5, 20, 8)
 
-    if st.button("🎵 KOMPONERA"):
-        with st.status("Neural audio-kedja aktiv...", expanded=True) as status:
-            if source == "Från Arkiv (Neural Sync)" and selected_img:
-                st.write("Analyserar bildens stämning...")
-                analysis = safe_replicate_run("lucataco/moondream2", {
-                    "image": selected_img['url'], 
-                    "prompt": "What is the musical mood of this image? Describe genre and instruments in 10 words."
-                })
-                audio_prompt = analysis
-                st.write(f"Genererad prompt: {audio_prompt}")
+    if st.button("🎵 GENERERA"):
+        with st.status(" Neural Kedja Aktiverad...", expanded=True) as status:
+            if source == "Neural Sync (Från Arkiv)" and selected_img:
+                st.write("Tolkar bild...")
+                audio_prompt = safe_replicate_run("lucataco/moondream2", {"image": selected_img['url'], "prompt": "Describe the musical mood of this image in 5 words."})
             
             if audio_prompt:
-                st.write("Genererar musik via MusicGen...")
-                res = safe_replicate_run("facebookresearch/musicgen:7a76a8258b299b66d0c0a25ef24bc5550f196b771101c5b8a0d212160d77312e", {
-                    "prompt": audio_prompt,
-                    "duration": duration,
-                    "model_version": "small"
+                st.write(f"Komponerar: {audio_prompt}")
+                # Korrigerad referens till MusicGen
+                res = safe_replicate_run("facebookresearch/musicgen", {
+                    "prompt": audio_prompt, "duration": duration, "model_version": "stereo-small"
                 })
                 if res:
                     st.session_state.last_audio = res
                     st.session_state.audio_library.append({"id": time.time(), "url": res, "prompt": audio_prompt, "ts": datetime.now().strftime("%H:%M")})
-                    status.update(label="Musik klar!", state="complete")
                     st.rerun()
 
-    if st.session_state.last_audio:
-        st.audio(st.session_state.last_audio)
+    if st.session_state.last_audio: st.audio(st.session_state.last_audio)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- ARKIV ---
 elif st.session_state.page == "ARKIV":
     st.markdown('<div class="glass">', unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:{accent};'>📚 SYSTEM ARCHIVE</h2>", unsafe_allow_html=True)
-    
     t1, t2 = st.tabs(["🖼️ BILDER", "🎵 LJUD"])
     with t1:
         if not st.session_state.library: st.info("Tomt.")
         else:
             grid = st.columns(3)
-            for i, item in enumerate(list(reversed(st.session_state.library))):
+            for i, item in enumerate(reversed(st.session_state.library)):
                 with grid[i % 3]:
                     st.image(item['url'], use_container_width=True)
-                    b1, b2, b3 = st.columns(3)
-                    if b1.button("VÄLJ", key=f"set_{item['id']}"):
+                    col1, col2 = st.columns(2)
+                    if col1.button("VÄLJ", key=f"set_{item['id']}"):
                         st.session_state.wallpaper = item['url']; st.rerun()
-                    try:
-                        response = requests.get(item['url'])
-                        b2.download_button("💾", data=response.content, file_name=f"art_{item['id']}.webp", mime="image/webp", key=f"dl_{item['id']}")
-                    except: b2.error("!")
-                    if b3.button("🗑️", key=f"del_{item['id']}"):
+                    if col2.button("SLÄNG", key=f"del_{item['id']}"):
                         st.session_state.library = [img for img in st.session_state.library if img['id'] != item['id']]
                         st.rerun()
     with t2:
@@ -202,14 +173,12 @@ elif st.session_state.page == "ARKIV":
             for item in reversed(st.session_state.audio_library):
                 st.markdown(f"**{item['prompt']}**")
                 st.audio(item['url'])
-                if st.button("SLÄNG LJUD", key=f"del_aud_{item['id']}"):
+                if st.button("RADERA", key=f"del_aud_{item['id']}"):
                     st.session_state.audio_library = [a for a in st.session_state.audio_library if a['id'] != item['id']]
                     st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:right; opacity:0.3; font-size:0.7rem; color:white;">MAXIMUSIK OS {VERSION}</div>', unsafe_allow_html=True)
-
-
 
 
 
