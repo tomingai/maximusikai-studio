@@ -22,11 +22,21 @@ def get_safe_filename(text):
     return f"MAX_{clean[:30]}"
 
 def sanitize_url(output):
+    # REGEL: Fixar InvalidURL genom att tvinga fram en ren http-sträng
     if not output: return None
-    if isinstance(output, list) and len(output) > 0: target = output
-    elif hasattr(output, 'url'): target = str(output.url)
-    else: target = str(output)
-    url = str(target).replace("['", "").replace("']", "").replace("'", "").replace('"', "").strip()
+    url = ""
+    if isinstance(output, list) and len(output) > 0:
+        url = str(output[0])
+    elif hasattr(output, 'url'):
+        url = str(output.url)
+    else:
+        url = str(output)
+    
+    # Ta bort allt som inte tillhör en URL
+    url = url.replace("['", "").replace("']", "").replace("[", "").replace("]", "").replace("'", "").replace('"', "").strip()
+    
+    if not url.startswith("http"):
+        return None
     return url
 
 # --- 3. INITIALISERING ---
@@ -69,8 +79,8 @@ c_nav, c_dim = st.columns([0.8, 0.2])
 with c_nav:
     nc = st.columns(6)
     if nc[0].button("🏠"): st.session_state.page = "SYNTH"; st.rerun()
-    if nc[3].button("🎬"): st.session_state.page = "MOVIE"; st.rerun()
-    if nc[4].button("📚"): st.session_state.page = "ARKIV"; st.rerun()
+    if nc[1].button("🎬"): st.session_state.page = "MOVIE"; st.rerun()
+    if nc[2].button("📚"): st.session_state.page = "ARKIV"; st.rerun()
 with c_dim:
     st.session_state.bg_opacity = st.slider("DIM", 0.0, 1.0, st.session_state.bg_opacity, 0.05)
 st.markdown('</div>', unsafe_allow_html=True)
@@ -87,11 +97,16 @@ if st.session_state.page == "SYNTH":
                 res = replicate.run("black-forest-labs/flux-schnell", input={"prompt": user_p, "aspect_ratio": "16:9"})
                 url = sanitize_url(res)
                 if url:
-                    resp = requests.get(url, timeout=15)
-                    if resp.status_code == 200:
-                        st.session_state.last_img = resp.content
-                        st.session_state.library.append({"id": time.time(), "data": resp.content, "prompt": user_p})
-                        st.rerun()
+                    try:
+                        resp = requests.get(url, timeout=15)
+                        if resp.status_code == 200:
+                            st.session_state.last_img = resp.content
+                            st.session_state.library.append({"id": time.time(), "data": resp.content, "prompt": user_p})
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Download error: {e}")
+                else:
+                    st.error("Kunde inte hämta en giltig bild-URL.")
     if st.session_state.last_img:
         st.image(st.session_state.last_img, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -105,30 +120,17 @@ elif st.session_state.page == "MOVIE":
         motion = st.slider("RÖRELSESTYRKA:", 1, 255, 127)
         
         if st.button("🎬 ANIMERA BILD"):
-            # NYTT: Progress-bar och timer
             progress_bar = st.progress(0)
-            status_text = st.empty()
-            
             try:
                 img_stream = io.BytesIO(st.session_state.last_img)
-                # Vi skapar en prediction för att kunna följa status
                 prediction = replicate.predictions.create(
                     model="stability-ai/stable-video-diffusion",
-                    input={
-                        "input_image": img_stream,
-                        "motion_bucket_id": motion,
-                        "video_length": "14_frames_with_svd"
-                    }
+                    input={"input_image": img_stream, "motion_bucket_id": motion}
                 )
-                
                 start_time = time.time()
                 while prediction.status not in ["succeeded", "failed", "canceled"]:
-                    # Simulera framsteg (genomsnittlig tid 45s)
                     elapsed = int(time.time() - start_time)
-                    percent = min(elapsed * 2, 99) # Ökar mätaren upp till 99%
-                    progress_bar.progress(percent)
-                    status_text.markdown(f"**Status:** {prediction.status}... ({elapsed}s förflutit)")
-                    
+                    progress_bar.progress(min(elapsed * 2, 99))
                     time.sleep(3)
                     prediction.reload()
                 
